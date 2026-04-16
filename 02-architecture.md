@@ -253,6 +253,10 @@ Sensor Signal → Alert (already automated anomaly detection)
 > Мова: **Python**. Frontend: **React + Vite** (Azure Static Web Apps).  
 > MCP servers: **локальний stdio transport**.  
 > Усі 6 gaps з тріажу закрито в цьому дизайні.
+>
+> **Статус деплою (17 квітня 2026):** 7 Azure ресурсів задеплоєно в `ODL-GHAZ-2177134` (Sweden Central).  
+> CI/CD: GitHub Actions `deploy.yml` на push у `main`.  
+> Bicep: `infra/main.bicep` → 5 модулів у `infra/modules/`.
 
 ---
 
@@ -483,8 +487,48 @@ Sensor Signal → Alert (already automated anomaly detection)
 | Frontend | React 18 + Vite + TypeScript | `@azure/msal-react` for Entra ID |
 | Auth | Azure Entra ID (MSAL) | Managed Identities на всіх Functions |
 | Secrets | Azure Key Vault | `azure-keyvault-secrets` + Managed Identity |
-| IaC | Bicep | `infra/main.bicep` + modules |
-| CI/CD | GitHub Actions | `.github/workflows/` |
+| IaC | Bicep | `infra/main.bicep` + 5 modules |
+| CI/CD | GitHub Actions | `.github/workflows/ci.yml` (PR) + `deploy.yml` (push main) |
+
+---
+
+### 8.8 Задеплоєні Azure ресурси
+
+> Subscription: `Sandbox AI DS - 1003462` (`d16bb0b5-b7b2-4c3b-805b-f7ccb9ce3550`)  
+> Resource Group: `ODL-GHAZ-2177134`  
+> Region: **Sweden Central**  
+> Bicep модуль: `infra/main.bicep` → `infra/modules/`  
+> Унікальний суфікс RG: `erzrpo`
+
+| Azure ресурс | Ім'я | Тип | Bicep модуль | Призначення |
+|---|---|---|---|---|
+| Storage Account | `stsentinelintelerzrpo` | `Microsoft.Storage/storageAccounts` | `modules/storage.bicep` | Стан Durable Functions + Blob container `documents` |
+| Log Analytics | `log-sentinel-intel-dev-erzrpo` | `Microsoft.OperationalInsights/workspaces` | `modules/monitoring.bicep` | Workspace для App Insights (30 днів retention) |
+| Application Insights | `appi-sentinel-intel-dev-erzrpo` | `Microsoft.Insights/components` | `modules/monitoring.bicep` | Traces, metrics, exceptions для Functions |
+| Cosmos DB Account | `cosmos-sentinel-intel-dev-erzrpo` | `Microsoft.DocumentDB/databaseAccounts` | `modules/cosmos.bicep` | Serverless, database `sentinel-intelligence`, 5 containers |
+| Service Bus | `sb-sentinel-intel-dev-erzrpo` | `Microsoft.ServiceBus/namespaces` | `modules/servicebus.bicep` | Standard tier, queue `alert-queue` (maxDelivery=5, DLQ) |
+| App Service Plan | `asp-func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/serverFarms` | `modules/functions.bicep` | Consumption plan (Y1), Linux |
+| Azure Functions | `func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/sites` | `modules/functions.bicep` | Python 3.11, `function_app.py` |
+
+**Cosmos DB containers** (в БД `sentinel-intelligence`):
+
+| Container | Partition Key | Призначення |
+|---|---|---|
+| `incidents` | `/equipmentId` | Основний документ incident + AI analysis |
+| `equipment` | `/id` | Mock CMMS: master data, validated params |
+| `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
+| `capa-plans` | `/incidentId` | Згенеровані CAPA plans |
+| `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks |
+
+**Ще не задеплоєно** (наступні кроки):
+
+| Ресурс | Тип | Tasks |
+|---|---|---|
+| Azure AI Search | `Microsoft.Search/searchServices` | T-037 |
+| Azure SignalR | `Microsoft.SignalRService/signalR` | T-030 |
+| Azure Key Vault | `Microsoft.KeyVault/vaults` | T-038 |
+| Azure Static Web App | `Microsoft.Web/staticSites` | T-032 |
+| Azure AI Foundry | `Microsoft.CognitiveServices/accounts` | T-025–T-027 |
 
 ---
 
@@ -494,6 +538,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 |---|---|---|---|
 | 2026-03-26 | v1.0 | Initial submission | — |
 | 2026-04-17 | v2.0 | Full implementation design: Durable Functions, Cosmos DB, SignalR, Service Bus, 3 MCP servers, React frontend, Entra ID RBAC, Key Vault, Bicep IaC, GitHub Actions | Gap #1–6 ✅ |
+| 2026-04-17 | v2.1 | **First deployment:** 7 Azure ресурсів задеплоєно через Bicep. GitHub Actions CI/CD зелений. `func-sentinel-intel-dev-erzrpo` живий. Cosmos DB Serverless (5 containers). Service Bus `alert-queue`. App Insights + Log Analytics. | T-041, T-042 ✅ |
 
 ---
 
