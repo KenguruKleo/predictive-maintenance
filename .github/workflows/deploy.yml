@@ -6,6 +6,7 @@ on:
   workflow_dispatch:       # manual trigger for demo
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'ODL-GHAZ-2177134' }}
   FUNCTIONS_APP_NAME: ${{ vars.FUNCTIONS_APP_NAME || 'func-sentinel-intel-dev' }}
   STATIC_WEB_APP_NAME: ${{ vars.STATIC_WEB_APP_NAME || 'swa-sentinel-intel-dev' }}
