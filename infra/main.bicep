@@ -17,9 +17,8 @@ param environmentName string = 'dev'
 @maxLength(16)
 param projectName string = 'sentinel-intel'
 
-@description('Unique suffix appended to globally-scoped names (storage, KV, CosmosDB).')
-@maxLength(6)
-param uniqueSuffix string = uniqueString(resourceGroup().id)
+@description('Unique suffix appended to globally-scoped names (storage, KV, CosmosDB). Auto-derived from RG id.')
+param uniqueSuffix string = substring(uniqueString(resourceGroup().id), 0, 6)
 
 // ── Variables ─────────────────────────────────────────────────────────────────
 
