@@ -6,9 +6,9 @@ on:
   workflow_dispatch:       # manual trigger for demo
 
 env:
-  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP }}
-  FUNCTIONS_APP_NAME: ${{ vars.FUNCTIONS_APP_NAME }}
-  STATIC_WEB_APP_NAME: ${{ vars.STATIC_WEB_APP_NAME }}
+  AZURE_RESOURCE_GROUP: ${{ vars.AZURE_RESOURCE_GROUP || 'ODL-GHAZ-2177134' }}
+  FUNCTIONS_APP_NAME: ${{ vars.FUNCTIONS_APP_NAME || 'func-sentinel-intel-dev' }}
+  STATIC_WEB_APP_NAME: ${{ vars.STATIC_WEB_APP_NAME || 'swa-sentinel-intel-dev' }}
 
 jobs:
   # ── 1. Provision infrastructure via Bicep ───────────────────────────
@@ -45,9 +45,9 @@ jobs:
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --template-file infra/main.bicep \
             --parameters infra/parameters/dev.bicepparam \
-            --output json)
-          echo "functionsAppName=$(echo $RESULT | jq -r '.properties.outputs.functionsAppName.value')" >> "$GITHUB_OUTPUT"
-          echo "staticWebAppUrl=$(echo $RESULT | jq -r '.properties.outputs.staticWebAppUrl.value')" >> "$GITHUB_OUTPUT"
+            --output json 2>&1) || { echo "Bicep deploy output: $RESULT"; exit 1; }
+          echo "functionsAppName=$(echo $RESULT | jq -r '.properties.outputs.functionsAppName.value // empty')" >> "$GITHUB_OUTPUT"
+          echo "staticWebAppUrl=$(echo $RESULT | jq -r '.properties.outputs.staticWebAppUrl.value // empty')" >> "$GITHUB_OUTPUT"
 
   # ── 2. Deploy Azure Functions (Python backend) ──────────────────────
   backend:
