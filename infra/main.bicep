@@ -8,7 +8,7 @@ targetScope = 'resourceGroup'
 // ── Parameters ───────────────────────────────────────────────────────────────
 
 @description('Azure region for all resources.')
-param location string = resourceGroup().location
+param location string = resourceGroup().location  // swedencentral (ODL-GHAZ-2177134)
 
 @allowed(['dev', 'staging', 'prod'])
 param environmentName string = 'dev'
