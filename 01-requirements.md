@@ -199,36 +199,37 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 
 Перевіряємо при кожній ітерації архітектури:
 
-### ✅ Виконано
+### ✅ Виконано (AS-SUBMITTED + v2.0 Designed)
 - [x] Strong GMP problem statement
 - [x] Multi-agent design на Azure AI Foundry
 - [x] RAG на SOP/BPR/CAPA (Azure AI Search)
 - [x] Human approval step (GxP)
 - [x] Audit logging
-- [x] Enterprise integrations назвали (MES, SCADA, CMMS, QMS)
+- [x] Enterprise integrations названі (MES, SCADA, CMMS, QMS)
 - [x] Clear KPIs (< 5 хв decision time)
 - [x] Stakeholders визначені
+- [x] **Track A явно задекларований** — в 02-architecture.md v2.0, GitHub Actions + Bicep (T-041, T-042)
+- [x] **GitHub + CI/CD** — GitHub Actions workflow descriptor (T-042)
+- [x] **Entra ID / Managed Identities** — архітектура описана (T-035, T-038)
+- [x] **RBAC модель** — 5 ролей: operator, qa-manager, maintenance-tech, auditor, it-admin (T-035)
+- [x] **Azure Key Vault** — архітектура описана (T-038)
+- [x] **Event Queue** — Azure Service Bus alert-queue + DLQ (T-022)
+- [x] **Retry / DLQ / Fallback** — Durable retry + fallback mode designed (T-039)
+- [x] **Responsible AI** — confidence gate 0.7, evidence-grounded output (T-040)
+- [x] **Prompt injection defenses** — sanitize_string_fields() in backend (T-040)
+- [x] **Content Safety** — Azure Content Safety on agent output (T-040)
+- [x] **Agent observability** — App Insights + custom metrics (T-040)
+- [x] **Operator UI** — React + Vite operator dashboard designed (T-032, T-033)
+- [x] **Sample decision package** — wireframe з evidence citations в T-033
+- [x] **Конкретний equipment scenario** — GR-204, Granulator, Plant-01, Line-2, 5 mock incidents
+- [x] **IaC** — Bicep infra/main.bicep + modules designed (T-041)
 
-### ❌ Потрібно закрити
-- [ ] Track A явно задекларований у архітектурі
-- [ ] GitHub + CI/CD в архітектурі
-- [ ] Entra ID / Managed Identities
-- [ ] RBAC модель для всіх ролей
-- [ ] Azure Key Vault
-- [ ] Private Endpoints / VNet
-- [ ] Event Queue (Service Bus / Event Hubs)
-- [ ] Retry / DLQ / Fallback
-- [ ] Latency SLOs та cost controls
-- [ ] Token budgets / caching
-- [ ] Responsible AI (confidence thresholds, evidence gating)
-- [ ] Prompt injection defenses
-- [ ] Content Safety
-- [ ] Agent observability (трасування output-ів)
-- [ ] Model versioning / rollback
-- [ ] Operator UI / approval interface
-- [ ] Sample decision package з evidence
-- [ ] Один конкретний equipment scenario (MVP scope)
-- [ ] IaC (Bicep / Terraform)
+### 🔧 В розробці (реалізація — квітень 2026)
+- [ ] Private Endpoints / VNet — розроблено (T-038), реалізація T-038
+- [ ] Latency SLOs задокументовані в T-039, реалізація під час dev
+- [ ] Token budgets / caching — T-039 nice-to-have
+- [ ] Model versioning / rollback — T-040, App Insights model tracking
+- [ ] Усі implementation задачі T-020 → T-042 (див. [04 · План дій](./04-action-plan.md))
 
 ---
 

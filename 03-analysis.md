@@ -403,14 +403,22 @@ Monitoring setup:
 
 ## 9. Прогрес виправлення gaps
 
-| Gap | Пріоритет | Статус | Де в архітектурі | Задача |
+> Останнє оновлення: 17 квітня 2026 — Architecture v2.0 DESIGNED
+
+| Gap | Пріоритет | Статус | Рішення в v2.0 | Задача |
 |---|---|---|---|---|
-| #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
-| #2 Security | 🔴 HIGH | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
-| #3 Reliability | 🔴 HIGH | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
-| #4 RAI | 🟠 HIGH | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
-| #5 UX | 🟠 MEDIUM | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
-| #6 IaC | 🟡 MEDIUM | 🔜 TODO | [02 §8](./02-architecture.md#8-поточна-версія-in-progress) | [04](./04-action-plan.md) |
+| #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🎨 DESIGNED | GitHub Actions CI/CD (T-042) + Bicep IaC (T-041) + Track A явно в архітектурі | [T-041](./tasks/T-041-bicep-iac.md), [T-042](./tasks/T-042-cicd.md) |
+| #2 Security | 🔴 HIGH | 🎨 DESIGNED | Entra ID + Key Vault + Managed Identities + VNet + 5 RBAC roles | [T-035](./tasks/T-035-rbac.md), [T-038](./tasks/T-038-security.md) |
+| #3 Reliability | 🔴 HIGH | 🎨 DESIGNED | Azure Service Bus DLQ + Durable Functions retry + fallback mode + timeout escalation | [T-022](./tasks/T-022-service-bus.md), [T-039](./tasks/T-039-reliability.md) |
+| #4 RAI | 🟠 HIGH | 🎨 DESIGNED | Confidence gate (0.7) + Content Safety + prompt injection guard + App Insights traces | [T-040](./tasks/T-040-rai.md) |
+| #5 UX | 🟠 MEDIUM | 🎨 DESIGNED | React + Vite operator dashboard + approval UX + SignalR real-time + 5 role views | [T-032](./tasks/T-032-frontend-core.md), [T-033](./tasks/T-033-frontend-approval.md) |
+| #6 IaC | 🟡 MEDIUM | 🎨 DESIGNED | Bicep `infra/main.bicep` + modules для всіх 12 ресурсів | [T-041](./tasks/T-041-bicep-iac.md) |
+
+**Легенда статусів:**  
+🔜 TODO — не розпочато  
+🎨 DESIGNED — архітектура v2.0 описана, задачі створені, реалізація починається  
+🔧 IN PROGRESS — implentation розпочато  
+✅ DONE — реалізовано і перевірено
 
 ---
 

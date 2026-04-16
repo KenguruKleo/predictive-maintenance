@@ -1,0 +1,104 @@
+[
+  {
+    "id": "GR-204",
+    "name": "Granulator GR-204",
+    "type": "High-Shear Granulator",
+    "manufacturer": "Glatt",
+    "model": "GPCG-60",
+    "serial_number": "GLATT-2019-GR204",
+    "location": {
+      "plant": "Plant-01",
+      "building": "Building-B",
+      "room": "Room-204",
+      "line": "Line-2"
+    },
+    "criticality": "critical",
+    "product_contact": true,
+    "validation_status": "validated",
+    "last_pm_date": "2026-01-15",
+    "pm_due_date": "2026-07-15",
+    "last_calibration_date": "2026-02-01",
+    "calibration_due_date": "2026-08-01",
+    "validated_parameters": {
+      "impeller_speed_rpm": { "min": 200, "max": 800, "unit": "RPM" },
+      "chopper_speed_rpm": { "min": 1000, "max": 3000, "unit": "RPM" },
+      "spray_rate_g_min": { "min": 50, "max": 200, "unit": "g/min" },
+      "inlet_air_temp_c": { "min": 40, "max": 70, "unit": "°C" },
+      "inlet_air_flow_m3h": { "min": 600, "max": 1200, "unit": "m³/h" },
+      "product_temp_c": { "min": 30, "max": 50, "unit": "°C" },
+      "exhaust_air_temp_c": { "min": 25, "max": 45, "unit": "°C" }
+    },
+    "associated_sops": [
+      "SOP-MAN-GR-001",
+      "SOP-DEV-001",
+      "SOP-CLN-GR-002"
+    ],
+    "active_work_orders": [],
+    "tags": ["granulation", "wet-granulation", "critical", "line-2"]
+  },
+  {
+    "id": "MIX-102",
+    "name": "Mixer MIX-102",
+    "type": "Planetary Mixer",
+    "manufacturer": "Erweka",
+    "model": "AR-401",
+    "serial_number": "ERW-2020-MX102",
+    "location": {
+      "plant": "Plant-01",
+      "building": "Building-B",
+      "room": "Room-102",
+      "line": "Line-1"
+    },
+    "criticality": "major",
+    "product_contact": true,
+    "validation_status": "validated",
+    "last_pm_date": "2026-02-10",
+    "pm_due_date": "2026-08-10",
+    "last_calibration_date": "2026-03-01",
+    "calibration_due_date": "2026-09-01",
+    "validated_parameters": {
+      "mixing_speed_rpm": { "min": 30, "max": 120, "unit": "RPM" },
+      "mixing_time_min": { "min": 5, "max": 60, "unit": "min" },
+      "temperature_c": { "min": 18, "max": 28, "unit": "°C" }
+    },
+    "associated_sops": [
+      "SOP-MAN-MX-001",
+      "SOP-DEV-001"
+    ],
+    "active_work_orders": [],
+    "tags": ["mixing", "blending", "line-1"]
+  },
+  {
+    "id": "DRY-303",
+    "name": "Dryer DRY-303",
+    "type": "Fluid Bed Dryer",
+    "manufacturer": "Glatt",
+    "model": "WSG-120",
+    "serial_number": "GLATT-2018-DRY303",
+    "location": {
+      "plant": "Plant-01",
+      "building": "Building-B",
+      "room": "Room-303",
+      "line": "Line-2"
+    },
+    "criticality": "critical",
+    "product_contact": true,
+    "validation_status": "validated",
+    "last_pm_date": "2026-01-20",
+    "pm_due_date": "2026-07-20",
+    "last_calibration_date": "2026-01-25",
+    "calibration_due_date": "2026-07-25",
+    "validated_parameters": {
+      "inlet_air_temp_c": { "min": 50, "max": 90, "unit": "°C" },
+      "product_temp_c": { "min": 30, "max": 55, "unit": "°C" },
+      "air_flow_m3h": { "min": 800, "max": 1600, "unit": "m³/h" },
+      "moisture_content_pct": { "min": 1.0, "max": 3.5, "unit": "%" }
+    },
+    "associated_sops": [
+      "SOP-MAN-DRY-001",
+      "SOP-DEV-001"
+    ],
+    "active_work_orders": [],
+    "tags": ["drying", "fluid-bed", "critical", "line-2"]
+  }
+]

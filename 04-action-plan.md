@@ -18,57 +18,89 @@
 ## 1. Поточний фокус
 
 > **Квітень 2026 — Implementation Phase**  
-> Дедлайн фінального submission: 1-й тиждень травня 2026
+> Дедлайн фінального submission: 1-й тиждень травня 2026  
+> Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** _не розпочато_
+**Зараз в роботі:** T-020 → T-028 (Infrastructure + Backend + Agents)
 
-**Наступний крок:** _визначити з командою_
+**Наступний крок:** T-020 Cosmos DB provisioning → T-021 mock data seed →  T-023 ingest API → T-024 Durable Functions
 
 ---
 
 ## 2. Backlog задач
 
-> Задачі будуть додаватись тут. Кожна задача містить пріоритет, gap-посилання та definition of done.  
-> **Порядок у списку ≠ порядок виконання.** Пріоритет і послідовність — у [§3 Sprint план](#3-sprint--iteration-план).
+> Порядок виконання у [§3 Sprint план](#3-sprint--iteration-план).  
+> Кожна задача — окремий файл `tasks/T-NNN-*.md`.
 
 ### Критичні (Must-have для finals)
 
-| ID | Задача | Gap / Вимога | Пріоритет | Статус |
-|---|---|---|---|---|
-| T-001 | **[Оновити архітектурну презентацію](./tasks/T-001-architecture-presentation.md)** — закрити всі gaps, показати реальну збудовану архітектуру (Track A, Security, Reliability, RAI, UX, IaC) | [Gap #1–6](./03-analysis.md#5-топ-6-gaps-для-виправлення) | 🔴 CRITICAL | 🔜 TODO |
-| T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — повна demo презентація додатка; структура, script, DoD | [Вимоги §9](./01-requirements.md#9-deliverables-по-фазах) | 🔴 CRITICAL | 🔜 TODO |
-| T-003 | _TBD — implementation tasks_ | | | |
+| ID | Задача | Gap / Вимога | Пріоритет | Статус | Блокує |
+|---|---|---|---|---|---|
+| T-001 | **[Оновити архітектурну презентацію](./tasks/T-001-architecture-presentation.md)** — закрити всі gaps, показати реальну збудовану архітектуру (Track A, Security, Reliability, RAI, UX, IaC) | Gap #1–6 | 🔴 CRITICAL | 🔜 TODO | T-002 |
+| T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — повна demo презентація | Deliverables | 🔴 CRITICAL | 🔜 TODO | finals |
+| T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 5 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | 🔜 TODO | T-021–T-042 |
+| T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment, batches, 5 incidents, users | demo | 🔴 CRITICAL | 🔜 TODO | demo |
+| T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: create→enrich→agents→notify→wait→execute→finalize | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-029 |
+| T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry Agent + MCP + RAG tools | Gap #4 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry Agent + template fill + confidence gate | Gap #4, #5 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS | — | 🔴 CRITICAL | 🔜 TODO | T-028 |
+| T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-cosmos-db, mcp-qms-mock, mcp-cmms-mock (stdio) | — | 🔴 CRITICAL | 🔜 TODO | T-025–T-027 |
+| T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-030, T-033 |
+| T-031 | **[Backend API Functions](./tasks/T-031-backend-api.md)** — incidents CRUD, templates, equipment, batches endpoints | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-032 |
+| T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-033 |
+| T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | 🔜 TODO | finals |
 
 ### Важливі (Should-have)
 
-| ID | Задача | Gap / Вимога | Пріоритет | Статус |
-|---|---|---|---|---|
-| T-010 | **[Cartoon / анімація «До і Після»](./tasks/T-010-cartoon-animation.md)** — process walkthrough AS-IS vs TO-BE; блокує T-002 | [Вимоги §9](./01-requirements.md#9-deliverables-по-фазах) | 🟠 HIGH | 🔜 TODO |
-| T-011 | _TBD_ | | | |
+| ID | Задача | Gap / Вимога | Пріоритет | Статус | Блокує |
+|---|---|---|---|---|---|
+| T-010 | **[Cartoon / анімація «До і Після»](./tasks/T-010-cartoon-animation.md)** | Deliverables | 🟠 HIGH | 🔜 TODO | T-002 |
+| T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | 🔜 TODO | T-023 |
+| T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | 🔜 TODO | T-033 |
+| T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
+| T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | 🔜 TODO | T-031 |
+| T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → blob trigger → chunk → embed → AI Search | Gap #4 | 🟠 HIGH | 🔜 TODO | T-037 |
+| T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 4 indexes, 10+ chunked documents | Gap #4 | 🟠 HIGH | 🔜 TODO | T-025 |
+| T-041 | **[Bicep IaC templates](./tasks/T-041-bicep-iac.md)** — infra/main.bicep + modules for all resources | Gap #1, #6 | 🟠 HIGH | 🔜 TODO | T-042 |
+| T-042 | **[GitHub Actions CI/CD](./tasks/T-042-cicd.md)** — build, test, Bicep deploy, Foundry eval pipeline | Gap #1 | 🟠 HIGH | 🔜 TODO | finals |
 
 ### Nice-to-have
 
 | ID | Задача | Gap / Вимога | Пріоритет | Статус |
 |---|---|---|---|---|
-| T-020 | _TBD_ | | | |
+| T-038 | **[Security layer](./tasks/T-038-security.md)** — Key Vault, VNet, Private Endpoints, Managed Identities | Gap #2 | 🟡 MEDIUM | 🔜 TODO |
+| T-039 | **[Reliability layer](./tasks/T-039-reliability.md)** — retry policies, fallback mode, circuit breaker, latency SLOs | Gap #3 | 🟡 MEDIUM | 🔜 TODO |
+| T-040 | **[RAI layer](./tasks/T-040-rai.md)** — confidence gate impl, Content Safety API, prompt injection guard, eval metrics | Gap #4 | 🟡 MEDIUM | 🔜 TODO |
 
 ---
 
 ## 3. Sprint / Iteration план
 
-> Заповнюємо після визначення backlog.
+> Дедлайн: 1-й тиждень травня 2026. Орієнтовно 2 тижні до submission.
 
-### Week 1 (квітень)
-_TBD_
+### Week 1 (17–23 квітня) — Infrastructure + Backend + Agents
+| День | Задачі |
+|---|---|
+| 17–18 квіт | T-020 (Cosmos DB) · T-022 (Service Bus) · T-021 (mock data seed) |
+| 19–20 квіт | T-037 (AI Search indexes) · T-036 (document ingestion) · T-028 (MCP servers) |
+| 21–22 квіт | T-023 (ingestion API) · T-024 (Durable orchestrator skeleton) |
+| 23 квіт | T-025 (Research Agent) · T-026 (Document Agent) |
 
-### Week 2 (квітень)
-_TBD_
+### Week 2 (24–30 квітня) — Agents + Frontend + Integration
+| День | Задачі |
+|---|---|
+| 24–25 квіт | T-027 (Execution Agent) · T-029 (human approval API) · T-030 (SignalR) |
+| 26–27 квіт | T-031 (backend API) · T-035 (RBAC) |
+| 28–29 квіт | T-032 (React core) · T-033 (approval UX) |
+| 30 квіт | T-041 (Bicep IaC) · T-042 (GitHub Actions) |
 
-### Week 3 (квітень)
-_TBD_
-
-### Week 4 (квітень) — Finalization
-_TBD_
+### Week 3 (1–7 травня) — Polish + Submission
+| Підзадача |
+|---|
+| T-034 (інші ролі frontend) · T-038/039/040 (security/reliability/RAI layers) |
+| T-001 (оновити презентацію) · T-010 (cartoon AS-IS/TO-BE) · T-002 (відео) |
+| Final submission |
 
 ---
 

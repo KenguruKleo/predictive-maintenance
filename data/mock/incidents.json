@@ -1,0 +1,229 @@
+[
+  {
+    "id": "INC-2026-0001",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2026-0416-GR204",
+    "title": "Impeller Speed Deviation — GR-204 Granulation",
+    "description": "Impeller speed dropped to 580 RPM (validated range: 600–800 RPM) during binder addition phase. Duration: ~4 minutes before self-correction.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "major",
+    "status": "pending_approval",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2026-04-16T08:42:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "impeller_speed_rpm",
+      "measured_value": 580,
+      "lower_limit": 600,
+      "upper_limit": 800,
+      "duration_seconds": 247,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "medium",
+      "confidence": 0.84,
+      "classification": "process_deviation_minor_excursion",
+      "root_cause_hypothesis": "Possible motor load fluctuation during high-viscosity binder phase. No equipment malfunction detected. Batch integrity likely maintained based on duration and magnitude.",
+      "recommendation": "Review granule moisture content and particle size distribution at sampling point. Consider additional in-process testing. Work order for motor load calibration check recommended as preventive measure.",
+      "capa_suggestion": "1. Perform immediate in-process moisture check (target 8–12%). 2. Increase sampling frequency for this batch. 3. Review motor current logs for trending. 4. Schedule preventive calibration of impeller motor load cell within 30 days.",
+      "regulatory_reference": "GMP Annex 15 §6.3 — Process Parameter Deviations; SOP-DEV-001 §4.2",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0001",
+      "current_step": "awaiting_operator_decision",
+      "assigned_to": "ivan.petrenko",
+      "escalation_deadline": "2026-04-17T08:42:00Z"
+    },
+    "created_at": "2026-04-16T08:43:15Z",
+    "updated_at": "2026-04-16T08:43:15Z"
+  },
+  {
+    "id": "INC-2026-0002",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2026-0312-GR204",
+    "title": "Inlet Air Temperature Excursion — 72°C peak",
+    "description": "Inlet air temperature exceeded validated upper limit of 70°C, reaching 72°C for 6 minutes. Batch B26031201 affected during final drying phase of granulation.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "mykola.sydorenko",
+    "reported_at": "2026-03-12T11:22:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "inlet_air_temp_c",
+      "measured_value": 72,
+      "lower_limit": 40,
+      "upper_limit": 70,
+      "duration_seconds": 362,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "high",
+      "confidence": 0.91,
+      "classification": "thermal_process_deviation",
+      "root_cause_hypothesis": "Heating element control loop overshoot. Temperature sensor calibration drift identified as contributing factor.",
+      "recommendation": "Full thermal mapping of batch required. Moisture content testing at 5 sampling points. PSD analysis required before batch release.",
+      "capa_suggestion": "1. Immediate: additional moisture and PSD testing. 2. Short-term: recalibrate temperature PID controller. 3. Long-term: implement dual-sensor redundancy for critical thermal parameters.",
+      "regulatory_reference": "GMP Annex 15 §6.3; 21 CFR Part 211.68",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch B26031201 rejected. Thermal excursion duration and magnitude outside acceptable limits per QA assessment. Batch quarantined and destroyed.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2026-03-12T15:30:00Z",
+      "work_order_id": "WO-2026-0089",
+      "audit_entry_id": "AE-2026-0067"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0002",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2026-03-12T11:23:00Z",
+    "updated_at": "2026-03-12T15:30:00Z"
+  },
+  {
+    "id": "INC-2026-0003",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2026-0228-GR204",
+    "title": "Spray Rate Below Minimum — Binder Distribution Concern",
+    "description": "Binder spray rate fell to 42 g/min (validated min: 50 g/min) for 8 minutes due to peristaltic pump partial blockage.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "moderate",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2026-02-28T09:15:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "spray_rate_g_min",
+      "measured_value": 42,
+      "lower_limit": 50,
+      "upper_limit": 200,
+      "duration_seconds": 480,
+      "unit": "g/min"
+    },
+    "ai_analysis": {
+      "risk_level": "medium",
+      "confidence": 0.88,
+      "classification": "spray_system_malfunction",
+      "root_cause_hypothesis": "Partial blockage of spray nozzle filter detected. CMMS maintenance log shows filter replacement was 45 days overdue.",
+      "recommendation": "In-process granule distribution test required. If granule uniformity within spec, batch may proceed with enhanced sampling. CMMS work order for nozzle cleaning and filter replacement required.",
+      "capa_suggestion": "1. Granule uniformity testing at 3 sampling points. 2. Clean and replace spray nozzle filter (CMMS WO). 3. Review PM schedule for spray system — reduce filter replacement interval to 30 days.",
+      "regulatory_reference": "SOP-DEV-001 §4.3; SOP-MAN-GR-001 §7.2",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Granule uniformity within spec (CV 4.2%, limit 5%). Batch released with enhanced statistical sampling of final tablets. PM schedule updated.",
+      "resolved_by": "ivan.petrenko",
+      "resolved_at": "2026-02-28T14:00:00Z",
+      "work_order_id": "WO-2026-0056",
+      "audit_entry_id": "AE-2026-0041"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0003",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2026-02-28T09:16:00Z",
+    "updated_at": "2026-02-28T14:00:00Z"
+  },
+  {
+    "id": "INC-2026-0004",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2026-0205-DRY303",
+    "title": "Moisture Content Out of Spec — Post-Drying Check",
+    "description": "In-process moisture content measured at 4.1% against validated upper limit of 3.5% at the 2-hour drying checkpoint.",
+    "deviation_type": "in_process_test_failure",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "tetiana.lysenko",
+    "reported_at": "2026-02-05T13:45:00Z",
+    "detected_by": "in_process_testing",
+    "parameter_excursion": {
+      "parameter": "moisture_content_pct",
+      "measured_value": 4.1,
+      "lower_limit": 1.0,
+      "upper_limit": 3.5,
+      "duration_seconds": null,
+      "unit": "%"
+    },
+    "ai_analysis": {
+      "risk_level": "high",
+      "confidence": 0.86,
+      "classification": "drying_process_failure",
+      "root_cause_hypothesis": "Inlet air temperature control confirmed within range. Root cause: initial batch moisture content was elevated (above 15%) entering dryer due to extended granulation time in GR-204. Higher initial moisture requiring extended drying.",
+      "recommendation": "Extend drying time by 30 minutes and retest moisture. If passes, batch may proceed. Review BPR for granulation moisture target and drying time correlation.",
+      "capa_suggestion": "1. Extend drying 30 min and retest. 2. Add granulation exit moisture check to BPR as mandatory IPT. 3. Update drying time calculation algorithm to account for inlet moisture.",
+      "regulatory_reference": "SOP-MAN-DRY-001 §5.2; BPR-MET-500-v3.2 §8",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Extended drying 30 min. Retest: moisture 2.8% (within 1.0–3.5% limit). Batch released. BPR updated with corrective note.",
+      "resolved_by": "tetiana.lysenko",
+      "resolved_at": "2026-02-05T17:15:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2026-0028"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0004",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2026-02-05T13:46:00Z",
+    "updated_at": "2026-02-05T17:15:00Z"
+  },
+  {
+    "id": "INC-2026-0005",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2026-0120-GR204",
+    "title": "Impeller Speed Deviation — Bearing Wear Detected",
+    "description": "Impeller speed consistently 15–20 RPM below setpoint for entire batch. Investigation revealed bearing wear causing increased mechanical resistance.",
+    "deviation_type": "equipment_malfunction",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "mykola.sydorenko",
+    "reported_at": "2026-01-20T10:30:00Z",
+    "detected_by": "ipqa_review",
+    "parameter_excursion": {
+      "parameter": "impeller_speed_rpm",
+      "measured_value": 580,
+      "lower_limit": 600,
+      "upper_limit": 800,
+      "duration_seconds": 5400,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "high",
+      "confidence": 0.92,
+      "classification": "equipment_failure_bearing_wear",
+      "root_cause_hypothesis": "Vibration analysis and CMMS motor current trending confirmed bearing deterioration. PM was 10 days overdue. Increased current draw of 12% above baseline over 3-week period prior to incident.",
+      "recommendation": "Immediate equipment quarantine required. Full bearing replacement before return to service. Validation reassessment of granulation parameters post-repair. Batch disposition: reject due to duration of parameter excursion.",
+      "capa_suggestion": "1. Quarantine GR-204. 2. Replace impeller bearings (both primary and secondary). 3. Full IQ/OQ requalification post-repair. 4. Implement vibration monitoring trending. 5. Review PM frequency — reduce to quarterly.",
+      "regulatory_reference": "GMP Annex 15 §10; SOP-DEV-001 §5.1 — Equipment-Related Deviations",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch rejected. Full-batch parameter deviation for critical process step. Equipment quarantined. Bearing replacement WO issued.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2026-01-20T16:00:00Z",
+      "work_order_id": "WO-2026-0012",
+      "audit_entry_id": "AE-2026-0008"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0005",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2026-01-20T10:31:00Z",
+    "updated_at": "2026-01-20T16:00:00Z"
+  }
+]

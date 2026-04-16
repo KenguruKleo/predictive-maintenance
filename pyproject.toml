@@ -1,0 +1,18 @@
+[project]
+name = "sentinel-intelligence"
+version = "0.1.0"
+description = "GMP Deviation Management & CAPA Operations Assistant — Microsoft Agentic Industry Hackathon 2026"
+readme = "README.md"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]

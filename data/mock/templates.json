@@ -1,0 +1,52 @@
+[
+  {
+    "id": "TMPL-WORK-ORDER-001",
+    "type": "work_order",
+    "name": "Standard Corrective Maintenance Work Order",
+    "version": "1.2",
+    "created_by": "it-admin",
+    "updated_at": "2026-03-01T00:00:00Z",
+    "fields": {
+      "title": "{{equipment_name}} — {{deviation_type}} — Corrective Action",
+      "equipment_id": "{{equipment_id}}",
+      "priority": "{{priority}}",
+      "description": "Corrective maintenance required following GMP deviation incident {{incident_id}}.\n\nDeviation Summary:\n{{ai_recommendation}}\n\nActions Required:\n{{capa_actions}}",
+      "assigned_to": "maintenance_tech",
+      "due_date": "{{due_date}}",
+      "work_type": "corrective",
+      "safety_precautions": "1. Obtain equipment lockout/tagout authorization.\n2. Wear appropriate PPE per SOP-HSE-001.\n3. Record all activities in equipment logbook.",
+      "parts_required": "{{parts_list}}",
+      "estimated_hours": "{{estimated_hours}}",
+      "sign_off_required": ["maintenance_tech", "qa_manager"]
+    }
+  },
+  {
+    "id": "TMPL-AUDIT-ENTRY-001",
+    "type": "audit_entry",
+    "name": "Deviation Audit Entry — GMP Compliant",
+    "version": "2.0",
+    "created_by": "it-admin",
+    "updated_at": "2026-03-15T00:00:00Z",
+    "fields": {
+      "entry_type": "deviation_record",
+      "incident_id": "{{incident_id}}",
+      "equipment_id": "{{equipment_id}}",
+      "batch_id": "{{batch_id}}",
+      "deviation_date": "{{deviation_date}}",
+      "deviation_type": "{{deviation_type}}",
+      "description": "{{description}}",
+      "parameter_excursion": "Parameter: {{parameter}} | Value: {{measured_value}} {{unit}} | Limit: {{lower_limit}}–{{upper_limit}} {{unit}} | Duration: {{duration}}",
+      "immediate_action_taken": "Automated deviation detection via Sentinel Intelligence AI System. Incident created automatically. Operator notified via system.",
+      "root_cause": "{{ai_root_cause}}",
+      "capa_actions": "{{ai_capa_suggestion}}",
+      "batch_disposition": "{{batch_disposition}}",
+      "risk_classification": "{{risk_level}}",
+      "ai_confidence": "{{ai_confidence}}",
+      "regulatory_refs": "{{regulatory_reference}}",
+      "prepared_by": "{{operator_id}} (AI-assisted — reviewed by operator)",
+      "reviewed_by": "{{reviewer_id}}",
+      "date_prepared": "{{created_at}}",
+      "qms_reference": "{{qms_entry_id}}"
+    }
+  }
+]

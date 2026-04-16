@@ -1,0 +1,113 @@
+# T-033 · React Frontend — Approval UX (Decision Package + Approve/Reject/More Info)
+
+← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+
+**Пріоритет:** 🔴 CRITICAL  
+**Статус:** 🔜 TODO  
+**Блокує:** finals demo  
+**Залежить від:** T-032 (core frontend), T-029 (decision API), T-030 (SignalR)
+
+---
+
+## Мета
+
+Operator approval flow — ключова UX частина для demo. Оператор бачить повний decision package від AI і приймає рішення.
+
+---
+
+## Компоненти
+
+```
+src/components/
+  ApprovalPanel/
+    ApprovalPanel.tsx          # Головний компонент — показується якщо status=pending_approval + assigned_to=currentUser
+    DecisionPackage.tsx        # AI analysis summary (risk, confidence, recommendation)
+    ConfidenceMeter.tsx        # Visual confidence bar (red if < 0.7 → LOW_CONFIDENCE banner)
+    WorkOrderPreview.tsx       # Pre-filled WO draft
+    AuditEntryPreview.tsx      # Pre-filled audit entry draft
+    EvidenceList.tsx           # Citations (SOP refs + historical case links)
+    DecisionButtons.tsx        # [✅ Approve] [❌ Reject] [❓ Need More Info]
+    RejectModal.tsx            # Modal: requires rejection reason (text input)
+    MoreInfoModal.tsx          # Modal: operator types question for re-analysis
+    ApprovalSuccess.tsx        # Post-approval confirmation with WO/AE IDs
+```
+
+---
+
+## Decision Package wireframe
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  ⚠️  ACTION REQUIRED                                          │
+│  GR-204 — Impeller Speed Deviation    ← auto-assigned to you│
+├──────────────────────────────────────────────────────────────┤
+│  PARAMETER EXCURSION                                         │
+│  ████████████░░  580 RPM              Limit: 600–800 RPM     │
+│  Duration: 4 min 7 sec  |  Severity: 🟠 MAJOR               │
+├──────────────────────────────────────────────────────────────┤
+│  AI RISK ASSESSMENT                                          │
+│  Risk Level: 🟠 MEDIUM                                       │
+│  Confidence: ████████████████░░░░  84%                       │
+│                                                              │
+│  Root Cause: Motor load fluctuation during binder addition.  │
+│  Batch integrity likely maintained based on duration.        │
+│                                                              │
+│  CAPA Actions:                                               │
+│  ✦ 1. Immediate: moisture check (target 8–12%)               │
+│  ✦ 2. Short-term: motor current review + calibration WO      │
+│  ✦ 3. Long-term: reduce filter replacement interval to 30d   │
+│                                                              │
+│  Batch Disposition: Conditional release pending testing      │
+├──────────────────────────────────────────────────────────────┤
+│  EVIDENCE                                                    │
+│  📄 SOP-DEV-001 §4.2 — "Impeller speed deviations > 10%..."  │
+│  📋 INC-2026-0003 — Similar spray rate deviation (resolved)  │
+│  📖 GMP Annex 15 §6.3 — Process Parameter Deviations        │
+├──────────────────────────────────────────────────────────────┤
+│  WORK ORDER PREVIEW                          [Edit]          │
+│  GR-204 — Motor Load Calibration Check                       │
+│  Priority: High  |  Est. 4 hours  |  Assigned: Maintenance  │
+├──────────────────────────────────────────────────────────────┤
+│           [✅ APPROVE]  [❌ REJECT]  [❓ NEED MORE INFO]      │
+│           (approval logs your name + timestamp in QMS)       │
+└──────────────────────────────────────────────────────────────┘
+```
+
+## LOW_CONFIDENCE state
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  🔴 AI LOW CONFIDENCE — QA MANAGER REVIEW REQUIRED           │
+│  AI Confidence: 52% — insufficient evidence for auto-assist  │
+│  Please consult QA Manager before making a decision.         │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Decision submission
+
+```typescript
+// POST /api/incidents/{id}/decision
+const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', reason?: string) => {
+  await api.incidents.submitDecision(incidentId, {
+    action,
+    user_id: currentUser.id,
+    reason,
+    question: action === 'more_info' ? moreInfoQuestion : undefined
+  });
+  navigate(`/incidents/${incidentId}`);  // redirect to updated detail view
+};
+```
+
+---
+
+## Definition of Done
+
+- [ ] ApprovalPanel renders correctly for INC-2026-0001 (GR-204 pending incident)
+- [ ] Clicking [✅ Approve] → POST /decision, incident status → "executing", success message
+- [ ] Clicking [❌ Reject] → modal opens, requires reason text, then POST /decision
+- [ ] Clicking [❓ Need More Info] → modal opens, question input, re-analysis starts
+- [ ] LOW_CONFIDENCE banner shown when confidence < 0.7
+- [ ] Panel hidden for closed/rejected incidents
+- [ ] Non-operator roles see read-only decision package (no action buttons)
