@@ -17,13 +17,21 @@ Azure SignalR Service для real-time push notifications до React UI (опе�
 
 ## Hub та Events
 
-```
-Hub name: sentinel
+> Детальний контракт визначено в [§8.12 архітектури](../02-architecture.md#812-azure-signalr--контракт).
 
-Events:
-- "incident_created"    payload: { incident_id, equipment_id, severity }
-- "incident_updated"    payload: { incident_id, new_status }
-- "escalation"          payload: { incident_id, message, assigned_to_role }
+```
+Hub name: deviationHub  (змінено з "sentinel")
+
+Groups (підписки):
+- role:operator      → incident_pending_approval, incident_updated
+- role:qa-manager    → incident_escalated, incident_pending_approval
+- incident:{id}      → incident_status_changed, agent_step_completed
+
+Events (server → client):
+- "incident_pending_approval"  payload: { incident_id, equipment_id, risk_level, created_at }
+- "incident_status_changed"    payload: { incident_id, old_status, new_status, timestamp }
+- "agent_step_completed"       payload: { incident_id, step, result_summary }
+- "incident_escalated"         payload: { incident_id, escalated_to, reason }
 ```
 
 ---
@@ -31,8 +39,8 @@ Events:
 ## Endpoints у backend
 
 ```
-GET /api/signalr/negotiate    → returns { url, accessToken } for React client
-POST /api/signalr/notify      → internal (called by activities, not public)
+GET /api/negotiate       → returns { url, accessToken } for React client
+POST /api/notify         → internal (called by Durable activities, not public)
 ```
 
 ---
@@ -41,11 +49,11 @@ POST /api/signalr/notify      → internal (called by activities, not public)
 
 ```python
 # backend/triggers/http_signalr.py
-@app.route(route="signalr/negotiate", methods=["GET", "POST"])
+@app.route(route="negotiate", methods=["GET", "POST"])
 @app.generic_input_binding(arg_name="connectionInfo", type="signalRConnectionInfo",
-    hub_name="sentinel", connection="AZURE_SIGNALR_CONNECTION_STRING")
+    hub_name="deviationHub", connection="AZURE_SIGNALR_CONNECTION_STRING")
 def negotiate(req, connectionInfo):
-    # Add userId from JWT token claim
+    # Add userId from JWT token claim (for group assignment)
     user = get_current_user(req)
     return func.HttpResponse(connectionInfo)
 ```
@@ -73,9 +81,12 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
       .withAutomaticReconnect()
       .build();
 
-    connection.on("incident_updated", ({ incident_id, new_status }) => {
+    connection.on("incident_pending_approval", ({ incident_id, equipment_id, risk_level }) => {
+      onIncidentUpdate(incident_id, "pending_approval");
+      toast(`Новий інцидент потребує рішення: ${incident_id} [ризик: ${risk_level}]`);
+    });
+    connection.on("incident_status_changed", ({ incident_id, new_status }) => {
       onIncidentUpdate(incident_id, new_status);
-      toast(`Incident ${incident_id} updated: ${new_status}`);
     });
 
     connection.on("incident_created", ({ incident_id, equipment_id, severity }) => {

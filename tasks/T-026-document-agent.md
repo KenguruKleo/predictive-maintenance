@@ -53,18 +53,33 @@ Document Agent приймає Research Agent output і formulates the decision p
 ```python
 # In Durable Activity run_agents.py, after Document Agent returns result:
 def apply_confidence_gate(result: dict) -> dict:
-    if result["confidence"] < 0.70:
+    confidence = result["confidence"]
+    evidences = result.get("evidence_citations", [])
+
+    if confidence >= 0.70:
+        pass  # normal flow
+    elif confidence < 0.70 and len(evidences) > 0:
+        # LOW_CONFIDENCE: show warning, require operator comment
         result["confidence_flag"] = "LOW_CONFIDENCE"
         result["risk_level"] = "LOW_CONFIDENCE"
         result["recommendation"] = (
-            f"⚠️ AI confidence is low ({result['confidence']:.0%}). "
-            f"Manual review by QA required. "
+            f"⚠️ AI впевненість низька ({confidence:.0%}). Коментар QA обов'язковий. \n"
             + result["recommendation"]
         )
+    else:
+        # BLOCKED: no evidence — do not show recommendation, auto-escalate
+        result["confidence_flag"] = "BLOCKED"
+        result["risk_level"] = "BLOCKED"
+        result["recommendation"] = None
+        result["escalation_required"] = True
+        result["escalation_reason"] = "Insufficient evidence for AI recommendation"
     return result
 ```
 
-**Operator UI показує:** якщо `confidence_flag == "LOW_CONFIDENCE"` → червоний банер "AI Low Confidence — QA Review Required"
+**Operator UI показує:**
+- `confidence_flag == None` → normal recommendation display
+- `confidence_flag == "LOW_CONFIDENCE"` → червоний банер + коментар обов'язковий перед approve
+- `confidence_flag == "BLOCKED"` → recommendation не видно; авто-ескалація до QA Manager
 
 ---
 

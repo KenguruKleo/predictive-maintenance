@@ -21,9 +21,16 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-020 → T-028 (Infrastructure + Backend + Agents)
+**Зараз в роботі:** T-021 (seed script) · T-023 (ingestion API) · T-024 (Durable orchestrator)
 
-**Наступний крок:** T-020 Cosmos DB provisioning → T-021 mock data seed →  T-023 ingest API → T-024 Durable Functions
+**Завершено (17 квітня 2026):**
+- ✅ T-041 — Bicep IaC: 7 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics)
+- ✅ T-042 — GitHub Actions CI/CD: `ci.yml` + `deploy.yml` живі та зелені
+- ✅ T-022 — Service Bus: `alert-queue` + DLQ задеплоєно
+- 🔧 T-020 — Cosmos DB: 5 containers задеплоєно, seed script (`scripts/seed_cosmos.py`) відсутній
+- 🔧 T-021 — Mock data: JSON файли готові (`data/mock/`), seed_cosmos.py потрібен
+
+**Наступний крок:** T-021 seed script → T-023 ingestion API → T-024 Durable orchestrator skeleton
 
 ---
 
@@ -38,8 +45,8 @@
 |---|---|---|---|---|---|
 | T-001 | **[Оновити архітектурну презентацію](./tasks/T-001-architecture-presentation.md)** — закрити всі gaps, показати реальну збудовану архітектуру (Track A, Security, Reliability, RAI, UX, IaC) | Gap #1–6 | 🔴 CRITICAL | 🔜 TODO | T-002 |
 | T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — повна demo презентація | Deliverables | 🔴 CRITICAL | 🔜 TODO | finals |
-| T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 5 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | 🔜 TODO | T-021–T-042 |
-| T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment, batches, 5 incidents, users | demo | 🔴 CRITICAL | 🔜 TODO | demo |
+| T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 5 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | � IN PROGRESS | T-021–T-042 |
+| T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment, batches, 5 incidents, users | demo | 🔴 CRITICAL | 🔧 IN PROGRESS | demo |
 | T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-024 |
 | T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: create→enrich→agents→notify→wait→execute→finalize | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-029 |
 | T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry Agent + MCP + RAG tools | Gap #4 | 🔴 CRITICAL | 🔜 TODO | T-024 |
@@ -56,14 +63,14 @@
 | ID | Задача | Gap / Вимога | Пріоритет | Статус | Блокує |
 |---|---|---|---|---|---|
 | T-010 | **[Cartoon / анімація «До і Після»](./tasks/T-010-cartoon-animation.md)** | Deliverables | 🟠 HIGH | 🔜 TODO | T-002 |
-| T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | 🔜 TODO | T-023 |
+| T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | 🔜 TODO | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | 🔜 TODO | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → blob trigger → chunk → embed → AI Search | Gap #4 | 🟠 HIGH | 🔜 TODO | T-037 |
 | T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 4 indexes, 10+ chunked documents | Gap #4 | 🟠 HIGH | 🔜 TODO | T-025 |
-| T-041 | **[Bicep IaC templates](./tasks/T-041-bicep-iac.md)** — infra/main.bicep + modules for all resources | Gap #1, #6 | 🟠 HIGH | 🔜 TODO | T-042 |
-| T-042 | **[GitHub Actions CI/CD](./tasks/T-042-cicd.md)** — build, test, Bicep deploy, Foundry eval pipeline | Gap #1 | 🟠 HIGH | 🔜 TODO | finals |
+| T-041 | **[Bicep IaC templates](./tasks/T-041-bicep-iac.md)** — infra/main.bicep + modules for all resources | Gap #1, #6 | 🟠 HIGH | ✅ DONE | T-042 |
+| T-042 | **[GitHub Actions CI/CD](./tasks/T-042-cicd.md)** — build, test, Bicep deploy, Foundry eval pipeline | Gap #1 | 🟠 HIGH | ✅ DONE | finals |
 
 ### Nice-to-have
 
@@ -82,10 +89,10 @@
 ### Week 1 (17–23 квітня) — Infrastructure + Backend + Agents
 | День | Задачі |
 |---|---|
-| 17–18 квіт | T-020 (Cosmos DB) · T-022 (Service Bus) · T-021 (mock data seed) |
-| 19–20 квіт | T-037 (AI Search indexes) · T-036 (document ingestion) · T-028 (MCP servers) |
-| 21–22 квіт | T-023 (ingestion API) · T-024 (Durable orchestrator skeleton) |
-| 23 квіт | T-025 (Research Agent) · T-026 (Document Agent) |
+| 17 квіт | ✅ T-041 (Bicep IaC) · ✅ T-042 (CI/CD) · ✅ T-022 (Service Bus) · 🔧 T-020/T-021 (Cosmos + seed) |
+| 18–19 квіт | T-021 (seed script) · T-037 (AI Search indexes) · T-028 (MCP servers) |
+| 20–21 квіт | T-023 (ingestion API) · T-036 (document ingestion) |
+| 22–23 квіт | T-024 (Durable orchestrator) · T-025 (Research Agent) · T-026 (Document Agent) |
 
 ### Week 2 (24–30 квітня) — Agents + Frontend + Integration
 | День | Задачі |

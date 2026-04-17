@@ -3,9 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE (17 квітня 2026)  
 **Блокує:** T-023 (ingestion API publishes here), T-024 (trigger reads from here)  
-**Залежить від:** T-041 (Bicep IaC) або manual provisioning для dev
+**Залежить від:** T-041 (Bicep IaC) ✅
+
+> **Що задеплоєно:** `sb-sentinel-intel-dev-erzrpo` (Standard tier, Sweden Central). Черга `alert-queue`: maxDeliveryCount=5, DLQ активний. Відмінність від задачі: maxDeliveryCount=5 (задокументовано 3), змінюється просто в `infra/modules/servicebus.bicep` у T-041.
 
 ---
 

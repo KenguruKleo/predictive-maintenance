@@ -57,7 +57,18 @@ async def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
     body = req.get_json()
     validate_alert_payload(body)  # raises 400 if invalid
 
-    # 2. Prompt injection guard on string fields
+    # 2. **Idempotency check** (added per arch review §8.11)
+    # Check if incident with sourceAlertId already exists in Cosmos
+    alert_id = body.get("alert_id")
+    if alert_id:
+        existing = await get_incident_by_source_alert_id(alert_id)
+        if existing:
+            return func.HttpResponse(
+                status_code=200,
+                body=json.dumps({"incident_id": existing["id"], "status": "already_exists"})
+            )
+
+    # 3. Prompt injection guard on string fields
     sanitize_string_fields(body)
 
     # 3. Generate incident_id
@@ -75,6 +86,7 @@ async def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
     payload = {
         **body,
         "incident_id": incident_id,
+        "source_alert_id": body.get("alert_id"),  # for idempotency
         "severity": severity,
         "reported_at": datetime.utcnow().isoformat() + "Z",
         "equipment_name": equipment["name"],
@@ -125,5 +137,6 @@ backend/
 - [ ] `POST /api/alerts` з валідним payload → 202, message in Service Bus queue
 - [ ] `POST /api/alerts` з невалідним payload → 400 з описом помилки
 - [ ] Невідомий `equipment_id` → 404
+- [ ] Повторний `POST /api/alerts` з тим самим `alert_id` → 200 + existing `incident_id` (ідемпотентність)
 - [ ] Prompt injection у string fields → sanitized або 400
 - [ ] Severity classification: тест minor/major/critical кейси

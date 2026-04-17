@@ -3,8 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE (17 квітня 2026)  
 **Gap:** Gap #1 — Track A (GitHub + CI/CD) ✅
+
+> **Що працює:** `ci.yml` (ruff lint + pytest + az bicep build) запускається на PR; `deploy.yml` (Bicep deploy + Functions deploy) запускається на push в `main`. CI/CD зелений.  
+> **Що не додано:** frontend build step (коментар — чекає T-032), Foundry eval pipeline (чекає T-025/T-026).
 
 ---
 

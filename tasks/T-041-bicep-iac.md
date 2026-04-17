@@ -3,8 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE (17 квітня 2026)  
 **Gap:** Gap #1 (Track A) + Gap #6 (IaC) ✅
+
+> **Що задеплоєно:** 7 ресурсів у `ODL-GHAZ-2177134` (Sweden Central): Storage, Log Analytics, App Insights, Cosmos DB (5 containers), Service Bus (`alert-queue`), App Service Plan (Y1), Azure Functions (Python 3.11).  
+> **Що не задеплоєно:** AI Search, SignalR, Key Vault, Static Web App, Azure AI Foundry — дивись T-037, T-030, T-038, T-032, T-025.
 
 ---
 
@@ -101,8 +104,9 @@ az deployment group what-if \
 
 ## Definition of Done
 
-- [ ] `az bicep build --file infra/main.bicep` succeeds (no errors)
-- [ ] `az deployment group what-if` dry run shows all expected resources
-- [ ] Full deploy creates all resources in Azure (verified against resource list)
-- [ ] `dev.bicepparam` + `prod.bicepparam` have all required parameters with sensible defaults
-- [ ] README documents how to run deploy commands
+- [x] `az bicep build --file infra/main.bicep` succeeds (no errors)
+- [x] `az deployment group what-if` dry run shows all expected resources
+- [x] Full deploy creates all resources in Azure (verified against resource list)
+- [x] `dev.bicepparam` has all required parameters with sensible defaults
+- [ ] Remaining modules: AI Search, SignalR, Key Vault, Static Web App, Azure AI Foundry (T-037, T-030, T-038, T-032, T-025)
+- [ ] `prod.bicepparam` parameters file aligned

@@ -3,9 +3,12 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** � IN PROGRESS  
 **Блокує:** Demo flow, T-025, T-027  
 **Залежить від:** T-020 (Cosmos DB provisioned)
+
+> **Що зроблено:** JSON файли готові у `data/mock/` — equipment (3), batches (2), incidents (3), templates (2).  
+> **Що залишилось:** `scripts/seed_cosmos.py` — залежить від `backend/cosmos_client.py` (T-020).
 
 ---
 
@@ -51,7 +54,8 @@ scripts/
 
 ## Definition of Done
 
+- [x] JSON файли: equipment.json (3), batches.json (2), incidents.json (3), templates.json (2)
 - [ ] `python scripts/seed_cosmos.py` запускається без помилок
-- [ ] Cosmos DB містить 3 equipment, 2 batches, 5 incidents, 2 templates
+- [ ] Cosmos DB містить 3 equipment, 2 batches, 3 incidents, 2 templates
 - [ ] `incident_events` містить audit trail для закритих incidents
 - [ ] `python scripts/seed_cosmos.py --reset` очищує і перезасіває
