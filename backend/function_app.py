@@ -20,6 +20,7 @@ Blueprints registered here:
   - triggers.http_stats            (T-031) GET /api/stats/summary
 """
 
+import azure.durable_functions as df
 import azure.functions as func
 
 from activities.close_incident import bp as close_incident_bp
@@ -39,7 +40,7 @@ from triggers.http_stats import bp as stats_bp
 from triggers.http_templates import bp as templates_bp
 from triggers.service_bus_trigger import bp as sb_trigger_bp
 
-app = func.FunctionApp(http_auth_level=func.AuthLevel.FUNCTION)
+app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
 # ── HTTP triggers ─────────────────────────────────────────────────────────
 app.register_functions(ingest_bp)

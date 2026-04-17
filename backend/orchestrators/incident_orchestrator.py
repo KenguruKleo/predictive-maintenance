@@ -30,7 +30,7 @@ MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
 bp = df.Blueprint()
 
 
-@bp.orchestration_trigger(context_parameter="context")
+@bp.orchestration_trigger(context_name="context")
 def incident_orchestrator(context: df.DurableOrchestrationContext):
     """Main stateful workflow triggered by a Service Bus message."""
 
