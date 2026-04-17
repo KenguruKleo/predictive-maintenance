@@ -161,7 +161,7 @@ resource mcpSentinelDb 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
       }
     }
@@ -211,7 +211,7 @@ resource mcpSentinelSearch 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 3
       }
     }
@@ -259,7 +259,7 @@ resource mcpQms 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 2
       }
     }
@@ -307,7 +307,7 @@ resource mcpCmms 'Microsoft.App/containerApps@2024-03-01' = {
         }
       ]
       scale: {
-        minReplicas: 0
+        minReplicas: 1
         maxReplicas: 2
       }
     }
