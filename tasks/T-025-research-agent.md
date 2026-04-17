@@ -43,9 +43,9 @@ agents/
 
 | Tool | Тип у Foundry | Source | Purpose |
 |---|---|---|---|
-| `get_equipment` | MCP ServerTool | MCP `mcp-cosmos-db` | Equipment master data + equipment-level validated params (PAR) |
-| `get_batch` | MCP ServerTool | MCP `mcp-cosmos-db` | Current batch context |
-| `search_incidents` | MCP ServerTool | MCP `mcp-cosmos-db` | Historical incidents for this equipment |
+| `get_equipment` | MCP ServerTool | MCP `mcp-sentinel-db` | Equipment master data + equipment-level validated params (PAR) |
+| `get_batch` | MCP ServerTool | MCP `mcp-sentinel-db` | Current batch context |
+| `search_incidents` | MCP ServerTool | MCP `mcp-sentinel-db` | Historical incidents for this equipment |
 | `search_sop_documents` | `AzureAISearchTool` | AI Search `idx-sop-documents` | RAG: relevant SOPs by semantic similarity |
 | `search_equipment_manuals` | `AzureAISearchTool` | AI Search `idx-equipment-manuals` | RAG: equipment manual sections |
 | `search_gmp_policies` | `AzureAISearchTool` | AI Search `idx-gmp-policies` | RAG: GMP regulations cited |

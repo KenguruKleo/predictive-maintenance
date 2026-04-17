@@ -30,9 +30,9 @@ flowchart TB
 
         subgraph agents["AI Agents · Azure AI Foundry"]
             FOUNDRY["🔜 AI Foundry Project\naoai-sentinel-intel-dev-erzrpo"]
-            RA["🔜 Research Agent\nRAG + MCP-cosmos-db"]
+            RA["🔜 Research Agent\nRAG + MCP-sentinel-db"]
             DA["🔜 Document Agent\ntemplates + confidence gate 0.7"]
-            EA["🔜 Execution Agent\nMCP-qms-mock + MCP-cmms-mock"]
+            EA["🔜 Execution Agent\nMCP-qms + MCP-cmms"]
         end
 
         subgraph data["Data Layer"]

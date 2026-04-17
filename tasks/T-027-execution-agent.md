@@ -19,10 +19,10 @@ Execution Agent виконує дії ПІСЛЯ human approval: створює 
 
 | Tool | Source | Purpose |
 |---|---|---|
-| `create_work_order` | MCP mcp-cmms-mock | Create corrective WO in CMMS |
-| `create_audit_entry` | MCP mcp-qms-mock | Create GMP-compliant audit entry in QMS |
-| `get_template` | MCP mcp-cosmos-db | Fetch WO / audit templates |
-| `update_incident_status` | MCP mcp-cosmos-db | Mark incident as closed with WO/AE IDs |
+| `create_work_order` | MCP mcp-cmms | Create corrective WO in CMMS |
+| `create_audit_entry` | MCP mcp-qms | Create GMP-compliant audit entry in QMS |
+| `get_template` | MCP mcp-sentinel-db | Fetch WO / audit templates |
+| `update_incident_status` | MCP mcp-sentinel-db | Mark incident as closed with WO/AE IDs |
 
 ---
 

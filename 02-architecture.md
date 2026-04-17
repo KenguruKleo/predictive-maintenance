@@ -315,7 +315,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  5. waitForExternalEvent("operator_decision")               │    │
 │     OR Timer: 24h → escalate to QA Manager                  │    │
 │  6a. "approved"     → Activity: RunExecutionAgent           │    │
-│      └─ Execution Agent (MCP-qms-mock + MCP-cmms-mock)      │    │
+│      └─ Execution Agent (MCP-qms + MCP-cmms)                │    │
 │  6b. "rejected"     → Activity: CloseIncident(rejected)     │    │
 │  6c. "more_info"    → re-run step 3 з додатковим контекстом │    │
 │  │ 7. Activity: FinalizeAuditRecord ──► Cosmos DB             │    │
@@ -334,9 +334,9 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  (Gap #5 ✅) │  │  └─ Execution Agt │  │  capa-plans              │
 └──────────────┘  │                   │  │  approval-tasks          │
                   │  MCP Servers:     │  └──────────────────────────┘
-                  │  ├─ mcp-cosmos-db │
-                  │  ├─ mcp-qms-mock  │
-                  │  └─ mcp-cmms-mock │
+                  │  ├─ mcp-sentinel-db │
+                  │  ├─ mcp-qms        │
+                  │  └─ mcp-cmms       │
                   └───────────────────┘
                           │
                           ▼
@@ -401,9 +401,9 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **Research Agent** | Foundry Agent + MCP + RAG | Збір контексту: equipment history, semantic SOPs. Підключений як sub-agent | Gap #4 |
 | **Document Agent** | Foundry Agent + templates + confidence gate | Draft: work_order, audit_entry, recommendation, risk_level | Gap #5 |
 | **Execution Agent** | Foundry Agent + MCP-QMS/CMMS | Виконання після approval: create WO + audit entry | — |
-| **MCP: mcp-cosmos-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
-| **MCP: mcp-qms-mock** | Python (stdio MCP server) | Tool: create_audit_entry (мок QMS) | — |
-| **MCP: mcp-cmms-mock** | Python (stdio MCP server) | Tool: create_work_order (мок CMMS) | — |
+| **MCP: mcp-sentinel-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
+| **MCP: mcp-qms** | Python (stdio MCP server) | Tool: create_audit_entry (QMS integration) | — |
+| **MCP: mcp-cmms** | Python (stdio MCP server) | Tool: create_work_order (CMMS integration) | — |
 | **Incident DB** | Azure Cosmos DB Serverless | 5 containers: incidents, equipment, batches, capa-plans, approval-tasks | — |
 | **RAG Storage** | Azure AI Search | **5 indexes**: SOPs, equipment manuals, GMP policies, **BPR product specs**, incident history | Gap #4 |
 | **Document Ingestion** | Blob Storage + blob trigger Function | Chunk → embed → AI Search (for SOPs/manuals) | — |
@@ -698,15 +698,15 @@ Sensor Signal → Alert (already automated anomaly detection)
 │    Orchestrator Agent                                                │
 │      ├─ Research Agent (sub-agent via AgentTool)                    │
 │      │    ├─ AzureAISearchTool (SOPs, manuals, GMP, BPR, history)  │
-│      │    └─ MCP: mcp-cosmos-db (equipment, batch, incidents)       │
+│      │    └─ MCP: mcp-sentinel-db (equipment, batch, incidents)      │
 │      └─ Document Agent (sub-agent via AgentTool)                    │
 │           └─ structured output + confidence gate                    │
 │    [Foundry manages reasoning loop + max_iterations нативно]        │
 │                                                                      │
 │  run_execution_agent activity (крок 6a):                            │
 │    Execution Agent                                                   │
-│      ├─ MCP: mcp-cmms-mock (create_work_order)                      │
-│      └─ MCP: mcp-qms-mock  (create_audit_entry)                     │
+│      ├─ MCP: mcp-cmms (create_work_order)                           │
+│      └─ MCP: mcp-qms  (create_audit_entry)                          │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
