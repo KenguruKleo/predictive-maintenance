@@ -131,10 +131,12 @@ module aiFoundry 'modules/ai-foundry.bicep' = {
 }
 
 // Azure Static Web App — React SPA frontend
+// Note: Microsoft.Web/staticSites is not available in swedencentral;
+// using westeurope as the nearest supported region.
 module swa 'modules/static-web-app.bicep' = {
   name: 'swa'
   params: {
-    location: location
+    location: 'westeurope'
     tags: tags
     swaName: 'swa-${prefix}-${uniqueSuffix}'
     skuName: 'Free'
