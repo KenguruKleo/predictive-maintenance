@@ -225,5 +225,1148 @@
     },
     "created_at": "2026-01-20T10:31:00Z",
     "updated_at": "2026-01-20T16:00:00Z"
+  },
+  {
+    "id": "INC-2026-0006",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2026-0414-MIX102",
+    "title": "Mixing Speed Excursion — MIX-102 Lubrication Blend",
+    "description": "Mixing speed reached 128 RPM (validated max: 120 RPM) during lubrication blending phase. Duration: ~3 minutes before operator manual correction.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "moderate",
+    "status": "pending_approval",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2026-04-14T09:18:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "mixing_speed_rpm",
+      "measured_value": 128,
+      "lower_limit": 30,
+      "upper_limit": 120,
+      "duration_seconds": 183,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.82,
+      "classification": "process_parameter_excursion_speed",
+      "root_cause_hypothesis": "Speed controller setpoint overshoot during lubrication stage acceleration. Lubrication blends are sensitive to over-speed — potential lubricant over-mixing reducing tablet hardness.",
+      "recommendation": "Perform blend uniformity test with focus on lubricant distribution. Check tablet hardness profile at compression. If blend uniformity RSD <3%, batch may proceed with enhanced tablet testing.",
+      "capa_suggestion": "1. Blend uniformity test at 3 points (target RSD <3%). 2. Compression hardness profile. 3. Review speed controller ramp rate settings for lubrication step. 4. Add speed ramp rate limit to BPR.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-PCT-500-v2.0 §6.3",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0006",
+      "current_step": "awaiting_operator_decision",
+      "assigned_to": "serhii.bondar",
+      "escalation_deadline": "2026-04-15T09:18:00Z"
+    },
+    "created_at": "2026-04-14T09:19:00Z",
+    "updated_at": "2026-04-14T09:19:00Z"
+  },
+  {
+    "id": "INC-2026-0007",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2026-0413-DRY303",
+    "title": "Inlet Air Temperature Spike 97°C — DRY-303 Final Drying",
+    "description": "Inlet air temperature spiked to 97°C (validated max: 90°C) during final drying stage of Omeprazole batch. Duration: 11 minutes. Batch placed on hold. Operator did not respond within 24h — escalated to QA Manager.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "major",
+    "status": "escalated",
+    "reported_by": "tetiana.lysenko",
+    "reported_at": "2026-04-13T12:30:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "inlet_air_temp_c",
+      "measured_value": 97,
+      "lower_limit": 50,
+      "upper_limit": 90,
+      "duration_seconds": 660,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.88,
+      "classification": "thermal_process_deviation_severe",
+      "root_cause_hypothesis": "Heating element thermocouple failure causing runaway heating loop. CMMS log shows last calibration for DRY-303 temperature sensors was 82 days ago (PM overdue by 22 days).",
+      "recommendation": "Batch quarantine required. Full thermal stability assessment for Omeprazole at 97°C exposure. Equipment calibration and PM before restart. Omeprazole is heat-sensitive (deg. temp ~85°C) — batch likely compromised.",
+      "capa_suggestion": "1. Quarantine batch pending stability assessment. 2. Immediate thermocouple calibration and replacement. 3. Run DRY-303 IQ/OQ before resumption. 4. Reduce PM interval to 60 days for temperature-critical processes.",
+      "regulatory_reference": "GMP Annex 15 §10.2; SOP-MAN-DRY-001 §5.1; 21 CFR 211.68",
+      "batch_disposition": "rejected"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0007",
+      "current_step": "escalated_to_qa_manager",
+      "assigned_to": "vasyl.marchenko",
+      "original_assignee": "tetiana.lysenko",
+      "escalation_reason": "24h approval deadline exceeded without operator decision",
+      "escalated_at": "2026-04-14T12:30:00Z",
+      "escalation_deadline": null
+    },
+    "created_at": "2026-04-13T12:31:00Z",
+    "updated_at": "2026-04-14T12:30:00Z"
+  },
+  {
+    "id": "INC-2026-0008",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2026-0411-GR204",
+    "title": "Impeller Speed Borderline Deviation — GR-204 IPQA Review",
+    "description": "IPQA post-batch review flagged 28-minute period where impeller speed trended at 602–608 RPM (validated minimum: 600 RPM). SCADA did not alarm (value within range). No SCADA data anomaly — borderline detection via BPR trend analysis only.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "moderate",
+    "status": "pending_approval",
+    "reported_by": "olena.kovalenko",
+    "reported_at": "2026-04-17T07:15:00Z",
+    "detected_by": "ipqa_review",
+    "parameter_excursion": {
+      "parameter": "impeller_speed_rpm",
+      "measured_value": 604,
+      "lower_limit": 600,
+      "upper_limit": 800,
+      "duration_seconds": 1680,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW_CONFIDENCE",
+      "confidence": 0.58,
+      "classification": "process_parameter_borderline_excursion",
+      "root_cause_hypothesis": "Borderline speed trending with insufficient deviation magnitude for confident root cause determination. Could be minor motor load variation, sensor drift, or normal operational variability near setpoint.",
+      "recommendation": "Granule particle size distribution (PSD) and moisture content testing recommended. Historical cases of similar borderline deviations have not resulted in batch rejection when PSD was within spec.",
+      "capa_suggestion": "1. PSD analysis at 3 sampling intervals. 2. Moisture content check. 3. Engineer review of motor current data for trending. 4. Consider recalibration of speed sensor.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-LSN-010-v2.3 §5.1",
+      "batch_disposition": "conditional_release_pending_testing",
+      "evidence_citations": [
+        { "source": "INC-2025-0015", "similarity": 0.72, "resolution": "batch released after PSD confirmed within spec" },
+        { "source": "SOP-DEV-001", "section": "§4.2", "score": 0.61 }
+      ]
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0008",
+      "current_step": "awaiting_operator_decision",
+      "confidence_warning": true,
+      "requires_operator_comment": true,
+      "assigned_to": "ivan.petrenko",
+      "escalation_deadline": "2026-04-18T07:15:00Z"
+    },
+    "created_at": "2026-04-17T07:16:00Z",
+    "updated_at": "2026-04-17T07:16:00Z"
+  },
+  {
+    "id": "INC-2026-0009",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2026-0410-MIX102",
+    "title": "Blending Room Temperature Excursion — MIX-102",
+    "description": "Room temperature in blending area reached 29.5°C (validated operating limit: 28°C) for 22 minutes during pre-compression blending. HVAC system restored temperature within 30 minutes.",
+    "deviation_type": "environmental_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "natalia.shevchenko",
+    "reported_at": "2026-04-10T09:45:00Z",
+    "detected_by": "environmental_monitor",
+    "parameter_excursion": {
+      "parameter": "room_temperature_c",
+      "measured_value": 29.5,
+      "lower_limit": null,
+      "upper_limit": 28,
+      "duration_seconds": 1320,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.94,
+      "classification": "environmental_temperature_excursion_minor",
+      "root_cause_hypothesis": "HVAC setpoint drift during scheduled HVAC filter maintenance window. Temperature excursion magnitude (1.5°C over 22 min) is below threshold for Ibuprofen API stability concern (stable to 40°C).",
+      "recommendation": "No batch action required based on API stability profile. HVAC maintenance log to be updated. Environmental monitoring data to be appended to BPR.",
+      "capa_suggestion": "1. Append environmental excursion record to BPR. 2. HVAC maintenance procedure to include temperature hold verification before resuming production. 3. No further batch testing required.",
+      "regulatory_reference": "SOP-DEV-001 §4.5 — Environmental Deviations; BPR-IBU-400-v3.1 §3.2",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "API stability unaffected at 29.5°C. HVAC restored. Environmental data appended to BPR. Batch released.",
+      "resolved_by": "natalia.shevchenko",
+      "resolved_at": "2026-04-10T13:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2026-0102"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0009",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2026-04-10T09:46:00Z",
+    "updated_at": "2026-04-10T13:00:00Z"
+  },
+  {
+    "id": "INC-2026-0010",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2026-0408-DRY303",
+    "title": "Anomalous Moisture Pattern — DRY-303 No Historical Precedent",
+    "description": "Moisture content measured at 0.3% (validated min: 1.0%) combined with unusual particulate matter pattern in exhaust air sampling. No similar case found in deviation history. Pattern does not match any known equipment failure mode.",
+    "deviation_type": "contamination_risk",
+    "severity": "critical",
+    "status": "escalated",
+    "reported_by": "dmytro.kravets",
+    "reported_at": "2026-04-08T11:30:00Z",
+    "detected_by": "in_process_testing",
+    "parameter_excursion": {
+      "parameter": "moisture_content_pct",
+      "measured_value": 0.3,
+      "lower_limit": 1.0,
+      "upper_limit": 3.5,
+      "duration_seconds": null,
+      "unit": "%"
+    },
+    "ai_analysis": {
+      "risk_level": "BLOCKED",
+      "confidence": 0.31,
+      "classification": null,
+      "root_cause_hypothesis": "Insufficient evidence to determine root cause. No similar historical cases identified. Unusual particulate pattern not matched in equipment manuals or GMP deviation database.",
+      "recommendation": null,
+      "capa_suggestion": null,
+      "regulatory_reference": null,
+      "batch_disposition": "quarantine_pending_investigation",
+      "evidence_citations": []
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0010",
+      "current_step": "escalated_to_qa_manager",
+      "escalation_reason": "Insufficient evidence for AI recommendation — auto-escalated per RAI policy (confidence: 0.31, evidence: none)",
+      "assigned_to": "olena.kovalenko",
+      "escalated_at": "2026-04-08T11:35:00Z",
+      "escalation_deadline": null
+    },
+    "created_at": "2026-04-08T11:31:00Z",
+    "updated_at": "2026-04-08T11:35:00Z"
+  },
+  {
+    "id": "INC-2025-0001",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-1201-GR204",
+    "title": "Chopper Speed Below Minimum — GR-204 Granulation",
+    "description": "Chopper speed dropped to 950 RPM (validated min: 1000 RPM) for approximately 5 minutes during mid-granulation. Batch continued after self-correction.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-12-01T10:15:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "chopper_speed_rpm",
+      "measured_value": 950,
+      "lower_limit": 1000,
+      "upper_limit": 3000,
+      "duration_seconds": 312,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.95,
+      "classification": "process_parameter_excursion_speed_minor",
+      "root_cause_hypothesis": "Temporary power grid fluctuation causing momentary motor speed reduction. No mechanical fault detected. Short duration and small magnitude suggest no granule de-aggregation impact.",
+      "recommendation": "Granule particle size distribution check at next sampling point. If D50 within spec, batch may proceed without restriction.",
+      "capa_suggestion": "1. PSD check at next scheduled sampling. 2. Review electrical supply stability logs. 3. No equipment action required.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-ATV-020-v2.1 §5.2",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "PSD D50 = 412 µm (target 380–450 µm). Batch released. Power grid event noted in facility log.",
+      "resolved_by": "ivan.petrenko",
+      "resolved_at": "2025-12-01T14:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0241"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0001",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-12-01T10:16:00Z",
+    "updated_at": "2025-12-01T14:00:00Z"
+  },
+  {
+    "id": "INC-2025-0002",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-1201-GR204",
+    "title": "Product Temperature Excursion 51°C — GR-204",
+    "description": "Product temperature briefly reached 51°C (validated max: 50°C) for 2 minutes near end of granulation cycle. Second deviation on batch B25120101 — cumulative assessment required.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-12-01T12:45:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "product_temp_c",
+      "measured_value": 51,
+      "lower_limit": 30,
+      "upper_limit": 50,
+      "duration_seconds": 122,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.89,
+      "classification": "thermal_excursion_minimal",
+      "root_cause_hypothesis": "Residual heat from extended granulation cycle. Cumulative heat load near limit. Combined with INC-2025-0001 (chopper speed dip) suggests slightly extended granulation time causing heat buildup.",
+      "recommendation": "Cumulative deviation assessment required (INC-2025-0001 + INC-2025-0002). API thermal stability for Atorvastatin is >80°C — 51°C for 2 min presents no stability risk. Batch release supported.",
+      "capa_suggestion": "1. Document cumulative deviation assessment linking INC-2025-0001 and INC-2025-0002. 2. Review inlet air temperature setpoint near end-of-granulation. 3. Add product temp monitoring at 45-min mark to BPR.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; GMP Annex 15 §6.3",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Cumulative assessment complete. API stability unaffected. Batch B25120101 released with cumulative deviation note in BPR.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-12-01T16:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0242"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0002",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-12-01T12:46:00Z",
+    "updated_at": "2025-12-01T16:30:00Z"
+  },
+  {
+    "id": "INC-2025-0003",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-1115-MIX102",
+    "title": "Mixing Speed Drop Below Minimum — MIX-102",
+    "description": "Mixing speed fell to 25 RPM (validated min: 30 RPM) for 4 minutes during pre-compression blending of Lisinopril 10mg batch.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2025-11-15T09:30:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "mixing_speed_rpm",
+      "measured_value": 25,
+      "lower_limit": 30,
+      "upper_limit": 120,
+      "duration_seconds": 245,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.91,
+      "classification": "process_parameter_excursion_speed_minor",
+      "root_cause_hypothesis": "Speed controller transient during blending cycle. No mechanical fault detected. Duration insufficient to affect blend homogeneity for Lisinopril formulation at this batch size.",
+      "recommendation": "Blend uniformity test (content uniformity by HPLC) at standard sampling points. If CV <5%, batch approved for release.",
+      "capa_suggestion": "1. Content uniformity test. 2. Engineer check of speed controller firmware. No further action anticipated.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-LSN-010-v2.3 §5.1",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Content uniformity CV 2.8% — within limit (<5%). Batch released.",
+      "resolved_by": "serhii.bondar",
+      "resolved_at": "2025-11-15T14:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0196"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0003",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-11-15T09:31:00Z",
+    "updated_at": "2025-11-15T14:00:00Z"
+  },
+  {
+    "id": "INC-2025-0004",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-1115-MIX102",
+    "title": "Motor Overload Shutdown — MIX-102 Emergency Stop",
+    "description": "MIX-102 triggered emergency stop due to motor overload during blending. Motor current reached 148% of rated capacity. Equipment halted mid-blend. Batch in undefined mixing state.",
+    "deviation_type": "equipment_malfunction",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2025-11-15T10:45:00Z",
+    "detected_by": "equipment_alarm",
+    "parameter_excursion": {
+      "parameter": "motor_current_pct_rated",
+      "measured_value": 148,
+      "lower_limit": null,
+      "upper_limit": 110,
+      "duration_seconds": 18,
+      "unit": "%"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.87,
+      "classification": "equipment_failure_motor_overload",
+      "root_cause_hypothesis": "Motor bearing seized post-INC-2025-0003 speed anomaly. Correlation with prior speed instability suggests progressive bearing deterioration. CMMS records confirm MIX-102 bearing replacement overdue by 45 days.",
+      "recommendation": "Batch rejection required — blend state undefined at point of emergency stop. Equipment quarantine pending bearing inspection and replacement. Full IQ/OQ before return to service.",
+      "capa_suggestion": "1. Reject batch B25111501 — undefined blend state. 2. Quarantine MIX-102. 3. Replace motor bearings. 4. IQ/OQ requalification. 5. Implement motor current trending in CMMS. 6. Review bearing PM frequency.",
+      "regulatory_reference": "GMP Annex 15 §10; SOP-DEV-001 §5.1",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch B25111501 rejected. Undefined blend state due to mid-process emergency stop. Equipment quarantined. Bearing replacement WO issued.",
+      "resolved_by": "vasyl.marchenko",
+      "resolved_at": "2025-11-15T16:00:00Z",
+      "work_order_id": "WO-2025-0278",
+      "audit_entry_id": "AE-2025-0197"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0004",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-11-15T10:46:00Z",
+    "updated_at": "2025-11-15T16:00:00Z"
+  },
+  {
+    "id": "INC-2025-0005",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2025-1028-DRY303",
+    "title": "Product Temperature 57°C — DRY-303 Post-Granulation Drying",
+    "description": "Product temperature reached 57°C (validated max: 55°C) for 7 minutes during post-granulation drying. Paracetamol batch. Extended cooling step applied.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "moderate",
+    "status": "closed",
+    "reported_by": "tetiana.lysenko",
+    "reported_at": "2025-10-28T10:20:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "product_temp_c",
+      "measured_value": 57,
+      "lower_limit": 30,
+      "upper_limit": 55,
+      "duration_seconds": 420,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.91,
+      "classification": "thermal_process_deviation",
+      "root_cause_hypothesis": "Inlet air temperature slightly elevated (68°C) combined with low air flow rate led to heat accumulation in product bed. Paracetamol is stable to 80°C — limited API risk but physical properties (particle size, flowability) may be affected.",
+      "recommendation": "Apply 15-minute ambient air cooling cycle. Recheck product temperature. If within range, proceed. Perform bulk density and flowability tests before compression.",
+      "capa_suggestion": "1. 15-min cooling cycle, recheck temp. 2. Bulk density and flowability tests. 3. Reduce inlet air temp setpoint to 62°C for this product. 4. Update BPR with revised setpoint.",
+      "regulatory_reference": "SOP-MAN-DRY-001 §5.2; BPR-PCT-500-v2.0 §8",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Cooling cycle applied. Product temp returned to 43°C. Bulk density and flowability within spec. Batch released. BPR updated with inlet temp correction note.",
+      "resolved_by": "tetiana.lysenko",
+      "resolved_at": "2025-10-28T14:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0163"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0005",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-10-28T10:21:00Z",
+    "updated_at": "2025-10-28T14:30:00Z"
+  },
+  {
+    "id": "INC-2025-0006",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2025-1028-DRY303",
+    "title": "Moisture Content 4.2% Out of Spec — DRY-303",
+    "description": "In-process moisture content test at 2hr checkpoint recorded 4.2% (validated max: 3.5%). Second deviation on same batch following INC-2025-0005. Extended drying required.",
+    "deviation_type": "in_process_test_failure",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "tetiana.lysenko",
+    "reported_at": "2025-10-28T12:05:00Z",
+    "detected_by": "in_process_testing",
+    "parameter_excursion": {
+      "parameter": "moisture_content_pct",
+      "measured_value": 4.2,
+      "lower_limit": 1.0,
+      "upper_limit": 3.5,
+      "duration_seconds": null,
+      "unit": "%"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.88,
+      "classification": "drying_insufficiency",
+      "root_cause_hypothesis": "High inlet moisture combined with temperature excursion (INC-2025-0005) created suboptimal drying conditions. Reduced effective drying time due to cooling cycle applied for INC-2025-0005 resolution.",
+      "recommendation": "Extend drying 45 minutes with corrected inlet air settings (temp 62°C, flow 1050 m³/h). Retest moisture at 30-minute intervals. If 3 consecutive readings within 1.0–3.5%, batch approved.",
+      "capa_suggestion": "1. Extended drying with interval moisture checks. 2. Add moisture check at 90-min mark to BPR standard protocol. 3. Compute drying time algorithm accounting for inlet granule moisture. 4. Link INC-2025-0005 and INC-2025-0006 in CAPA report.",
+      "regulatory_reference": "SOP-MAN-DRY-001 §5.2; BPR-PCT-500-v2.0 §8.3",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Extended drying 45 min. Moisture at 90min: 2.9%. At 120min: 2.6%. Both within spec. Batch released with linked CAPA.",
+      "resolved_by": "vasyl.marchenko",
+      "resolved_at": "2025-10-28T17:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0164"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0006",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-10-28T12:06:00Z",
+    "updated_at": "2025-10-28T17:00:00Z"
+  },
+  {
+    "id": "INC-2025-0007",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-1015-GR204",
+    "title": "Spray Rate Below Minimum — Peristaltic Pump Blockage GR-204",
+    "description": "Binder spray rate fell to 40 g/min (validated min: 50 g/min) for 14 minutes. Cause: partial blockage of peristaltic pump tubing. Full-batch impact due to extended duration during critical binder distribution phase.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "mykola.sydorenko",
+    "reported_at": "2025-10-15T09:00:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "spray_rate_g_min",
+      "measured_value": 40,
+      "lower_limit": 50,
+      "upper_limit": 200,
+      "duration_seconds": 840,
+      "unit": "g/min"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.93,
+      "classification": "spray_system_malfunction_extended",
+      "root_cause_hypothesis": "Peristaltic pump tubing blockage confirmed — particulate material in binder solution. Duration (14 min) during binder addition phase poses significant granule non-uniformity risk. Similar event INC-2025-0007 pattern matches INC-2026-0003 with extended duration.",
+      "recommendation": "Granule uniformity testing required at 5 sampling points. PSD D10/D50/D90 analysis. If RSD >8% or PSD outside spec, batch rejection recommended per GMP guidelines.",
+      "capa_suggestion": "1. Full granule uniformity panel. 2. Reject if RSD >8%. 3. Clean and replace pump tubing. 4. Add binder solution filtration step. 5. Reduce pump tubing replacement interval.",
+      "regulatory_reference": "SOP-DEV-001 §4.3; SOP-MAN-GR-001 §7.2; GMP Annex 15 §6.3",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Granule uniformity RSD 11.2% — exceeds 8% rejection limit. Batch B25101501 rejected. Pump tubing replaced and binder solution filtration step implemented.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-10-15T16:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0148"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0007",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-10-15T09:01:00Z",
+    "updated_at": "2025-10-15T16:00:00Z"
+  },
+  {
+    "id": "INC-2025-0008",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-1015-GR204",
+    "title": "Inlet Air Flow Utility Failure — GR-204 Supply Disruption",
+    "description": "Inlet air flow dropped to 550 m³/h (validated min: 600 m³/h) for 6 minutes due to compressed air supply pressure drop. Separate event from INC-2025-0007. Both incidents on rejected batch B25101501.",
+    "deviation_type": "utility_failure",
+    "severity": "moderate",
+    "status": "closed",
+    "reported_by": "mykola.sydorenko",
+    "reported_at": "2025-10-15T11:30:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "inlet_air_flow_m3h",
+      "measured_value": 550,
+      "lower_limit": 600,
+      "upper_limit": 1200,
+      "duration_seconds": 360,
+      "unit": "m³/h"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.79,
+      "classification": "utility_failure_air_supply",
+      "root_cause_hypothesis": "Compressed air main pressure drop affecting inlet air flow. Building utility log confirms pressure event at same time window. This is the second deviation on batch B25101501 — batch already compromised by INC-2025-0007.",
+      "recommendation": "Batch already flagged for rejection (INC-2025-0007). Document air flow event as contributing factor in CAPA report. Facility maintenance to investigate compressed air pressure stability.",
+      "capa_suggestion": "1. Document as secondary factor in batch rejection CAPA. 2. CMMS WO for compressed air system inspection. 3. Add low-pressure alarm to building management system with automatic production hold.",
+      "regulatory_reference": "SOP-DEV-001 §4.5; SOP-MAN-GR-001 §3.1",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Documented as secondary factor. Batch already rejected per INC-2025-0007. Compressed air maintenance WO issued. Alarm threshold updated in BMS.",
+      "resolved_by": "mykola.sydorenko",
+      "resolved_at": "2025-10-15T15:00:00Z",
+      "work_order_id": "WO-2025-0229",
+      "audit_entry_id": "AE-2025-0149"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0008",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-10-15T11:31:00Z",
+    "updated_at": "2025-10-15T15:00:00Z"
+  },
+  {
+    "id": "INC-2025-0009",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0925-MIX102",
+    "title": "Room Temperature Critical Excursion — Contamination Risk",
+    "description": "Blending room temperature reached 30.2°C (limit: 28°C) for 30 minutes. Combined with relative humidity 58% (target <50%). Critical API — Metformin HCl moisture-sensitive. Contamination risk assessment required.",
+    "deviation_type": "contamination_risk",
+    "severity": "critical",
+    "status": "closed",
+    "reported_by": "natalia.shevchenko",
+    "reported_at": "2025-09-25T09:15:00Z",
+    "detected_by": "environmental_monitor",
+    "parameter_excursion": {
+      "parameter": "room_temperature_c",
+      "measured_value": 30.2,
+      "lower_limit": null,
+      "upper_limit": 28,
+      "duration_seconds": 1800,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.84,
+      "classification": "environmental_excursion_combined_risk",
+      "root_cause_hypothesis": "HVAC system failure: cooling coil fouling causing reduced cooling capacity. Combined temperature and humidity excursion creates moisture absorption risk for Metformin HCl (hygroscopic API). Duration 30 min at 30.2°C and 58% RH exceeds acceptable exposure window.",
+      "recommendation": "Batch rejection required. Metformin HCl moisture content likely affected — dissolution and content uniformity risk. HVAC emergency maintenance required before production resumption.",
+      "capa_suggestion": "1. Reject batch B25092501. 2. Emergency HVAC inspection and cooling coil cleaning. 3. Validate room conditions before restart. 4. Add real-time humidity alarm to production monitoring. 5. Implement 15-min HVAC check interval during production.",
+      "regulatory_reference": "SOP-DEV-001 §4.5; 21 CFR Part 211.46 — Ventilation, Air Filtration; GMP Annex 1 §4.4",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch B25092501 rejected. Metformin HCl moisture content 1.8% (limit 0.5%) — moisture absorption confirmed during excursion. HVAC emergency repair completed.",
+      "resolved_by": "vasyl.marchenko",
+      "resolved_at": "2025-09-25T16:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0128"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0009",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-09-25T09:16:00Z",
+    "updated_at": "2025-09-25T16:00:00Z"
+  },
+  {
+    "id": "INC-2025-0010",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0925-MIX102",
+    "title": "Documentation Error — Missing Operator Sign-off BPR Page 2",
+    "description": "IPQA review identified missing operator signature on BPR page 2 (parameter verification at t=0). Required per SOP-QA-001 §3.1. Batch already rejected (INC-2025-0009). Documentation CAPA raised separately.",
+    "deviation_type": "documentation_error",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "olena.kovalenko",
+    "reported_at": "2025-09-25T17:00:00Z",
+    "detected_by": "ipqa_review",
+    "parameter_excursion": null,
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.77,
+      "classification": "documentation_non_conformance",
+      "root_cause_hypothesis": "Operator sign-off skipped during emergency response to environmental alarm (INC-2025-0009). Documentation gap directly linked to emergency response distraction.",
+      "recommendation": "Retroactive documentation with explanation of circumstances. Operator retraining on BPR sign-off requirements. Procedure review for emergency-situation documentation protocol.",
+      "capa_suggestion": "1. Retroactive BPR sign-off with QA countersignature and explanation note. 2. Operator retraining (SOP-QA-001). 3. Add emergency-situation documentation checklist to SOP.",
+      "regulatory_reference": "SOP-QA-001 §3.1 — BPR Documentation Requirements; 21 CFR Part 211.188",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Retroactive documentation completed with QA countersignature. Root cause linked to INC-2025-0009 emergency response. Operator retraining scheduled.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-09-26T09:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0129"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0010",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-09-25T17:01:00Z",
+    "updated_at": "2025-09-26T09:00:00Z"
+  },
+  {
+    "id": "INC-2025-0011",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-0910-GR204",
+    "title": "Granulation Time Exceeded — GR-204 Omeprazole",
+    "description": "Granulation time reached 38 minutes (BPR product specification: 18–28 min). Equipment range allows up to 60 min. Extended mixing due to operator oversight of endpoint criteria.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-09-10T11:00:00Z",
+    "detected_by": "operator_observation",
+    "parameter_excursion": {
+      "parameter": "granulation_time_min",
+      "measured_value": 38,
+      "lower_limit": 18,
+      "upper_limit": 28,
+      "duration_seconds": null,
+      "unit": "min",
+      "note": "BPR product-specific limit; validated equipment range 5–60 min"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.85,
+      "classification": "process_deviation_bpr_specification",
+      "root_cause_hypothesis": "Operator did not check granulation endpoint timer. Omeprazole is sensitive to over-granulation (particle size increase, density change). Extended 10 min over spec warrants granule property assessment.",
+      "recommendation": "Wet granule density and sieve analysis. If D50 within ±15% of target, batch may proceed. Omeprazole acid-labile — extended mixing may subtly affect enteric coat adhesion.",
+      "capa_suggestion": "1. Granule sieve analysis and density check. 2. Operator retraining on endpoint criteria monitoring. 3. Add endpoint timer alarm to BPR procedure checklist.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-OMP-020-v1.5 §6.1",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Sieve analysis D50 = 318 µm (target 300–340 µm). Density within spec. Batch released. Operator counselled and retraining scheduled.",
+      "resolved_by": "ivan.petrenko",
+      "resolved_at": "2025-09-10T15:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0112"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0011",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-09-10T11:01:00Z",
+    "updated_at": "2025-09-10T15:30:00Z"
+  },
+  {
+    "id": "INC-2025-0012",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-0910-GR204",
+    "title": "Chopper Bearing Vibration Anomaly — GR-204 Equipment Quarantine",
+    "description": "Vibration sensor alarm triggered on GR-204 chopper assembly during granulation. Vibration amplitude 3.2× baseline. Bearing deterioration confirmed by maintenance inspection.",
+    "deviation_type": "equipment_malfunction",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-09-10T13:20:00Z",
+    "detected_by": "vibration_monitor",
+    "parameter_excursion": {
+      "parameter": "vibration_amplitude_ratio",
+      "measured_value": 3.2,
+      "lower_limit": null,
+      "upper_limit": 1.5,
+      "duration_seconds": 900,
+      "unit": "× baseline"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.90,
+      "classification": "equipment_failure_bearing_wear",
+      "root_cause_hypothesis": "Progressive bearing wear on chopper shaft. CMMS PM record shows bearing last replaced 14 months ago (interval: 12 months overdue by 2 months). Similar pattern to INC-2026-0005 (GR-204 impeller bearing, January 2026).",
+      "recommendation": "Batch under GMP review (second deviation INC-2025-0011 + INC-2025-0012). Equipment quarantine required. Bearing replacement and requalification before next use. Batch rejection recommended.",
+      "capa_suggestion": "1. Quarantine GR-204. 2. Chopper bearing replacement. 3. Vibration baseline recalibration. 4. IQ/OQ requalification. 5. Review PM schedule — implement predictive maintenance vibration trending. 6. Review batch disposition considering dual deviations.",
+      "regulatory_reference": "GMP Annex 15 §10; SOP-DEV-001 §5.1",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch B25091001 rejected. Dual deviations (granulation time + bearing failure) unacceptable for Omeprazole. Equipment quarantined. Bearing replacement and requalification completed.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-09-11T10:00:00Z",
+      "work_order_id": "WO-2025-0198",
+      "audit_entry_id": "AE-2025-0113"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0012",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-09-10T13:21:00Z",
+    "updated_at": "2025-09-11T10:00:00Z"
+  },
+  {
+    "id": "INC-2025-0013",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2025-0828-DRY303",
+    "title": "Compressed Air Failure During Critical Drying — DRY-303",
+    "description": "Compressed air supply pressure dropped to 1.8 bar (minimum required: 3.0 bar) for 18 minutes during active drying of Atorvastatin batch. Air flow disruption resulted in insufficient drying. Final moisture content OOL.",
+    "deviation_type": "utility_failure",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "dmytro.kravets",
+    "reported_at": "2025-08-28T11:00:00Z",
+    "detected_by": "equipment_alarm",
+    "parameter_excursion": {
+      "parameter": "compressed_air_pressure_bar",
+      "measured_value": 1.8,
+      "lower_limit": 3.0,
+      "upper_limit": null,
+      "duration_seconds": 1080,
+      "unit": "bar"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.86,
+      "classification": "utility_failure_critical_impact",
+      "root_cause_hypothesis": "Compressed air main valve partial failure — pressure drop across facility. 18-minute disruption during active drying insufficient for complete moisture removal. Final moisture content 4.8% (limit 3.5%) confirms inadequate drying.",
+      "recommendation": "Batch rejection required. Atorvastatin moisture-sensitive — moisture content 4.8% presents stability and content uniformity risk. Compressed air system emergency repair required before production resumption.",
+      "capa_suggestion": "1. Reject batch B25082801. 2. Emergency compressed air system inspection and valve replacement. 3. Install pressure alarm with production auto-hold at <2.5 bar. 4. Add final moisture content check to batch rejection criteria.",
+      "regulatory_reference": "SOP-DEV-001 §4.5; SOP-MAN-DRY-001 §3.2; GMP Chapter 3 §3.34",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "rejected",
+      "rejection_reason": "Batch B25082801 rejected. Final moisture 4.8% confirmed by QC lab — outside specification (1.0–3.5%). Atorvastatin stability risk. Batch quarantined and destroyed. Compressed air valve replaced.",
+      "resolved_by": "vasyl.marchenko",
+      "resolved_at": "2025-08-28T17:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0091"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0013",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-08-28T11:01:00Z",
+    "updated_at": "2025-08-28T17:00:00Z"
+  },
+  {
+    "id": "INC-2025-0014",
+    "equipment_id": "DRY-303",
+    "batch_id": "BATCH-2025-0828-DRY303",
+    "title": "Room Humidity 68% Environmental Excursion — DRY-303 Area",
+    "description": "Room relative humidity in drying area reached 68% (limit: 60%) during same time window as INC-2025-0013 compressed air failure. Batch already rejected per INC-2025-0013.",
+    "deviation_type": "environmental_excursion",
+    "severity": "moderate",
+    "status": "closed",
+    "reported_by": "dmytro.kravets",
+    "reported_at": "2025-08-28T11:30:00Z",
+    "detected_by": "environmental_monitor",
+    "parameter_excursion": {
+      "parameter": "relative_humidity_pct",
+      "measured_value": 68,
+      "lower_limit": null,
+      "upper_limit": 60,
+      "duration_seconds": 2400,
+      "unit": "%"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.82,
+      "classification": "environmental_excursion_secondary_factor",
+      "root_cause_hypothesis": "Compressed air failure (INC-2025-0013) disrupted HVAC dehumidification circuit — both incidents share the same root cause (compressed air system failure). Humidity excursion is a downstream effect of INC-2025-0013.",
+      "recommendation": "Document as secondary contributing factor in INC-2025-0013 CAPA. Dehumidification unit inspection required. No separate batch action needed — batch already rejected.",
+      "capa_suggestion": "1. Link to INC-2025-0013 CAPA. 2. Dehumidification inspection as part of compressed air repair. 3. Add HVAC humidity monitoring to production alarm dashboard.",
+      "regulatory_reference": "SOP-DEV-001 §4.5; GMP Annex 1 §4.4",
+      "batch_disposition": "rejected"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Noted as secondary factor linked to INC-2025-0013. No additional batch action. Dehumidification restored after compressed air repair. Environmental monitoring record updated.",
+      "resolved_by": "dmytro.kravets",
+      "resolved_at": "2025-08-28T18:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0092"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0014",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-08-28T11:31:00Z",
+    "updated_at": "2025-08-28T18:30:00Z"
+  },
+  {
+    "id": "INC-2025-0015",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-0812-GR204",
+    "title": "Impeller Speed Minimum Excursion — GR-204 Brief Event",
+    "description": "Impeller speed briefly dropped to 585 RPM (validated min: 600 RPM) for 2 minutes during binder addition. Self-corrected. No observable granule impact.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-08-12T09:30:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "impeller_speed_rpm",
+      "measured_value": 585,
+      "lower_limit": 600,
+      "upper_limit": 800,
+      "duration_seconds": 122,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.93,
+      "classification": "process_parameter_excursion_speed_brief",
+      "root_cause_hypothesis": "Transient motor load fluctuation during high-viscosity binder addition. Duration (2 min) and magnitude (15 RPM below min) within acceptable minor deviation criteria. No mechanical fault.",
+      "recommendation": "Granule moisture check at next standard sampling. If within 8–12%, batch proceeds without restriction. No equipment action required.",
+      "capa_suggestion": "1. Moisture check at next sampling. 2. Log in batch record. 3. No equipment action. 4. Monitor for recurrence over next 3 batches.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-MET-500-v3.2 §5.2",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Moisture 9.2% at sampling — within 8–12% target. Batch released. No recurrence in subsequent batches.",
+      "resolved_by": "ivan.petrenko",
+      "resolved_at": "2025-08-12T13:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0078"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0015",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-08-12T09:31:00Z",
+    "updated_at": "2025-08-12T13:00:00Z"
+  },
+  {
+    "id": "INC-2025-0016",
+    "equipment_id": "GR-204",
+    "batch_id": "BATCH-2025-0812-GR204",
+    "title": "Spray Rate Above Maximum — Pump Calibration Drift GR-204",
+    "description": "Binder spray rate reached 215 g/min (validated max: 200 g/min) for 9 minutes. Cause: pump calibration drift resulting in 7.5% over-delivery. Risk of over-wetting and granule agglomeration.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "moderate",
+    "status": "closed",
+    "reported_by": "ivan.petrenko",
+    "reported_at": "2025-08-12T10:45:00Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "spray_rate_g_min",
+      "measured_value": 215,
+      "lower_limit": 50,
+      "upper_limit": 200,
+      "duration_seconds": 540,
+      "unit": "g/min"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.86,
+      "classification": "process_parameter_excursion_spray_drift",
+      "root_cause_hypothesis": "Peristaltic pump calibration drift — last calibration 58 days ago (interval 60 days, borderline). Combined with INC-2025-0015 (same batch), suggests borderline equipment condition. Over-spray of 7.5% for 9 min: potential localized over-wetting.",
+      "recommendation": "Granule visual inspection and sieve analysis. PSD D90 — if agglomerates present (D90 >1200 µm), batch reject. If PSD within spec despite double deviation, conditional release with enhanced final tablet testing.",
+      "capa_suggestion": "1. Full granule sieve analysis. 2. Recalibrate spray pump (calibration on next available maintenance slot). 3. Review pump calibration interval — reduce to 45 days for critical parameters. 4. Conditional release if PSD clean.",
+      "regulatory_reference": "SOP-DEV-001 §4.2; SOP-MAN-GR-001 §7.2",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "PSD D90 = 980 µm (limit <1200 µm). No agglomerates. Dual deviation assessment completed. Batch released with enhanced tablet dissolution testing. Pump recalibrated.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-08-12T16:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0079"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0016",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-08-12T10:46:00Z",
+    "updated_at": "2025-08-12T16:00:00Z"
+  },
+  {
+    "id": "INC-2025-0017",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0730-MIX102",
+    "title": "Blending Room Temperature 29.2°C — Environmental Excursion",
+    "description": "Room temperature reached 29.2°C (limit: 28°C) for 18 minutes during summer peak. Paracetamol 500mg blend in progress. Minor excursion.",
+    "deviation_type": "environmental_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2025-07-30T10:00:00Z",
+    "detected_by": "environmental_monitor",
+    "parameter_excursion": {
+      "parameter": "room_temperature_c",
+      "measured_value": 29.2,
+      "lower_limit": null,
+      "upper_limit": 28,
+      "duration_seconds": 1080,
+      "unit": "°C"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.91,
+      "classification": "environmental_excursion_seasonal",
+      "root_cause_hypothesis": "Seasonal peak outdoor temperature overloading HVAC cooling capacity. Paracetamol API is thermally stable well above 29.2°C. Short excursion, minimal risk.",
+      "recommendation": "No batch action required. Document in environmental monitoring log. HVAC capacity review recommended for summer operations.",
+      "capa_suggestion": "1. Document in environmental log. 2. HVAC capacity review. 3. Consider temporary HVAC booster unit during summer months. 4. No batch testing required.",
+      "regulatory_reference": "SOP-DEV-001 §4.5",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Environmental excursion logged. API stability unaffected. HVAC review scheduled. Batch released.",
+      "resolved_by": "serhii.bondar",
+      "resolved_at": "2025-07-30T12:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0059"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0017",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-07-30T10:01:00Z",
+    "updated_at": "2025-07-30T12:30:00Z"
+  },
+  {
+    "id": "INC-2025-0018",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0730-MIX102",
+    "title": "Mixing Time BPR Specification Exceeded — MIX-102",
+    "description": "Pre-compression blending reached 42 minutes. BPR specifies 25–35 minutes for this product step. Equipment validation allows 5–60 min. Operator did not notice endpoint timer.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2025-07-30T11:15:00Z",
+    "detected_by": "operator_observation",
+    "parameter_excursion": {
+      "parameter": "mixing_time_min",
+      "measured_value": 42,
+      "lower_limit": 25,
+      "upper_limit": 35,
+      "duration_seconds": null,
+      "unit": "min",
+      "note": "BPR product-specific limit; validated equipment range 5–60 min"
+    },
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.78,
+      "classification": "process_deviation_bpr_specification",
+      "root_cause_hypothesis": "Operator oversight of BPR timer endpoint. Extended 7 minutes over BPR spec. Over-blending of lubricant (magnesium stearate) is primary risk — lubricant sensitivity can reduce tablet hardness.",
+      "recommendation": "Tablet hardness profile at compression. If hardness within 80–120N (target), batch released with note. Lubrication sensitivity assessment.",
+      "capa_suggestion": "1. Tablet hardness profile. 2. Operator retraining on endpoint monitoring. 3. Add audible BPR timer alarm. 4. Log as repeat documentation event (see INC-2025-0011).",
+      "regulatory_reference": "SOP-DEV-001 §4.2; BPR-PCT-500-v2.0 §6.3",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Tablet hardness 96N average (range 88–104N) — within 80–120N spec. Batch released. Audible timer alarm added to blending equipment.",
+      "resolved_by": "serhii.bondar",
+      "resolved_at": "2025-07-30T16:00:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0060"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0018",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-07-30T11:16:00Z",
+    "updated_at": "2025-07-30T16:00:00Z"
+  },
+  {
+    "id": "INC-2025-0019",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0730-MIX102",
+    "title": "Blend Uniformity Failure — RSD 6.8% — MIX-102",
+    "description": "In-process blend uniformity test result: RSD 6.8% (specification: ≤5% RSD). Third deviation on batch B25073001. Linked to extended blending time (INC-2025-0018). Additional blending cycle performed.",
+    "deviation_type": "in_process_test_failure",
+    "severity": "major",
+    "status": "closed",
+    "reported_by": "serhii.bondar",
+    "reported_at": "2025-07-30T14:00:00Z",
+    "detected_by": "in_process_testing",
+    "parameter_excursion": {
+      "parameter": "blend_uniformity_rsd_pct",
+      "measured_value": 6.8,
+      "lower_limit": null,
+      "upper_limit": 5.0,
+      "duration_seconds": null,
+      "unit": "%RSD"
+    },
+    "ai_analysis": {
+      "risk_level": "HIGH",
+      "confidence": 0.90,
+      "classification": "in_process_test_failure_uniformity",
+      "root_cause_hypothesis": "Non-uniform lubrication due to over-blending (INC-2025-0018) causing lubricant coating of API particles. Paradoxical effect: over-blending worsens uniformity by creating lubricant-rich zones. Additional short blending cycle (5 min) at lower speed may redistribute.",
+      "recommendation": "Additional 5-minute low-speed blending (40 RPM), retest uniformity. If RSD <5% on retest, batch proceeds. If still OOS, batch rejection required. Consider low-speed re-blend as standard protocol for over-blended batches.",
+      "capa_suggestion": "1. 5-min 40 RPM re-blend and retest. 2. If pass: conditional release. 3. If fail: reject batch. 4. CAPA: implement endpoint blend uniformity test as mandatory IPT. 5. Link to INC-2025-0018 for root cause.",
+      "regulatory_reference": "SOP-DEV-001 §4.3; BPR-PCT-500-v2.0 §7.1; 21 CFR 211.110 — In-process sampling",
+      "batch_disposition": "conditional_release_pending_testing"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "5-min re-blend at 40 RPM. Retest RSD 3.2% (within ≤5% spec). Batch released. Mandatory blend uniformity IPT added to BPR. CAPA closed.",
+      "resolved_by": "vasyl.marchenko",
+      "resolved_at": "2025-07-30T17:30:00Z",
+      "work_order_id": "WO-2025-0163",
+      "audit_entry_id": "AE-2025-0061"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0019",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-07-30T14:01:00Z",
+    "updated_at": "2025-07-30T17:30:00Z"
+  },
+  {
+    "id": "INC-2025-0020",
+    "equipment_id": "MIX-102",
+    "batch_id": "BATCH-2025-0730-MIX102",
+    "title": "Documentation Error — Missing Operator ID BPR Page 4",
+    "description": "IPQA review of batch B25073001 identified that operator ID was not recorded on BPR page 4 (in-process check section). Required per SOP-QA-001 §3.1. Fourth deviation on this batch.",
+    "deviation_type": "documentation_error",
+    "severity": "minor",
+    "status": "closed",
+    "reported_by": "olena.kovalenko",
+    "reported_at": "2025-07-31T09:00:00Z",
+    "detected_by": "ipqa_review",
+    "parameter_excursion": null,
+    "ai_analysis": {
+      "risk_level": "LOW",
+      "confidence": 0.76,
+      "classification": "documentation_non_conformance_repeat",
+      "root_cause_hypothesis": "Operator distracted by multiple simultaneous deviations (INC-2025-0017, 0018, 0019) on the same batch. Documentation failure pattern: highest risk when operators are managing multiple concurrent deviations. Systemic training gap identified.",
+      "recommendation": "Retroactive documentation. Systemic retraining on documentation discipline under deviation conditions. Consider peer sign-off requirement when multiple deviations are active.",
+      "capa_suggestion": "1. Retroactive BPR correction with QA countersignature. 2. Trending analysis: documentation errors under concurrent deviation load. 3. Implement peer sign-off checklist when >1 active deviation per batch. 4. SOP-QA-001 revision.",
+      "regulatory_reference": "SOP-QA-001 §3.1; 21 CFR Part 211.188 — Batch production records",
+      "batch_disposition": "release_approved"
+    },
+    "resolution": {
+      "operator_decision": "approved",
+      "approval_notes": "Retroactive BPR correction completed. Peer sign-off SOP revision initiated. Training gap CAPA linked to INC-2025-0010 (same issue, different batch). Trending report submitted to QA.",
+      "resolved_by": "olena.kovalenko",
+      "resolved_at": "2025-07-31T11:30:00Z",
+      "work_order_id": null,
+      "audit_entry_id": "AE-2025-0062"
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2025-0020",
+      "current_step": "completed",
+      "assigned_to": null,
+      "escalation_deadline": null
+    },
+    "created_at": "2025-07-31T09:01:00Z",
+    "updated_at": "2025-07-31T11:30:00Z"
   }
 ]

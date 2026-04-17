@@ -23,10 +23,17 @@
 | Collection | Данні | Файл |
 |---|---|---|
 | `equipment` | 3 units: GR-204, MIX-102, DRY-303 | `data/mock/equipment.json` |
-| `batches` | 2 active/completed batches | `data/mock/batches.json` |
-| `incidents` | 5 historical incidents (GR-204 × 3, DRY-303 × 1, MIX × 1) | `data/mock/incidents.json` |
+| `batches` | **20 batches** (2026: 11; 2025: 9) — 3 equipment × 6 products | `data/mock/batches.json` |
+| `incidents` | **30 incidents** (INC-2026-0001–0010; INC-2025-0001–0020) — всі типи | `data/mock/incidents.json` |
 | `templates` | 2 templates (work order, audit entry) | `data/mock/templates.json` |
-| `incident_events` | Генерувати з incidents.resolution (seed audit trail) | — |
+
+**Demo scenarios покриті в incidents.json:**
+- `INC-2026-0001`: **pending_approval** — основный demo сценарій (GR-204 impeller)
+- `INC-2026-0006`: **pending_approval** — другий оператор (MIX-102 speed)
+- `INC-2026-0008`: **LOW_CONFIDENCE** (confidence=0.58) — попередження оператору
+- `INC-2026-0007`: **escalated** (24h timeout → QA Manager)
+- `INC-2026-0010`: **BLOCKED** (confidence=0.31, no evidence → auto-escalate)
+- `INC-2025-0001–0020`: **historical cases** для RAG (Research Agent semantic search)
 
 ---
 
@@ -54,8 +61,7 @@ scripts/
 
 ## Definition of Done
 
-- [x] JSON файли: equipment.json (3), batches.json (2), incidents.json (3), templates.json (2)
+- [x] JSON файли: equipment.json (3), batches.json (**20**), incidents.json (**30**), templates.json (2)
 - [ ] `python scripts/seed_cosmos.py` запускається без помилок
-- [ ] Cosmos DB містить 3 equipment, 2 batches, 3 incidents, 2 templates
-- [ ] `incident_events` містить audit trail для закритих incidents
+- [ ] Cosmos DB містить 3 equipment, **20 batches**, **30 incidents**, 2 templates
 - [ ] `python scripts/seed_cosmos.py --reset` очищує і перезасіває

@@ -55,5 +55,520 @@
       "relative_humidity_pct": 44.1,
       "differential_pressure_pa": 11.2
     }
+  },
+  {
+    "id": "BATCH-2026-0414-MIX102",
+    "equipment_id": "MIX-102",
+    "product_name": "Paracetamol 500mg Tablets",
+    "product_code": "PCT-500-TAB",
+    "batch_number": "B26041401",
+    "stage": "Blending",
+    "stage_step": "Lubrication Blending",
+    "batch_size_kg": 120,
+    "start_time": "2026-04-14T07:00:00Z",
+    "expected_end_time": "2026-04-14T11:00:00Z",
+    "operator_id": "serhii.bondar",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "in_progress",
+    "bpr_reference": "BPR-PCT-500-v2.0",
+    "expiry_date": "2028-06-01",
+    "current_parameters": {
+      "mixing_speed_rpm": 92,
+      "mixing_time_min": 28,
+      "temperature_c": 23.1
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.4,
+      "relative_humidity_pct": 46.8,
+      "differential_pressure_pa": 10.9
+    }
+  },
+  {
+    "id": "BATCH-2026-0413-DRY303",
+    "equipment_id": "DRY-303",
+    "product_name": "Omeprazole 20mg Capsules",
+    "product_code": "OMP-020-CAP",
+    "batch_number": "B26041301",
+    "stage": "Drying",
+    "stage_step": "Final Drying",
+    "batch_size_kg": 80,
+    "start_time": "2026-04-13T08:00:00Z",
+    "expected_end_time": "2026-04-13T16:00:00Z",
+    "operator_id": "tetiana.lysenko",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "on_hold",
+    "bpr_reference": "BPR-OMP-020-v1.5",
+    "expiry_date": null,
+    "current_parameters": {
+      "inlet_air_temp_c": 68,
+      "product_temp_c": 44,
+      "air_flow_m3h": 920,
+      "moisture_content_pct": 2.1
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.6,
+      "relative_humidity_pct": 48.2,
+      "differential_pressure_pa": 11.8
+    }
+  },
+  {
+    "id": "BATCH-2026-0411-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Lisinopril 10mg Tablets",
+    "product_code": "LSN-010-TAB",
+    "batch_number": "B26041101",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Massing",
+    "batch_size_kg": 160,
+    "start_time": "2026-04-11T06:30:00Z",
+    "expected_end_time": "2026-04-11T14:30:00Z",
+    "operator_id": "ivan.petrenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "completed",
+    "bpr_reference": "BPR-LSN-010-v2.3",
+    "expiry_date": "2028-05-15",
+    "current_parameters": {
+      "impeller_speed_rpm": 620,
+      "chopper_speed_rpm": 2050,
+      "spray_rate_g_min": 78,
+      "inlet_air_temp_c": 52,
+      "product_temp_c": 36,
+      "granulation_time_min": 22
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.9,
+      "relative_humidity_pct": 45.6,
+      "differential_pressure_pa": 12.1
+    }
+  },
+  {
+    "id": "BATCH-2026-0410-MIX102",
+    "equipment_id": "MIX-102",
+    "product_name": "Ibuprofen 400mg Tablets",
+    "product_code": "IBU-400-TAB",
+    "batch_number": "B26041001",
+    "stage": "Blending",
+    "stage_step": "Pre-Compression Blending",
+    "batch_size_kg": 180,
+    "start_time": "2026-04-10T08:00:00Z",
+    "expected_end_time": "2026-04-10T12:00:00Z",
+    "operator_id": "natalia.shevchenko",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "completed",
+    "bpr_reference": "BPR-IBU-400-v3.1",
+    "expiry_date": "2028-04-30",
+    "current_parameters": {
+      "mixing_speed_rpm": 68,
+      "mixing_time_min": 32,
+      "temperature_c": 22.8
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.0,
+      "relative_humidity_pct": 43.5,
+      "differential_pressure_pa": 11.5
+    }
+  },
+  {
+    "id": "BATCH-2026-0408-DRY303",
+    "equipment_id": "DRY-303",
+    "product_name": "Atorvastatin 20mg Tablets",
+    "product_code": "ATV-020-TAB",
+    "batch_number": "B26040801",
+    "stage": "Drying",
+    "stage_step": "Initial Drying",
+    "batch_size_kg": 140,
+    "start_time": "2026-04-08T07:00:00Z",
+    "expected_end_time": "2026-04-08T15:00:00Z",
+    "operator_id": "dmytro.kravets",
+    "supervisor_id": "olena.kovalenko",
+    "status": "completed",
+    "bpr_reference": "BPR-ATV-020-v2.1",
+    "expiry_date": "2028-03-25",
+    "current_parameters": {
+      "inlet_air_temp_c": 62,
+      "product_temp_c": 41,
+      "air_flow_m3h": 1050,
+      "moisture_content_pct": 2.3
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.7,
+      "relative_humidity_pct": 44.9,
+      "differential_pressure_pa": 12.0
+    }
+  },
+  {
+    "id": "BATCH-2026-0312-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B26031201",
+    "stage": "Granulation",
+    "stage_step": "Final Drying",
+    "batch_size_kg": 200,
+    "start_time": "2026-03-12T06:00:00Z",
+    "expected_end_time": "2026-03-12T14:00:00Z",
+    "operator_id": "mykola.sydorenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "rejected",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": null,
+    "current_parameters": {
+      "impeller_speed_rpm": 660,
+      "chopper_speed_rpm": 2200,
+      "spray_rate_g_min": 92,
+      "inlet_air_temp_c": 72,
+      "product_temp_c": 48,
+      "granulation_time_min": 28
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.3,
+      "relative_humidity_pct": 46.0,
+      "differential_pressure_pa": 12.2
+    }
+  },
+  {
+    "id": "BATCH-2026-0228-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B26022801",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Binder Addition",
+    "batch_size_kg": 200,
+    "start_time": "2026-02-28T07:00:00Z",
+    "expected_end_time": "2026-02-28T15:00:00Z",
+    "operator_id": "ivan.petrenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "released",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": "2028-02-01",
+    "current_parameters": {
+      "impeller_speed_rpm": 640,
+      "chopper_speed_rpm": 2150,
+      "spray_rate_g_min": 42,
+      "inlet_air_temp_c": 55,
+      "product_temp_c": 37,
+      "granulation_time_min": 30
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.5,
+      "relative_humidity_pct": 45.2,
+      "differential_pressure_pa": 11.8
+    }
+  },
+  {
+    "id": "BATCH-2026-0205-DRY303",
+    "equipment_id": "DRY-303",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B26020501",
+    "stage": "Drying",
+    "stage_step": "Post-Granulation Drying",
+    "batch_size_kg": 200,
+    "start_time": "2026-02-05T10:00:00Z",
+    "expected_end_time": "2026-02-05T18:00:00Z",
+    "operator_id": "tetiana.lysenko",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "released",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": "2028-02-10",
+    "current_parameters": {
+      "inlet_air_temp_c": 65,
+      "product_temp_c": 42,
+      "air_flow_m3h": 950,
+      "moisture_content_pct": 4.1
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.0,
+      "relative_humidity_pct": 46.5,
+      "differential_pressure_pa": 11.9
+    }
+  },
+  {
+    "id": "BATCH-2026-0120-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B26012001",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Full Run",
+    "batch_size_kg": 200,
+    "start_time": "2026-01-20T07:00:00Z",
+    "expected_end_time": "2026-01-20T15:00:00Z",
+    "operator_id": "mykola.sydorenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "rejected",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": null,
+    "current_parameters": {
+      "impeller_speed_rpm": 580,
+      "chopper_speed_rpm": 2100,
+      "spray_rate_g_min": 90,
+      "inlet_air_temp_c": 56,
+      "product_temp_c": 38,
+      "granulation_time_min": 35
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.6,
+      "relative_humidity_pct": 44.8,
+      "differential_pressure_pa": 11.6
+    }
+  },
+  {
+    "id": "BATCH-2025-1201-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Atorvastatin 20mg Tablets",
+    "product_code": "ATV-020-TAB",
+    "batch_number": "B25120101",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Full Run",
+    "batch_size_kg": 160,
+    "start_time": "2025-12-01T06:30:00Z",
+    "expected_end_time": "2025-12-01T14:30:00Z",
+    "operator_id": "ivan.petrenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "released",
+    "bpr_reference": "BPR-ATV-020-v2.1",
+    "expiry_date": "2027-12-01",
+    "current_parameters": {
+      "impeller_speed_rpm": 655,
+      "chopper_speed_rpm": 2180,
+      "spray_rate_g_min": 88,
+      "inlet_air_temp_c": 54,
+      "product_temp_c": 37,
+      "granulation_time_min": 23
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.8,
+      "relative_humidity_pct": 45.0,
+      "differential_pressure_pa": 11.7
+    }
+  },
+  {
+    "id": "BATCH-2025-1115-MIX102",
+    "equipment_id": "MIX-102",
+    "product_name": "Lisinopril 10mg Tablets",
+    "product_code": "LSN-010-TAB",
+    "batch_number": "B25111501",
+    "stage": "Blending",
+    "stage_step": "Pre-Compression Blending",
+    "batch_size_kg": 100,
+    "start_time": "2025-11-15T08:00:00Z",
+    "expected_end_time": "2025-11-15T12:00:00Z",
+    "operator_id": "serhii.bondar",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "released",
+    "bpr_reference": "BPR-LSN-010-v2.3",
+    "expiry_date": "2027-11-15",
+    "current_parameters": {
+      "mixing_speed_rpm": 72,
+      "mixing_time_min": 25,
+      "temperature_c": 22.3
+    },
+    "environmental_conditions": {
+      "room_temp_c": 21.9,
+      "relative_humidity_pct": 44.2,
+      "differential_pressure_pa": 11.3
+    }
+  },
+  {
+    "id": "BATCH-2025-1028-DRY303",
+    "equipment_id": "DRY-303",
+    "product_name": "Paracetamol 500mg Tablets",
+    "product_code": "PCT-500-TAB",
+    "batch_number": "B25102801",
+    "stage": "Drying",
+    "stage_step": "Post-Granulation Drying",
+    "batch_size_kg": 200,
+    "start_time": "2025-10-28T07:00:00Z",
+    "expected_end_time": "2025-10-28T15:00:00Z",
+    "operator_id": "tetiana.lysenko",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "released",
+    "bpr_reference": "BPR-PCT-500-v2.0",
+    "expiry_date": "2027-10-28",
+    "current_parameters": {
+      "inlet_air_temp_c": 64,
+      "product_temp_c": 40,
+      "air_flow_m3h": 980,
+      "moisture_content_pct": 2.4
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.1,
+      "relative_humidity_pct": 45.8,
+      "differential_pressure_pa": 12.3
+    }
+  },
+  {
+    "id": "BATCH-2025-1015-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Ibuprofen 400mg Tablets",
+    "product_code": "IBU-400-TAB",
+    "batch_number": "B25101501",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Binder Addition",
+    "batch_size_kg": 200,
+    "start_time": "2025-10-15T06:00:00Z",
+    "expected_end_time": "2025-10-15T14:00:00Z",
+    "operator_id": "mykola.sydorenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "rejected",
+    "bpr_reference": "BPR-IBU-400-v3.1",
+    "expiry_date": null,
+    "current_parameters": {
+      "impeller_speed_rpm": 630,
+      "chopper_speed_rpm": 2080,
+      "spray_rate_g_min": 40,
+      "inlet_air_temp_c": 57,
+      "product_temp_c": 39,
+      "granulation_time_min": 27
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.0,
+      "relative_humidity_pct": 46.1,
+      "differential_pressure_pa": 11.8
+    }
+  },
+  {
+    "id": "BATCH-2025-0925-MIX102",
+    "equipment_id": "MIX-102",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B25092501",
+    "stage": "Blending",
+    "stage_step": "Lubrication Blending",
+    "batch_size_kg": 200,
+    "start_time": "2025-09-25T08:00:00Z",
+    "expected_end_time": "2025-09-25T13:00:00Z",
+    "operator_id": "natalia.shevchenko",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "released",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": "2027-09-25",
+    "current_parameters": {
+      "mixing_speed_rpm": 75,
+      "mixing_time_min": 28,
+      "temperature_c": 22.1
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.3,
+      "relative_humidity_pct": 56.2,
+      "differential_pressure_pa": 11.0
+    }
+  },
+  {
+    "id": "BATCH-2025-0910-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Omeprazole 20mg Capsules",
+    "product_code": "OMP-020-CAP",
+    "batch_number": "B25091001",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Full Run",
+    "batch_size_kg": 120,
+    "start_time": "2025-09-10T07:00:00Z",
+    "expected_end_time": "2025-09-10T15:00:00Z",
+    "operator_id": "ivan.petrenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "released",
+    "bpr_reference": "BPR-OMP-020-v1.5",
+    "expiry_date": "2027-09-10",
+    "current_parameters": {
+      "impeller_speed_rpm": 660,
+      "chopper_speed_rpm": 2200,
+      "spray_rate_g_min": 95,
+      "inlet_air_temp_c": 55,
+      "product_temp_c": 38,
+      "granulation_time_min": 24
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.2,
+      "relative_humidity_pct": 44.0,
+      "differential_pressure_pa": 12.0
+    }
+  },
+  {
+    "id": "BATCH-2025-0828-DRY303",
+    "equipment_id": "DRY-303",
+    "product_name": "Atorvastatin 20mg Tablets",
+    "product_code": "ATV-020-TAB",
+    "batch_number": "B25082801",
+    "stage": "Drying",
+    "stage_step": "Initial Drying",
+    "batch_size_kg": 140,
+    "start_time": "2025-08-28T08:00:00Z",
+    "expected_end_time": "2025-08-28T16:00:00Z",
+    "operator_id": "dmytro.kravets",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "rejected",
+    "bpr_reference": "BPR-ATV-020-v2.1",
+    "expiry_date": null,
+    "current_parameters": {
+      "inlet_air_temp_c": 68,
+      "product_temp_c": 43,
+      "air_flow_m3h": 1100,
+      "moisture_content_pct": 2.3
+    },
+    "environmental_conditions": {
+      "room_temp_c": 23.5,
+      "relative_humidity_pct": 65.1,
+      "differential_pressure_pa": 10.8
+    }
+  },
+  {
+    "id": "BATCH-2025-0812-GR204",
+    "equipment_id": "GR-204",
+    "product_name": "Metformin HCl 500mg Tablets",
+    "product_code": "MET-500-TAB",
+    "batch_number": "B25081201",
+    "stage": "Granulation",
+    "stage_step": "Wet Granulation — Full Run",
+    "batch_size_kg": 200,
+    "start_time": "2025-08-12T06:00:00Z",
+    "expected_end_time": "2025-08-12T14:00:00Z",
+    "operator_id": "ivan.petrenko",
+    "supervisor_id": "olena.kovalenko",
+    "status": "released",
+    "bpr_reference": "BPR-MET-500-v3.2",
+    "expiry_date": "2027-08-12",
+    "current_parameters": {
+      "impeller_speed_rpm": 640,
+      "chopper_speed_rpm": 2150,
+      "spray_rate_g_min": 90,
+      "inlet_air_temp_c": 54,
+      "product_temp_c": 37,
+      "granulation_time_min": 24
+    },
+    "environmental_conditions": {
+      "room_temp_c": 22.4,
+      "relative_humidity_pct": 46.2,
+      "differential_pressure_pa": 11.8
+    }
+  },
+  {
+    "id": "BATCH-2025-0730-MIX102",
+    "equipment_id": "MIX-102",
+    "product_name": "Paracetamol 500mg Tablets",
+    "product_code": "PCT-500-TAB",
+    "batch_number": "B25073001",
+    "stage": "Blending",
+    "stage_step": "Pre-Compression Blending",
+    "batch_size_kg": 150,
+    "start_time": "2025-07-30T08:00:00Z",
+    "expected_end_time": "2025-07-30T13:00:00Z",
+    "operator_id": "serhii.bondar",
+    "supervisor_id": "vasyl.marchenko",
+    "status": "released",
+    "bpr_reference": "BPR-PCT-500-v2.0",
+    "expiry_date": "2027-07-30",
+    "current_parameters": {
+      "mixing_speed_rpm": 78,
+      "mixing_time_min": 30,
+      "temperature_c": 23.5
+    },
+    "environmental_conditions": {
+      "room_temp_c": 23.8,
+      "relative_humidity_pct": 52.3,
+      "differential_pressure_pa": 10.5
+    }
   }
 ]
