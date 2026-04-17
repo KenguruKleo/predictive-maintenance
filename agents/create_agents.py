@@ -170,7 +170,7 @@ def main(update: bool = False) -> dict:
     # and sentinel-search (5-index RAG: SOP, manuals, BPR, GMP, incidents)
     if mcp_db_url:
         db_mcp = McpTool(
-            server_label="sentinel-db",
+            server_label="sentinel_db",
             server_url=mcp_db_url,
         )
         research_tools = research_tools + db_mcp.definitions  # type: ignore[operator]
@@ -178,7 +178,7 @@ def main(update: bool = False) -> dict:
 
     if mcp_search_url:
         search_mcp = McpTool(
-            server_label="sentinel-search",
+            server_label="sentinel_search",
             server_url=mcp_search_url,
         )
         research_tools = research_tools + search_mcp.definitions  # type: ignore[operator]
@@ -197,7 +197,7 @@ def main(update: bool = False) -> dict:
     # MCP tools: qms (create audit entries) and cmms (create work orders)
     if mcp_qms_url:
         qms_mcp = McpTool(
-            server_label="sentinel-qms",
+            server_label="sentinel_qms",
             server_url=mcp_qms_url,
         )
         document_tools = document_tools + qms_mcp.definitions  # type: ignore[operator]
@@ -205,7 +205,7 @@ def main(update: bool = False) -> dict:
 
     if mcp_cmms_url:
         cmms_mcp = McpTool(
-            server_label="sentinel-cmms",
+            server_label="sentinel_cmms",
             server_url=mcp_cmms_url,
         )
         document_tools = document_tools + cmms_mcp.definitions  # type: ignore[operator]
