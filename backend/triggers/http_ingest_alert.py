@@ -159,7 +159,8 @@ def _get_equipment(equipment_id: str) -> dict | None:
     try:
         container = get_container("equipment")
         return container.read_item(item=equipment_id, partition_key=equipment_id)
-    except Exception:
+    except Exception as exc:
+        logger.error("Equipment lookup failed for '%s': %s", equipment_id, exc)
         return None
 
 
