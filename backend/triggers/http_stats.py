@@ -31,40 +31,34 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
     try:
         container = get_container("incidents")
 
-        # Total by status
-        by_status_results = list(container.query_items(
-            query="SELECT c.status, COUNT(1) AS cnt FROM c GROUP BY c.status",
+        # Cosmos DB cross-partition queries only support VALUE <AggregateFunc> for aggregates,
+        # so GROUP BY is not available. Fetch status/severity/risk_level and aggregate in Python.
+        all_rows = list(container.query_items(
+            query="SELECT c.status, c.severity, c.ai_analysis.risk_level AS risk_level FROM c",
             enable_cross_partition_query=True,
         ))
-        by_status = {r["status"]: r["cnt"] for r in by_status_results}
 
-        # Total by severity
-        by_severity_results = list(container.query_items(
-            query="SELECT c.severity, COUNT(1) AS cnt FROM c GROUP BY c.severity",
-            enable_cross_partition_query=True,
-        ))
-        by_severity = {r["severity"]: r["cnt"] for r in by_severity_results}
+        by_status: dict[str, int] = {}
+        by_severity: dict[str, int] = {}
+        pending = 0
+        open_count = 0
+        high_risk = 0
+        closed_statuses = {"closed", "rejected", "completed"}
+        high_risk_levels = {"high", "critical"}
 
-        # Pending approval count
-        pending_results = list(container.query_items(
-            query="SELECT VALUE COUNT(1) FROM c WHERE c.status = 'pending_approval'",
-            enable_cross_partition_query=True,
-        ))
-        pending = pending_results[0] if pending_results else 0
+        for row in all_rows:
+            st = row.get("status") or ""
+            sv = row.get("severity") or ""
+            rl = row.get("risk_level") or ""
 
-        # Open (not closed/rejected) count
-        open_results = list(container.query_items(
-            query="SELECT VALUE COUNT(1) FROM c WHERE c.status NOT IN ('closed', 'rejected', 'completed')",
-            enable_cross_partition_query=True,
-        ))
-        open_count = open_results[0] if open_results else 0
-
-        # Critical/high risk count
-        high_risk_results = list(container.query_items(
-            query="SELECT VALUE COUNT(1) FROM c WHERE c.ai_analysis.risk_level IN ('high', 'critical')",
-            enable_cross_partition_query=True,
-        ))
-        high_risk = high_risk_results[0] if high_risk_results else 0
+            by_status[st] = by_status.get(st, 0) + 1
+            by_severity[sv] = by_severity.get(sv, 0) + 1
+            if st == "pending_approval":
+                pending += 1
+            if st not in closed_statuses:
+                open_count += 1
+            if rl in high_risk_levels:
+                high_risk += 1
 
         return _json({
             "by_status": by_status,

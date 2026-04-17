@@ -53,7 +53,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
         # Count query (without pagination)
         count_query, count_params = _build_count_query(roles, status_filter, severity_filter)
         count_result = list(container.query_items(query=count_query, parameters=count_params, enable_cross_partition_query=True))
-        total = count_result[0].get("$1", 0) if count_result else len(items)
+        total = count_result[0] if count_result else len(items)
 
         # Slim down response for list view
         slim = [_slim_incident(i) for i in items]
