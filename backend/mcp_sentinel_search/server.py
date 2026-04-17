@@ -138,5 +138,21 @@ def search_incident_history(
 
 
 if __name__ == "__main__":
+    import uvicorn
+    from starlette.middleware.cors import CORSMiddleware
+
     transport = os.getenv("MCP_TRANSPORT", "stdio")
-    mcp.run(transport=transport)  # type: ignore[arg-type]
+    if transport == "streamable-http":
+        app = CORSMiddleware(
+            mcp.streamable_http_app(),
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+        uvicorn.run(
+            app,
+            host=os.getenv("FASTMCP_HOST", "127.0.0.1"),
+            port=int(os.getenv("FASTMCP_PORT", "8000")),
+        )
+    else:
+        mcp.run(transport=transport)  # type: ignore[arg-type]
