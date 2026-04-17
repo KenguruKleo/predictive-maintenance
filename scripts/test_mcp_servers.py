@@ -24,9 +24,9 @@ import traceback
 from pathlib import Path
 
 ROOT = Path(__file__).parent.parent
-MCP_DIR = ROOT / "mcp-servers"
+MCP_DIR = ROOT / "backend"
 
-# Ensure mcp-servers directory is importable
+# Add backend/ to path so mcp_sentinel_db, mcp_qms, mcp_cmms are importable
 sys.path.insert(0, str(MCP_DIR))
 
 # Load .env before importing server modules

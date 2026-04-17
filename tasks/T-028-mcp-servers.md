@@ -18,24 +18,23 @@
 ## Структура
 
 ```
-mcp-servers/
-  mcp_sentinel_db/
+backend/
+  mcp_sentinel_db/     # ← всередині Functions deployment package
     __init__.py
-    server.py          # MCP stdio server
-    tools.py           # Tool implementations (reads from Cosmos DB)
+    server.py          # FastMCP app + 5 read tools (Cosmos DB)
     
-  mcp_qms/
+  mcp_qms/             # ← всередині Functions deployment package
     __init__.py
-    server.py          # MCP stdio server
-    tools.py           # create_audit_entry tool
+    server.py          # FastMCP app + create_audit_entry tool
     
-  mcp_cmms/
+  mcp_cmms/            # ← всередині Functions deployment package
     __init__.py
-    server.py          # MCP stdio server
-    tools.py           # create_work_order tool
-
-  requirements.txt     # mcp, azure-cosmos, python-dotenv
+    server.py          # FastMCP app + create_work_order tool
 ```
+
+> MCP пакети знаходяться в `backend/` — вони потрапляють в Azure Functions deployment  
+> та імпортуються напряму з `run_foundry_agents.py` без subprocess.  
+> `mcp==1.6.0` вже є в `backend/requirements.txt`.
 
 ---
 
@@ -101,22 +100,19 @@ if __name__ == "__main__":
 
 ---
 
-## Agent registration (how agents use MCP servers)
+## Використання в Activities (run_foundry_agents.py)
+
+MCP пакети імпортуються напряму — без subprocess або HTTP:
 
 ```python
-# In Foundry Agent creation script:
-from azure.ai.projects.models import McpTool
-
-research_agent = project_client.agents.create_agent(
-    model="gpt-4o",
-    name="research-agent",
-    instructions="...",
-    tools=[
-        McpTool(server_label="sentinel-db", server_params={"command": "python", "args": ["mcp-servers/mcp_sentinel_db/server.py"]}),
-        # + AI Search tools
-    ]
-)
+# backend/activities/run_foundry_agents.py
+from mcp_sentinel_db.server import get_equipment, get_batch, search_incidents, get_template
+from mcp_qms.server import create_audit_entry
+from mcp_cmms.server import create_work_order
 ```
+
+Функції реєструються як `FunctionTool` при створенні Foundry агента (T-024).  
+Foundry повертає `requires_action` з `tool_calls`, наш код виконує виклики і повертає `tool_outputs`.
 
 ---
 
