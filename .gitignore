@@ -60,3 +60,9 @@ coverage.xml
 *.pem
 *.key
 *.pfx
+.playwright-mcp/page-2026-04-17T18-52-17-666Z.yml
+.playwright-mcp/page-2026-04-17T18-52-21-988Z.png
+.playwright-mcp/page-2026-04-17T18-52-30-798Z.png
+.playwright-mcp/page-2026-04-17T18-53-12-769Z.yml
+.playwright-mcp/page-2026-04-17T18-53-16-565Z.png
+.playwright-mcp/page-2026-04-17T18-56-35-572Z.yml

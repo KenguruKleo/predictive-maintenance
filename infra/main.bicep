@@ -130,6 +130,17 @@ module aiFoundry 'modules/ai-foundry.bicep' = {
   }
 }
 
+// Azure Static Web App — React SPA frontend
+module swa 'modules/static-web-app.bicep' = {
+  name: 'swa'
+  params: {
+    location: location
+    tags: tags
+    swaName: 'swa-${prefix}-${uniqueSuffix}'
+    skuName: 'Free'
+  }
+}
+
 // Azure Container Registry — stores MCP server Docker images
 module acr 'modules/acr.bicep' = {
   name: 'acr'
@@ -172,7 +183,8 @@ output foundryProjectConnectionString string = aiFoundry.outputs.projectConnecti
 output foundryProjectName string = aiFoundry.outputs.projectName
 output foundryAgentsEndpoint string = aiFoundry.outputs.agentsEndpoint
 output foundrySearchConnectionId string = aiFoundry.outputs.searchConnectionId
-output staticWebAppUrl string = 'https://${prefix}.azurestaticapps.net'
+output staticWebAppUrl string = 'https://${swa.outputs.swaHostname}'
+output staticWebAppName string = swa.outputs.swaName
 output resourcePrefix string = prefix
 output searchServiceEndpoint string = aiSearch.outputs.searchServiceEndpoint
 output searchServiceName string = aiSearch.outputs.searchServiceName

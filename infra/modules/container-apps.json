@@ -1,0 +1,579 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "_generator": {
+      "name": "bicep",
+      "version": "0.42.1.51946",
+      "templateHash": "9038079058062759622"
+    }
+  },
+  "parameters": {
+    "location": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "object"
+    },
+    "namePrefix": {
+      "type": "string",
+      "metadata": {
+        "description": "Short env+suffix prefix used for resource names, e.g. \"sentinel-intel-dev\""
+      }
+    },
+    "uniqueSuffix": {
+      "type": "string",
+      "metadata": {
+        "description": "6-char unique suffix derived from RG id."
+      }
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "metadata": {
+        "description": "Log Analytics workspace name (in the same RG) for container logs."
+      }
+    },
+    "acrName": {
+      "type": "string",
+      "metadata": {
+        "description": "ACR name (in the same RG) for pulling MCP images."
+      }
+    },
+    "cosmosAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Cosmos DB account name (in the same RG).  Used to resolve keys."
+      }
+    },
+    "cosmosDatabaseName": {
+      "type": "string",
+      "defaultValue": "sentinel-intelligence",
+      "metadata": {
+        "description": "Database name inside the Cosmos DB account."
+      }
+    },
+    "searchServiceName": {
+      "type": "string",
+      "metadata": {
+        "description": "AI Search service name (in the same RG).  Used to resolve admin key."
+      }
+    },
+    "searchEndpoint": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure AI Search endpoint URL, e.g. https://srch-xxx.search.windows.net"
+      }
+    },
+    "openaiAccountName": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure OpenAI account name (in the same RG).  Used to resolve API key."
+      }
+    },
+    "openaiEndpoint": {
+      "type": "string",
+      "metadata": {
+        "description": "Azure OpenAI endpoint URL."
+      }
+    },
+    "embeddingDeployment": {
+      "type": "string",
+      "defaultValue": "text-embedding-3-small",
+      "metadata": {
+        "description": "Embedding deployment name."
+      }
+    },
+    "dbImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/k8se/quickstart:latest",
+      "metadata": {
+        "description": "Image tag for mcp-sentinel-db container.  Defaults to placeholder."
+      }
+    },
+    "searchImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/k8se/quickstart:latest",
+      "metadata": {
+        "description": "Image tag for mcp-sentinel-search container.  Defaults to placeholder."
+      }
+    },
+    "qmsImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/k8se/quickstart:latest",
+      "metadata": {
+        "description": "Image tag for mcp-qms container.  Defaults to placeholder."
+      }
+    },
+    "cmmsImage": {
+      "type": "string",
+      "defaultValue": "mcr.microsoft.com/k8se/quickstart:latest",
+      "metadata": {
+        "description": "Image tag for mcp-cmms container.  Defaults to placeholder."
+      }
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2024-03-01",
+      "name": "[format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[parameters('tags')]",
+      "properties": {
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName')), '2023-09-01').customerId]",
+            "sharedKey": "[listKeys(resourceId('Microsoft.OperationalInsights/workspaces', parameters('logAnalyticsWorkspaceName')), '2023-09-01').primarySharedKey]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('mcp-db-{0}', parameters('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('mcpServer', 'sentinel-db'))]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]",
+        "configuration": {
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "cosmos-key",
+              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').primaryMasterKey]"
+            },
+            {
+              "name": "search-key",
+              "value": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), '2024-06-01-preview').primaryKey]"
+            },
+            {
+              "name": "openai-key",
+              "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openaiAccountName')), '2024-10-01').key1]"
+            }
+          ],
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]",
+              "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').username]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "http",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mcp-sentinel-db",
+              "image": "[parameters('dbImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MCP_TRANSPORT",
+                  "value": "streamable-http"
+                },
+                {
+                  "name": "FASTMCP_HOST",
+                  "value": "0.0.0.0"
+                },
+                {
+                  "name": "FASTMCP_PORT",
+                  "value": "8080"
+                },
+                {
+                  "name": "FASTMCP_STATELESS_HTTP",
+                  "value": "true"
+                },
+                {
+                  "name": "FASTMCP_TRANSPORT_SECURITY__ENABLE_DNS_REBINDING_PROTECTION",
+                  "value": "false"
+                },
+                {
+                  "name": "COSMOS_ENDPOINT",
+                  "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').documentEndpoint]"
+                },
+                {
+                  "name": "COSMOS_KEY",
+                  "secretRef": "cosmos-key"
+                },
+                {
+                  "name": "COSMOS_DATABASE",
+                  "value": "[parameters('cosmosDatabaseName')]"
+                },
+                {
+                  "name": "PYTHONUNBUFFERED",
+                  "value": "1"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 3
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('mcp-search-{0}', parameters('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('mcpServer', 'sentinel-search'))]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]",
+        "configuration": {
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "cosmos-key",
+              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').primaryMasterKey]"
+            },
+            {
+              "name": "search-key",
+              "value": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), '2024-06-01-preview').primaryKey]"
+            },
+            {
+              "name": "openai-key",
+              "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openaiAccountName')), '2024-10-01').key1]"
+            }
+          ],
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]",
+              "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').username]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "http",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mcp-sentinel-search",
+              "image": "[parameters('searchImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MCP_TRANSPORT",
+                  "value": "streamable-http"
+                },
+                {
+                  "name": "FASTMCP_HOST",
+                  "value": "0.0.0.0"
+                },
+                {
+                  "name": "FASTMCP_PORT",
+                  "value": "8080"
+                },
+                {
+                  "name": "FASTMCP_STATELESS_HTTP",
+                  "value": "true"
+                },
+                {
+                  "name": "FASTMCP_TRANSPORT_SECURITY__ENABLE_DNS_REBINDING_PROTECTION",
+                  "value": "false"
+                },
+                {
+                  "name": "AZURE_SEARCH_ENDPOINT",
+                  "value": "[parameters('searchEndpoint')]"
+                },
+                {
+                  "name": "AZURE_SEARCH_KEY",
+                  "secretRef": "search-key"
+                },
+                {
+                  "name": "AZURE_OPENAI_ENDPOINT",
+                  "value": "[parameters('openaiEndpoint')]"
+                },
+                {
+                  "name": "AZURE_OPENAI_API_KEY",
+                  "secretRef": "openai-key"
+                },
+                {
+                  "name": "AZURE_OPENAI_EMBEDDING_DEPLOYMENT",
+                  "value": "[parameters('embeddingDeployment')]"
+                },
+                {
+                  "name": "PYTHONUNBUFFERED",
+                  "value": "1"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 3
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('mcp-qms-{0}', parameters('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('mcpServer', 'qms'))]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]",
+        "configuration": {
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "cosmos-key",
+              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').primaryMasterKey]"
+            },
+            {
+              "name": "search-key",
+              "value": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), '2024-06-01-preview').primaryKey]"
+            },
+            {
+              "name": "openai-key",
+              "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openaiAccountName')), '2024-10-01').key1]"
+            }
+          ],
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]",
+              "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').username]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "http",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mcp-qms",
+              "image": "[parameters('qmsImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MCP_TRANSPORT",
+                  "value": "streamable-http"
+                },
+                {
+                  "name": "FASTMCP_HOST",
+                  "value": "0.0.0.0"
+                },
+                {
+                  "name": "FASTMCP_PORT",
+                  "value": "8080"
+                },
+                {
+                  "name": "FASTMCP_STATELESS_HTTP",
+                  "value": "true"
+                },
+                {
+                  "name": "FASTMCP_TRANSPORT_SECURITY__ENABLE_DNS_REBINDING_PROTECTION",
+                  "value": "false"
+                },
+                {
+                  "name": "COSMOS_ENDPOINT",
+                  "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').documentEndpoint]"
+                },
+                {
+                  "name": "COSMOS_KEY",
+                  "secretRef": "cosmos-key"
+                },
+                {
+                  "name": "COSMOS_DATABASE",
+                  "value": "[parameters('cosmosDatabaseName')]"
+                },
+                {
+                  "name": "PYTHONUNBUFFERED",
+                  "value": "1"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]"
+      ]
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2024-03-01",
+      "name": "[format('mcp-cmms-{0}', parameters('uniqueSuffix'))]",
+      "location": "[parameters('location')]",
+      "tags": "[union(parameters('tags'), createObject('mcpServer', 'cmms'))]",
+      "properties": {
+        "managedEnvironmentId": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]",
+        "configuration": {
+          "secrets": [
+            {
+              "name": "acr-password",
+              "value": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').passwords[0].value]"
+            },
+            {
+              "name": "cosmos-key",
+              "value": "[listKeys(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').primaryMasterKey]"
+            },
+            {
+              "name": "search-key",
+              "value": "[listAdminKeys(resourceId('Microsoft.Search/searchServices', parameters('searchServiceName')), '2024-06-01-preview').primaryKey]"
+            },
+            {
+              "name": "openai-key",
+              "value": "[listKeys(resourceId('Microsoft.CognitiveServices/accounts', parameters('openaiAccountName')), '2024-10-01').key1]"
+            }
+          ],
+          "registries": [
+            {
+              "server": "[reference(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').loginServer]",
+              "username": "[listCredentials(resourceId('Microsoft.ContainerRegistry/registries', parameters('acrName')), '2023-07-01').username]",
+              "passwordSecretRef": "acr-password"
+            }
+          ],
+          "ingress": {
+            "external": true,
+            "targetPort": 8080,
+            "transport": "http",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "mcp-cmms",
+              "image": "[parameters('cmmsImage')]",
+              "resources": {
+                "cpu": "[json('0.5')]",
+                "memory": "1Gi"
+              },
+              "env": [
+                {
+                  "name": "MCP_TRANSPORT",
+                  "value": "streamable-http"
+                },
+                {
+                  "name": "FASTMCP_HOST",
+                  "value": "0.0.0.0"
+                },
+                {
+                  "name": "FASTMCP_PORT",
+                  "value": "8080"
+                },
+                {
+                  "name": "FASTMCP_STATELESS_HTTP",
+                  "value": "true"
+                },
+                {
+                  "name": "FASTMCP_TRANSPORT_SECURITY__ENABLE_DNS_REBINDING_PROTECTION",
+                  "value": "false"
+                },
+                {
+                  "name": "COSMOS_ENDPOINT",
+                  "value": "[reference(resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosAccountName')), '2024-05-15').documentEndpoint]"
+                },
+                {
+                  "name": "COSMOS_KEY",
+                  "secretRef": "cosmos-key"
+                },
+                {
+                  "name": "COSMOS_DATABASE",
+                  "value": "[parameters('cosmosDatabaseName')]"
+                },
+                {
+                  "name": "PYTHONUNBUFFERED",
+                  "value": "1"
+                }
+              ]
+            }
+          ],
+          "scale": {
+            "minReplicas": 0,
+            "maxReplicas": 2
+          }
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]"
+      ]
+    }
+  ],
+  "outputs": {
+    "containerEnvId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.App/managedEnvironments', format('cae-{0}-{1}', parameters('namePrefix'), parameters('uniqueSuffix')))]"
+    },
+    "mcpDbFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', format('mcp-db-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "mcpSearchFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', format('mcp-search-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "mcpQmsFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', format('mcp-qms-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "mcpCmmsFqdn": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.App/containerApps', format('mcp-cmms-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn]"
+    },
+    "mcpDbUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/mcp', reference(resourceId('Microsoft.App/containerApps', format('mcp-db-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "mcpSearchUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/mcp', reference(resourceId('Microsoft.App/containerApps', format('mcp-search-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "mcpQmsUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/mcp', reference(resourceId('Microsoft.App/containerApps', format('mcp-qms-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+    },
+    "mcpCmmsUrl": {
+      "type": "string",
+      "value": "[format('https://{0}/mcp', reference(resourceId('Microsoft.App/containerApps', format('mcp-cmms-{0}', parameters('uniqueSuffix'))), '2024-03-01').configuration.ingress.fqdn)]"
+    }
+  }
+}

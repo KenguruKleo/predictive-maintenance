@@ -1,0 +1,86 @@
+/* Login Page */
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f1923 0%, #1a2a3a 100%);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.login-logo {
+  margin-bottom: 16px;
+}
+
+.login-logo-icon {
+  font-size: 48px;
+}
+
+.login-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #0f1923;
+  margin: 0 0 8px;
+}
+
+.login-subtitle {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0 0 24px;
+}
+
+.login-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 0 0 24px;
+}
+
+.login-description {
+  font-size: 13px;
+  color: #4b5563;
+  line-height: 1.6;
+  margin: 0 0 28px;
+}
+
+.login-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 20px;
+  background: #0078d4;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.login-button:hover {
+  background: #006cbf;
+}
+
+.ms-logo {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.login-roles-note {
+  margin-top: 20px;
+  font-size: 12px;
+  color: #9ca3af;
+}
