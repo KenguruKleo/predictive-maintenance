@@ -119,14 +119,47 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      - name: Discover Azure resource endpoints
+        id: discover
+        run: |
+          RG="${AZURE_RESOURCE_GROUP}"
+          SUB_ID=$(az account show --query id -o tsv)
+
+          # Foundry AI project — find by naming convention
+          AI_PROJECT=$(az resource list -g "$RG" \
+            --resource-type "Microsoft.MachineLearningServices/workspaces" \
+            --query "[?starts_with(name,'aip-')].name | [0]" -o tsv 2>/dev/null || echo "")
+          if [ -z "$AI_PROJECT" ]; then
+            echo "::error::No AI Foundry project found in $RG"
+            exit 1
+          fi
+          # Construct semicolon-delimited connection string
+          ENDPOINT="swedencentral.api.azureml.ms;${SUB_ID};${RG};${AI_PROJECT}"
+          echo "FOUNDRY_ENDPOINT=${ENDPOINT}" >> "$GITHUB_OUTPUT"
+          echo "  AI Project: $AI_PROJECT"
+
+          # MCP Container App FQDNs
+          for APP_PAIR in "mcp-db:MCP_SENTINEL_DB_URL" "mcp-search:MCP_SENTINEL_SEARCH_URL" "mcp-qms:MCP_QMS_URL" "mcp-cmms:MCP_CMMS_URL"; do
+            PREFIX="${APP_PAIR%%:*}"
+            VAR_NAME="${APP_PAIR##*:}"
+            FQDN=$(az containerapp list -g "$RG" \
+              --query "[?starts_with(name,'${PREFIX}')].properties.configuration.ingress.fqdn | [0]" -o tsv 2>/dev/null || echo "")
+            if [ -n "$FQDN" ]; then
+              echo "${VAR_NAME}=https://${FQDN}/mcp" >> "$GITHUB_OUTPUT"
+              echo "  ${PREFIX}: https://${FQDN}/mcp"
+            else
+              echo "::warning::Container App ${PREFIX}-* not found in $RG"
+            fi
+          done
+
       - name: Deploy Foundry Agents (create/update)
         env:
-          AZURE_AI_FOUNDRY_AGENTS_ENDPOINT: ${{ secrets.AZURE_AI_FOUNDRY_AGENTS_ENDPOINT }}
+          AZURE_AI_FOUNDRY_AGENTS_ENDPOINT: ${{ steps.discover.outputs.FOUNDRY_ENDPOINT }}
           AZURE_AI_AGENTS_TESTS_IS_TEST_RUN: "True"
-          MCP_SENTINEL_DB_URL: ${{ vars.MCP_SENTINEL_DB_URL }}
-          MCP_SENTINEL_SEARCH_URL: ${{ vars.MCP_SENTINEL_SEARCH_URL }}
-          MCP_QMS_URL: ${{ vars.MCP_QMS_URL }}
-          MCP_CMMS_URL: ${{ vars.MCP_CMMS_URL }}
+          MCP_SENTINEL_DB_URL: ${{ steps.discover.outputs.MCP_SENTINEL_DB_URL }}
+          MCP_SENTINEL_SEARCH_URL: ${{ steps.discover.outputs.MCP_SENTINEL_SEARCH_URL }}
+          MCP_QMS_URL: ${{ steps.discover.outputs.MCP_QMS_URL }}
+          MCP_CMMS_URL: ${{ steps.discover.outputs.MCP_CMMS_URL }}
         run: python agents/create_agents.py --update
 
   # ── 4. Deploy React frontend (Azure Static Web Apps) ────────────────
