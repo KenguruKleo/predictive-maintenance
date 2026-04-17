@@ -3,5 +3,5 @@ azure-cosmos==4.9.0
 azure-identity==1.19.0
 azure-search-documents==11.6.0
 openai>=1.30.0
-mcp==1.6.0
+mcp>=1.9.0
 python-dotenv==1.0.1
