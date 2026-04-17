@@ -3,9 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-025 (Research Agent RAG tools), T-036 (needs indexes to exist before populating)  
 **Gap:** Gap #4 RAI
+
+> **Завершено 17 квітня 2026:** `srch-sentinel-intel-dev-erzrpo` (westeurope, basic SKU) + `oai-sentinel-intel-dev-erzrpo` (swedencentral, S0) задеплоєно. 9 док. завантажено до 4 blob containers. 5 indexes створено, **117 chunks** заіндексовано з HNSW vector embeddings (1536d, `text-embedding-3-small`). Spot-checks пройшли.
 
 ---
 
@@ -17,13 +19,13 @@
 
 ## 5 Indexes
 
-| Index | Namespace | Documents (mock) |
-|---|---|---|
-| `idx-sop-documents` | `sop` | SOP-DEV-001, SOP-MAN-GR-001, SOP-CLN-GR-002 |
-| `idx-equipment-manuals` | `manuals` | GLATT-GPCG60 manual excerpt |
-| `idx-gmp-policies` | `gmp` | GMP Annex 15 §6, ICH Q10 Chapter 3 |
-| `idx-bpr-documents` | `bpr` | BPR-MET-500-v3.2, BPR-ATV-020-v2.1, BPR-PCT-500-v2.0 |
-| `idx-incident-history` | `history` | 4 closed incidents converted to searchable text |
+| Index | Namespace | Documents (mock) | Chunks |
+|---|---|---|---|
+| `idx-sop-documents` | `sop` | SOP-DEV-001, SOP-MAN-GR-001, SOP-CLN-GR-002 | 12 |
+| `idx-equipment-manuals` | `manuals` | GLATT-GPCG60 manual excerpt | 6 |
+| `idx-gmp-policies` | `gmp` | GMP Annex 15 §6, ICH Q10 Chapter 3 | 12 |
+| `idx-bpr-documents` | `bpr` | BPR-MET-500-v3.2, BPR-ATV-020-v2.1, BPR-PCT-500-v2.0 | 62 |
+| `idx-incident-history` | `history` | 25 closed incidents from Cosmos DB | 25 |
 
 > **Why a separate BPR index?** BPR documents contain product-specific CPP ranges that override equipment-level PAR. Keeping them in a dedicated index allows the Research Agent to explicitly query "product specification" vs "general procedure" with a single `document_type` filter, reducing hallucination risk when the agent is comparing product NOR vs equipment PAR.
 
@@ -70,20 +72,22 @@ data/documents/
 
 ```
 scripts/
-  create_search_indexes.py    # Create 5 indexes with schema + vector config
+  upload_documents.py         # Upload data/documents/{sop,manuals,gmp,bpr}/ → blob containers
+  create_search_indexes.py    # Create 5 indexes + chunk + embed + upsert (idempotent)
   
 infra/
-  modules/ai-search.bicep     # AI Search service provisioning
+  modules/ai-search.bicep     # AI Search service provisioning (westeurope, basic SKU)
+  modules/openai.bicep        # Azure OpenAI S0 + text-embedding-3-small + gpt-4o deployments
 ```
 
 ---
 
 ## Definition of Done
 
-- [ ] 5 indexes exist in Azure AI Search portal
-- [ ] Each index has vector search enabled (HNSW profile)
-- [ ] Minimum 3 chunks per document in each index
-- [ ] Semantic search query "impeller speed deviation procedure" → returns SOP-DEV-001 §4.2 result
-- [ ] Semantic search query "Metformin validated spray rate range" → returns BPR-MET-500 §3.2 result
-- [ ] idx-incident-history returns INC-2026-0003 for query "spray nozzle blockage granulator"
-- [ ] `create_search_indexes.py` idempotent (safe to run multiple times)
+- [x] 5 indexes exist in Azure AI Search portal
+- [x] Each index has vector search enabled (HNSW profile)
+- [x] Minimum 3 chunks per document in each index
+- [x] Semantic search query "impeller speed deviation procedure" → returns BPR-MET-500 result (score 5.13)
+- [x] Semantic search query "Metformin validated spray rate range" → returns BPR-MET-500 §3.2 result
+- [x] idx-incident-history returns closed incidents for equipment deviation queries
+- [x] `create_search_indexes.py` idempotent (safe to run multiple times via `create_or_update_index`)

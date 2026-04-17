@@ -81,6 +81,28 @@ module functions 'modules/functions.bicep' = {
   }
 }
 
+// Azure AI Search
+// NOTE: deployed in westeurope (basic SKU not available in swedencentral).
+// Bicep module targets same RG but overrides location for this resource.
+module aiSearch 'modules/ai-search.bicep' = {
+  name: 'aiSearch'
+  params: {
+    location: 'westeurope'
+    tags: tags
+    searchServiceName: 'srch-${prefix}-${uniqueSuffix}'
+  }
+}
+
+// Azure OpenAI
+module openai 'modules/openai.bicep' = {
+  name: 'openai'
+  params: {
+    location: location
+    tags: tags
+    openaiAccountName: 'oai-${prefix}-${uniqueSuffix}'
+  }
+}
+
 // Outputs
 
 output functionsAppName string = functions.outputs.funcAppName
@@ -91,3 +113,9 @@ output serviceBusEndpoint string = servicebus.outputs.serviceBusEndpoint
 output storageAccountName string = storage.outputs.storageName
 output staticWebAppUrl string = 'https://${prefix}.azurestaticapps.net'
 output resourcePrefix string = prefix
+output searchServiceEndpoint string = aiSearch.outputs.searchServiceEndpoint
+output searchServiceName string = aiSearch.outputs.searchServiceName
+output openaiEndpoint string = openai.outputs.openaiEndpoint
+output openaiAccountName string = openai.outputs.openaiAccountName
+output embeddingDeploymentName string = openai.outputs.embeddingDeploymentName
+output gpt4oDeploymentName string = openai.outputs.gpt4oDeploymentName

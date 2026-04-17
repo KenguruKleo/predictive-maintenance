@@ -32,5 +32,16 @@ resource documentsContainer 'Microsoft.Storage/storageAccounts/blobServices/cont
   }
 }
 
+// Document ingestion containers — one per source type (separate ingestors, separate AI Search indexes)
+var docContainers = ['blob-sop', 'blob-manuals', 'blob-gmp', 'blob-bpr', 'blob-history']
+
+resource ingestionContainers 'Microsoft.Storage/storageAccounts/blobServices/containers@2023-05-01' = [for name in docContainers: {
+  parent: blobService
+  name: name
+  properties: {
+    publicAccess: 'None'
+  }
+}]
+
 output storageId string = storage.id
 output storageName string = storage.name

@@ -1,0 +1,60 @@
+// Azure OpenAI Service + deployments for agents and embeddings
+
+param location string
+param tags object
+param openaiAccountName string
+
+resource openaiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
+  name: openaiAccountName
+  location: location
+  tags: tags
+  kind: 'OpenAI'
+  sku: {
+    name: 'S0'
+  }
+  properties: {
+    customSubDomainName: openaiAccountName
+    publicNetworkAccess: 'Enabled'
+  }
+}
+
+// Embedding model — used by ingestion pipeline and Research Agent RAG tools
+resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: openaiAccount
+  name: 'text-embedding-3-small'
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 50
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'text-embedding-3-small'
+      version: '1'
+    }
+  }
+}
+
+// GPT-4o — used by Research Agent, Document Agent, Execution Agent
+resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-10-01' = {
+  parent: openaiAccount
+  name: 'gpt-4o'
+  dependsOn: [embeddingDeployment]
+  sku: {
+    name: 'GlobalStandard'
+    capacity: 30
+  }
+  properties: {
+    model: {
+      format: 'OpenAI'
+      name: 'gpt-4o'
+      version: '2024-11-20'
+    }
+  }
+}
+
+output openaiEndpoint string = openaiAccount.properties.endpoint
+output openaiAccountName string = openaiAccount.name
+output openaiAccountId string = openaiAccount.id
+output embeddingDeploymentName string = embeddingDeployment.name
+output gpt4oDeploymentName string = gpt4oDeployment.name

@@ -3,12 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** � IN PROGRESS  
+**Статус:** ✅ DONE  
 **Блокує:** T-021, T-023, T-024, T-025, T-028, T-031  
 **Залежить від:** нічого (перша задача)
 
-> **Що зроблено (Bicep):** `cosmos-sentinel-intel-dev-erzrpo` задеплоєно. 5 containers: `incidents` (`/equipmentId`), `equipment` (`/id`), `batches` (`/equipmentId`), `capa-plans` (`/incidentId`), `approval-tasks` (`/incidentId`).  
-> **Що залишилось:** `backend/cosmos_client.py`, `scripts/seed_cosmos.py`.
+> **Завершено 17 квітня 2026:** `cosmos-sentinel-intel-dev-erzrpo` задеплоєно. 6 containers: `incidents` (`/equipmentId`), `equipment` (`/id`), `batches` (`/equipmentId`), `capa-plans` (`/incidentId`), `approval-tasks` (`/incidentId`), `templates` (`/id`). 55 items seeded через `scripts/seed_cosmos.py`.
 
 ---
 
@@ -68,7 +67,7 @@ infra/
 ## Definition of Done
 
 - [x] `infra/modules/cosmos.bicep` валідується і задеплоєно
-- [x] 5 containers в Azure: incidents, equipment, batches, capa-plans, approval-tasks
+- [x] 6 containers в Azure: incidents, equipment, batches, capa-plans, approval-tasks, templates
 - [ ] `backend/cosmos_client.py` повертає container reference через Managed Identity (або key для local)
-- [ ] `scripts/seed_cosmos.py` запускається без помилок (`python scripts/seed_cosmos.py`)
-- [ ] 5 collections заповнені mock даними (T-021)
+- [x] `scripts/seed_cosmos.py` запускається без помилок (`python scripts/seed_cosmos.py`)
+- [x] 6 collections заповнені mock даними (T-021) — 55 items
