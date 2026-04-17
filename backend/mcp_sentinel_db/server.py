@@ -181,12 +181,72 @@ def get_template(template_type: str) -> dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.applications import Starlette
     from starlette.middleware.cors import CORSMiddleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    # ── REST API routes (used by OpenApiTool in Foundry) ──────────────────
+    async def rest_get_equipment(request: Request) -> JSONResponse:
+        try:
+            data = get_equipment(request.path_params["equipment_id"])
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+    async def rest_get_batch(request: Request) -> JSONResponse:
+        try:
+            data = get_batch(request.path_params["batch_id"])
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+    async def rest_get_incident(request: Request) -> JSONResponse:
+        try:
+            data = get_incident(request.path_params["incident_id"])
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+    async def rest_search_incidents(request: Request) -> JSONResponse:
+        try:
+            limit = int(request.query_params.get("limit", "5"))
+            data = search_incidents(request.path_params["equipment_id"], limit=limit)
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+    async def rest_get_template(request: Request) -> JSONResponse:
+        try:
+            data = get_template(request.path_params["template_type"])
+            return JSONResponse(data)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=404)
+
+    rest_routes = [
+        Route("/api/equipment/{equipment_id}", rest_get_equipment),
+        Route("/api/batches/{batch_id}", rest_get_batch),
+        Route("/api/incidents/{incident_id}", rest_get_incident),
+        Route("/api/equipment/{equipment_id}/incidents", rest_search_incidents),
+        Route("/api/templates/{template_type}", rest_get_template),
+    ]
 
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if transport == "streamable-http":
+        # Mount MCP at /mcp and REST at /api/*
+        mcp_app = mcp.streamable_http_app()
+
+        async def health(request: Request) -> JSONResponse:
+            return JSONResponse({"status": "ok"})
+
+        all_routes = rest_routes + [
+            Route("/health", health),
+            Route("/mcp{path:path}", mcp_app),
+        ]
+
         app = CORSMiddleware(
-            mcp.streamable_http_app(),
+            Starlette(routes=all_routes),
             allow_origins=["*"],
             allow_methods=["*"],
             allow_headers=["*"],

@@ -127,13 +127,40 @@ def create_audit_entry(
 
 
 if __name__ == "__main__":
+    import json
     import uvicorn
+    from starlette.applications import Starlette
     from starlette.middleware.cors import CORSMiddleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    async def rest_create_audit_entry(request: Request) -> JSONResponse:
+        try:
+            body = await request.json()
+            result = create_audit_entry(**body)
+            return JSONResponse(result, status_code=201)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=400)
+
+    rest_routes = [
+        Route("/api/audit-entries", rest_create_audit_entry, methods=["POST"]),
+    ]
 
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if transport == "streamable-http":
+        mcp_app = mcp.streamable_http_app()
+
+        async def health(request: Request) -> JSONResponse:
+            return JSONResponse({"status": "ok"})
+
+        all_routes = rest_routes + [
+            Route("/health", health),
+            Route("/mcp{path:path}", mcp_app),
+        ]
+
         app = CORSMiddleware(
-            mcp.streamable_http_app(),
+            Starlette(routes=all_routes),
             allow_origins=["*"],
             allow_methods=["*"],
             allow_headers=["*"],

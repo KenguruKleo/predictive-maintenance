@@ -6,6 +6,7 @@ import { MsalProvider } from "@azure/msal-react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import App from "./App";
 import { msalConfig } from "./authConfig";
+import { setMsalInstance } from "./api/client";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -19,6 +20,7 @@ const queryClient = new QueryClient({
 
 // MSAL v5 requires initialize() before use — do it async before first render
 const msalInstance = new PublicClientApplication(msalConfig);
+setMsalInstance(msalInstance);
 
 msalInstance.initialize().then(() => {
   // Handle the redirect response (auth code → tokens) before rendering

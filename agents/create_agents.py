@@ -4,15 +4,15 @@ create_agents.py — Provision Foundry agents for Sentinel Intelligence (T-025, 
 Run once (or with --update) to create/update Research, Document, and Orchestrator agents
 in Azure AI Foundry Agent Service.
 
+Uses OpenApiTool so Foundry calls our REST endpoints server-side (no client-side approval
+needed — works natively in Foundry Playground, unlike McpTool which always requires approval
+and the Playground has no UI for that).
+
 Usage:
     cd /workspace/predictive-maintenance
     AZURE_AI_FOUNDRY_AGENTS_ENDPOINT='swedencentral.api.azureml.ms;d16bb0b5-b7b2-4c3b-805b-f7ccb9ce3550;ODL-GHAZ-2177134;aip-sentinel-intel-dev-erzrpo' \
-    AZURE_AI_SEARCH_CONNECTION_ID=<connection_id_from_hub> \
-    python agents/create_agents.py [--update]
 
-The AZURE_AI_FOUNDRY_AGENTS_ENDPOINT is the semicolon-delimited connection string for the
-Azure AI Foundry Hub-based project (format: host;subscriptionId;resourceGroup;projectName).
-This is equal to the Bicep output 'foundryProjectConnectionString'.
+    python agents/create_agents.py [--update]
 
 After running, copy the printed IDs into local.settings.json / Azure App Settings:
     ORCHESTRATOR_AGENT_ID=...
@@ -27,14 +27,10 @@ from pathlib import Path
 
 from azure.ai.agents import AgentsClient
 from azure.ai.agents.models import (
-    AISearchIndexResource,
-    AzureAISearchQueryType,
-    AzureAISearchTool,
-    AzureAISearchToolResource,
     ConnectedAgentTool,
-    McpTool,
+    OpenApiAnonymousAuthDetails,
+    OpenApiTool,
     ToolDefinition,
-    ToolResources,
 )
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
@@ -48,12 +44,193 @@ DOCUMENT_PROMPT = (PROMPTS_DIR / "document_system.md").read_text(encoding="utf-8
 ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encoding="utf-8")
 
 MODEL = "gpt-4o"
+TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
+TOP_P = 0.9         # Slightly constrained nucleus sampling
 
-# Azure AI Foundry Agent Service supports max 1 index per agent (current beta limit).
-# We attach the primary GMP index; override via AZURE_AI_SEARCH_INDEX_NAME.
-# Additional indexes (equipment manuals, BPR, etc.) can be added when the limit is lifted,
-# or by creating specialised sub-agents per domain.
-PRIMARY_SEARCH_INDEX = os.environ.get("AZURE_AI_SEARCH_INDEX_NAME", "idx-sop-documents")
+
+# ── OpenAPI spec builders ─────────────────────────────────────────────────
+
+def _build_sentinel_db_spec(base_url: str) -> dict:
+    """OpenAPI 3.0 spec for Sentinel DB REST endpoints (5 operations)."""
+    return {
+        "openapi": "3.0.0",
+        "info": {"title": "Sentinel DB API", "version": "1.0.0"},
+        "servers": [{"url": base_url}],
+        "paths": {
+            "/api/equipment/{equipment_id}": {
+                "get": {
+                    "operationId": "get_equipment",
+                    "summary": "Get equipment master data by equipment_id (e.g. GR-204). Returns validated_parameters (PAR ranges), calibration dates, PM schedule, associated SOPs, criticality, location.",
+                    "parameters": [
+                        {"name": "equipment_id", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Equipment ID, e.g. GR-204"}
+                    ],
+                    "responses": {"200": {"description": "Equipment document"}, "404": {"description": "Not found"}},
+                }
+            },
+            "/api/batches/{batch_id}": {
+                "get": {
+                    "operationId": "get_batch",
+                    "summary": "Get batch context by batch_id (e.g. BATCH-2026-0416-GR204). Returns product name, batch number, BPR reference, current stage/step, process parameters, operator/supervisor IDs.",
+                    "parameters": [
+                        {"name": "batch_id", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Batch ID, e.g. BATCH-2026-0416-GR204"}
+                    ],
+                    "responses": {"200": {"description": "Batch document"}, "404": {"description": "Not found"}},
+                }
+            },
+            "/api/incidents/{incident_id}": {
+                "get": {
+                    "operationId": "get_incident",
+                    "summary": "Get incident document by incident_id (e.g. INC-2026-0001). Returns deviation details, AI analysis (risk_level, recommendation, confidence), workflow state.",
+                    "parameters": [
+                        {"name": "incident_id", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Incident ID, e.g. INC-2026-0001"}
+                    ],
+                    "responses": {"200": {"description": "Incident document"}, "404": {"description": "Not found"}},
+                }
+            },
+            "/api/equipment/{equipment_id}/incidents": {
+                "get": {
+                    "operationId": "search_incidents",
+                    "summary": "Find recent incidents for a given equipment_id, sorted newest first. Use to find historical cases and patterns.",
+                    "parameters": [
+                        {"name": "equipment_id", "in": "path", "required": True, "schema": {"type": "string"}, "description": "Equipment ID"},
+                        {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer", "default": 5}, "description": "Max results"},
+                    ],
+                    "responses": {"200": {"description": "List of incidents"}},
+                }
+            },
+            "/api/templates/{template_type}": {
+                "get": {
+                    "operationId": "get_template",
+                    "summary": "Get document template by type. Valid types: work_order, audit_entry. Returns template fields for pre-filling work orders and audit entries.",
+                    "parameters": [
+                        {"name": "template_type", "in": "path", "required": True, "schema": {"type": "string", "enum": ["work_order", "audit_entry"]}, "description": "Template type"}
+                    ],
+                    "responses": {"200": {"description": "Template document"}, "404": {"description": "Not found"}},
+                }
+            },
+        },
+    }
+
+
+def _build_sentinel_search_spec(base_url: str) -> dict:
+    """OpenAPI 3.0 spec for Sentinel Search REST endpoints (5 search operations)."""
+    def _search_path(path: str, op_id: str, summary: str, has_equipment: bool = False) -> dict:
+        params = [
+            {"name": "query", "in": "query", "required": True, "schema": {"type": "string"}, "description": "Natural language search query"},
+            {"name": "top_k", "in": "query", "required": False, "schema": {"type": "integer", "default": 5}, "description": "Number of results"},
+        ]
+        if has_equipment:
+            params.append({"name": "equipment_id", "in": "query", "required": False, "schema": {"type": "string"}, "description": "Filter by equipment ID"})
+        return {
+            path: {
+                "get": {
+                    "operationId": op_id,
+                    "summary": summary,
+                    "parameters": params,
+                    "responses": {"200": {"description": "Search results"}},
+                }
+            }
+        }
+
+    paths = {}
+    for p in [
+        _search_path("/api/search/sop", "search_sop_documents",
+                      "Semantic + vector search in Standard Operating Procedures (SOPs). Find relevant SOP sections for GMP deviation investigation."),
+        _search_path("/api/search/manuals", "search_equipment_manuals",
+                      "Semantic + vector search in equipment technical manuals. Find maintenance procedures, alarm codes, troubleshooting guides.", has_equipment=True),
+        _search_path("/api/search/bpr", "search_bpr_documents",
+                      "Semantic + vector search in Batch Production Records (BPR) and product process specs. BPR ranges (NOR/PAR) are product-specific.", has_equipment=True),
+        _search_path("/api/search/gmp", "search_gmp_policies",
+                      "Semantic + vector search in GMP regulations and internal quality policies. Cite applicable regulatory requirements."),
+        _search_path("/api/search/incidents", "search_incident_history",
+                      "Semantic + vector search in historical GMP deviation incidents. Find similar past cases, same equipment, same deviation type.", has_equipment=True),
+    ]:
+        paths.update(p)
+
+    return {
+        "openapi": "3.0.0",
+        "info": {"title": "Sentinel Search API", "version": "1.0.0"},
+        "servers": [{"url": base_url}],
+        "paths": paths,
+    }
+
+
+def _build_qms_spec(base_url: str) -> dict:
+    """OpenAPI 3.0 spec for QMS REST endpoint (create audit entry)."""
+    return {
+        "openapi": "3.0.0",
+        "info": {"title": "Sentinel QMS API", "version": "1.0.0"},
+        "servers": [{"url": base_url}],
+        "paths": {
+            "/api/audit-entries": {
+                "post": {
+                    "operationId": "create_audit_entry",
+                    "summary": "Create a GMP-compliant deviation audit entry in the Quality Management System. Records deviation investigation, root cause, CAPA, and batch disposition.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["incident_id", "equipment_id", "deviation_type", "description", "root_cause", "capa_actions", "batch_disposition", "prepared_by"],
+                                    "properties": {
+                                        "incident_id": {"type": "string", "description": "Source incident ID (e.g. INC-2026-0001)"},
+                                        "equipment_id": {"type": "string", "description": "Equipment where deviation occurred (e.g. GR-204)"},
+                                        "deviation_type": {"type": "string", "description": "Classification: process_parameter_excursion | equipment_malfunction"},
+                                        "description": {"type": "string", "description": "Factual description of the deviation event"},
+                                        "root_cause": {"type": "string", "description": "Root cause investigation summary"},
+                                        "capa_actions": {"type": "string", "description": "Numbered CAPA actions (immediate + short-term + long-term)"},
+                                        "batch_disposition": {"type": "string", "description": "conditional_release_pending_testing | rejected | release"},
+                                        "prepared_by": {"type": "string", "description": "User ID of QA person preparing the entry"},
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "responses": {"201": {"description": "Audit entry created"}, "400": {"description": "Validation error"}},
+                }
+            }
+        },
+    }
+
+
+def _build_cmms_spec(base_url: str) -> dict:
+    """OpenAPI 3.0 spec for CMMS REST endpoint (create work order)."""
+    return {
+        "openapi": "3.0.0",
+        "info": {"title": "Sentinel CMMS API", "version": "1.0.0"},
+        "servers": [{"url": base_url}],
+        "paths": {
+            "/api/work-orders": {
+                "post": {
+                    "operationId": "create_work_order",
+                    "summary": "Create a corrective maintenance work order in the CMMS. Schedules equipment inspection or repair following a GMP deviation.",
+                    "requestBody": {
+                        "required": True,
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "required": ["incident_id", "equipment_id", "title", "description", "priority", "assigned_to", "due_date", "work_type"],
+                                    "properties": {
+                                        "incident_id": {"type": "string", "description": "Source incident ID for traceability (e.g. INC-2026-0001)"},
+                                        "equipment_id": {"type": "string", "description": "Equipment to be serviced (e.g. GR-204)"},
+                                        "title": {"type": "string", "description": "Short work order title (max 120 chars)"},
+                                        "description": {"type": "string", "description": "Detailed description of required maintenance/inspection work"},
+                                        "priority": {"type": "string", "enum": ["urgent", "high", "medium", "low"], "description": "Priority level"},
+                                        "assigned_to": {"type": "string", "description": "Technician username or team name"},
+                                        "due_date": {"type": "string", "description": "Completion deadline in ISO 8601 format (e.g. 2026-04-25)"},
+                                        "work_type": {"type": "string", "enum": ["corrective", "preventive", "inspection"], "description": "Type of work"},
+                                    },
+                                }
+                            }
+                        },
+                    },
+                    "responses": {"201": {"description": "Work order created"}, "400": {"description": "Validation error"}},
+                }
+            }
+        },
+    }
 
 
 def _build_client() -> AgentsClient:
@@ -90,15 +267,18 @@ def _create_or_update(
     model: str,
     instructions: str,
     tools: list[ToolDefinition],
-    tool_resources: ToolResources | None,
-    update: bool,
+    tool_resources=None,
+    update: bool = False,
 ):
     existing = _find_existing(client, name)
     if existing and not update:
         print(f"  '{name}' already exists (id={existing.id}) — use --update to overwrite")
         return existing
 
-    kwargs: dict = dict(model=model, name=name, instructions=instructions, tools=tools)
+    kwargs: dict = dict(
+        model=model, name=name, instructions=instructions, tools=tools,
+        temperature=TEMPERATURE, top_p=TOP_P,
+    )
     if tool_resources is not None:
         kwargs["tool_resources"] = tool_resources
 
@@ -112,111 +292,66 @@ def _create_or_update(
 
 
 def main(update: bool = False) -> dict:
-    search_connection_id = os.environ.get("AZURE_AI_SEARCH_CONNECTION_ID", "").strip()
+    # Container App base URLs (strip /mcp suffix if present)
+    def _base_url(env_var: str) -> str:
+        url = os.environ.get(env_var, "").strip()
+        return url.removesuffix("/mcp").removesuffix("/mcp/")
 
-    # MCP server URLs (output by infra/main.bicep or backend/scripts/deploy-mcp.sh)
-    mcp_db_url = os.environ.get("MCP_SENTINEL_DB_URL", "").strip()
-    mcp_search_url = os.environ.get("MCP_SENTINEL_SEARCH_URL", "").strip()
-    mcp_qms_url = os.environ.get("MCP_QMS_URL", "").strip()
-    mcp_cmms_url = os.environ.get("MCP_CMMS_URL", "").strip()
+    mcp_db_url = _base_url("MCP_SENTINEL_DB_URL")
+    mcp_search_url = _base_url("MCP_SENTINEL_SEARCH_URL")
+    mcp_qms_url = _base_url("MCP_QMS_URL")
+    mcp_cmms_url = _base_url("MCP_CMMS_URL")
 
     if not any([mcp_db_url, mcp_search_url, mcp_qms_url, mcp_cmms_url]):
         print(
-            "  INFO: No MCP_*_URL env vars set — MCP tools disabled.\n"
+            "  INFO: No MCP_*_URL env vars set — OpenAPI tools disabled.\n"
             "  Build and deploy MCP Container Apps first:\n"
             "    bash backend/scripts/deploy-mcp.sh --acr-build\n"
             "  Then set MCP_SENTINEL_DB_URL, MCP_SENTINEL_SEARCH_URL, "
             "MCP_QMS_URL, MCP_CMMS_URL."
         )
 
+    anon_auth = OpenApiAnonymousAuthDetails()
     client = _build_client()
 
     # ── 1. Research Agent (T-025) ─────────────────────────────────────────
     print("\n[1/3] Research Agent...")
 
     research_tools: list[ToolDefinition] = []
-    research_tr: ToolResources | None = None
 
-    if search_connection_id:
-        # AzureAISearchTool.definitions  → [{'type': 'azure_ai_search'}] (enable the tool)
-        # AzureAISearchToolResource      → single index config (API beta limit: max 1 index)
-        search_tool = AzureAISearchTool(
-            index_connection_id=search_connection_id,
-            index_name=PRIMARY_SEARCH_INDEX,
-        )
-        research_tools = search_tool.definitions  # type: ignore[assignment]
-
-        research_tr = ToolResources(
-            azure_ai_search=AzureAISearchToolResource(
-                index_list=[
-                    AISearchIndexResource(
-                        index_connection_id=search_connection_id,
-                        index_name=PRIMARY_SEARCH_INDEX,
-                        query_type=AzureAISearchQueryType.SEMANTIC,
-                        top_k=5,
-                    )
-                ]
-            )
-        )
-    else:
-        print(
-            "  WARNING: AZURE_AI_SEARCH_CONNECTION_ID not set — search tools disabled.\n"
-            "  Get it with:\n"
-            "    az ml connection list --workspace-name aih-sentinel-intel-dev-erzrpo "
-            "--resource-group ODL-GHAZ-2177134 -o table"
-        )
-
-    # MCP tools: sentinel-db (equipment / batch / incident context)
-    # and sentinel-search (5-index RAG: SOP, manuals, BPR, GMP, incidents)
-    research_mcp_resources: list = []  # collect MCPToolResource items
-
+    # OpenApiTool: sentinel-db (equipment / batch / incident / template context)
     if mcp_db_url:
-        db_mcp = McpTool(
-            server_label="sentinel_db",
-            server_url=mcp_db_url,
-            allowed_tools=[
-                "get_equipment",
-                "get_batch",
-                "get_incident",
-                "search_incidents",
-                "get_template",
-            ],
+        db_spec = _build_sentinel_db_spec(mcp_db_url)
+        db_tool = OpenApiTool(
+            name="sentinel_db",
+            description=(
+                "Read-only access to Sentinel Cosmos DB: equipment master data, "
+                "batch context, incident documents, historical incidents, and templates."
+            ),
+            spec=db_spec,
+            auth=anon_auth,
         )
-        db_mcp.set_approval_mode("never")
-        research_tools = research_tools + db_mcp.definitions  # type: ignore[operator]
-        research_mcp_resources.extend(db_mcp.resources.mcp)
-        print(f"  + MCP sentinel-db: {mcp_db_url} (approval=never)")
+        research_tools = research_tools + db_tool.definitions  # type: ignore[operator]
+        print(f"  + OpenAPI sentinel-db: {mcp_db_url}")
 
+    # OpenApiTool: sentinel-search (5-index RAG: SOP, manuals, BPR, GMP, incidents)
     if mcp_search_url:
-        search_mcp = McpTool(
-            server_label="sentinel_search",
-            server_url=mcp_search_url,
-            allowed_tools=[
-                "search_sop_documents",
-                "search_equipment_manuals",
-                "search_bpr_documents",
-                "search_gmp_policies",
-                "search_incident_history",
-            ],
+        search_spec = _build_sentinel_search_spec(mcp_search_url)
+        search_openapi = OpenApiTool(
+            name="sentinel_search",
+            description=(
+                "Semantic + vector search across 5 Azure AI Search indexes: "
+                "SOPs, equipment manuals, BPR documents, GMP policies, incident history."
+            ),
+            spec=search_spec,
+            auth=anon_auth,
         )
-        search_mcp.set_approval_mode("never")
-        research_tools = research_tools + search_mcp.definitions  # type: ignore[operator]
-        research_mcp_resources.extend(search_mcp.resources.mcp)
-        print(f"  + MCP sentinel-search: {mcp_search_url} (approval=never)")
-
-    # Merge MCP resources into tool_resources
-    if research_mcp_resources:
-        if research_tr is None:
-            research_tr = ToolResources(mcp=research_mcp_resources)
-        else:
-            research_tr = ToolResources(
-                azure_ai_search=research_tr.azure_ai_search,
-                mcp=research_mcp_resources,
-            )
+        research_tools = research_tools + search_openapi.definitions  # type: ignore[operator]
+        print(f"  + OpenAPI sentinel-search: {mcp_search_url}")
 
     research_agent = _create_or_update(
         client, "sentinel-research-agent", MODEL, RESEARCH_PROMPT,
-        research_tools, research_tr, update,
+        research_tools, None, update,
     )
 
     # ── 2. Document Agent (T-026) ─────────────────────────────────────────
@@ -224,36 +359,33 @@ def main(update: bool = False) -> dict:
 
     document_tools: list[ToolDefinition] = []
 
-    # MCP tools: qms (create audit entries) and cmms (create work orders)
-    document_mcp_resources: list = []
-
+    # OpenApiTool: qms (create audit entries)
     if mcp_qms_url:
-        qms_mcp = McpTool(
-            server_label="sentinel_qms",
-            server_url=mcp_qms_url,
-            allowed_tools=["create_audit_entry"],
+        qms_spec = _build_qms_spec(mcp_qms_url)
+        qms_tool = OpenApiTool(
+            name="sentinel_qms",
+            description="Create GMP-compliant deviation audit entries in the Quality Management System.",
+            spec=qms_spec,
+            auth=anon_auth,
         )
-        qms_mcp.set_approval_mode("never")
-        document_tools = document_tools + qms_mcp.definitions  # type: ignore[operator]
-        document_mcp_resources.extend(qms_mcp.resources.mcp)
-        print(f"  + MCP sentinel-qms: {mcp_qms_url} (approval=never)")
+        document_tools = document_tools + qms_tool.definitions  # type: ignore[operator]
+        print(f"  + OpenAPI sentinel-qms: {mcp_qms_url}")
 
+    # OpenApiTool: cmms (create work orders)
     if mcp_cmms_url:
-        cmms_mcp = McpTool(
-            server_label="sentinel_cmms",
-            server_url=mcp_cmms_url,
-            allowed_tools=["create_work_order"],
+        cmms_spec = _build_cmms_spec(mcp_cmms_url)
+        cmms_tool = OpenApiTool(
+            name="sentinel_cmms",
+            description="Create corrective maintenance work orders in the CMMS.",
+            spec=cmms_spec,
+            auth=anon_auth,
         )
-        cmms_mcp.set_approval_mode("never")
-        document_tools = document_tools + cmms_mcp.definitions  # type: ignore[operator]
-        document_mcp_resources.extend(cmms_mcp.resources.mcp)
-        print(f"  + MCP sentinel-cmms: {mcp_cmms_url} (approval=never)")
-
-    document_tr = ToolResources(mcp=document_mcp_resources) if document_mcp_resources else None
+        document_tools = document_tools + cmms_tool.definitions  # type: ignore[operator]
+        print(f"  + OpenAPI sentinel-cmms: {mcp_cmms_url}")
 
     document_agent = _create_or_update(
         client, "sentinel-document-agent", MODEL, DOCUMENT_PROMPT,
-        document_tools, document_tr, update,
+        document_tools, None, update,
     )
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────

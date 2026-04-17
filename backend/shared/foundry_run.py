@@ -1,0 +1,132 @@
+"""
+Foundry Agent run helper with MCP tool auto-approval.
+
+The Foundry Agent API (2025-05-15-preview) does not persist ``tool_resources.mcp``,
+so MCP tools always default to ``require_approval="always"``.  The SDK's
+``create_thread_and_process_run`` only handles ``SubmitToolOutputsAction`` (function
+tools), **not** ``submit_tool_approval`` for MCP tools.
+
+This module provides ``create_thread_and_process_run_with_approval`` which replaces
+the SDK convenience method and handles both function-tool outputs and MCP-tool
+approval transparently.
+"""
+
+import logging
+import time
+
+from azure.ai.agents import AgentsClient
+from azure.ai.agents.models import (
+    AgentThreadCreationOptions,
+    RunStatus,
+    ToolApproval,
+)
+
+logger = logging.getLogger(__name__)
+
+# Terminal run statuses that end the polling loop
+_TERMINAL = {
+    RunStatus.COMPLETED,
+    RunStatus.FAILED,
+    RunStatus.CANCELLED,
+    RunStatus.EXPIRED,
+}
+
+_MAX_ITERATIONS = 60
+_POLL_INTERVAL = 2.0  # seconds
+
+
+def create_thread_and_process_run_with_approval(
+    client: AgentsClient,
+    *,
+    agent_id: str,
+    thread: AgentThreadCreationOptions,
+    max_iterations: int = _MAX_ITERATIONS,
+    poll_interval: float = _POLL_INTERVAL,
+):
+    """Create a thread + run and poll to completion, auto-approving MCP tool calls.
+
+    Returns the completed ``AgentRun`` object (same shape as the SDK's
+    ``create_thread_and_process_run``).
+
+    Raises ``RuntimeError`` on timeout or unexpected terminal state.
+    """
+    run = client.create_thread_and_run(agent_id=agent_id, thread=thread)
+    thread_id = run.thread_id
+    run_id = run.id
+    logger.info("Foundry run started: run=%s thread=%s", run_id, thread_id)
+
+    for i in range(max_iterations):
+        time.sleep(poll_interval)
+        run = client.runs.get(thread_id=thread_id, run_id=run_id)
+        status = run.status
+
+        # ── MCP tool approval ────────────────────────────────────────────
+        if status == RunStatus.REQUIRES_ACTION or "REQUIRES_ACTION" in str(status):
+            ra = run.required_action
+            ra_type = getattr(ra, "type", "") if not isinstance(ra, dict) else ra.get("type", "")
+
+            if "tool_approval" in str(ra_type):
+                calls = _extract_tool_calls(ra, "submit_tool_approval")
+                logger.info(
+                    "Auto-approving %d MCP tool call(s): %s",
+                    len(calls),
+                    ", ".join(_describe(c) for c in calls),
+                )
+                approvals = [
+                    ToolApproval(tool_call_id=_call_id(c), approve=True)
+                    for c in calls
+                ]
+                run = client.runs.submit_tool_outputs(
+                    thread_id=thread_id,
+                    run_id=run_id,
+                    tool_approvals=approvals,
+                )
+                continue
+
+            # Function-tool outputs (shouldn't happen for orchestrator, but handle generically)
+            if "tool_outputs" in str(ra_type):
+                logger.warning(
+                    "Run %s requires function tool outputs — not handled by auto-approval. "
+                    "Ensure the agent only uses MCP or built-in tools.",
+                    run_id,
+                )
+                raise RuntimeError(
+                    f"Run {run_id} requires function tool outputs which cannot be "
+                    f"auto-supplied. Check agent tool configuration."
+                )
+
+            logger.warning("Unknown requires_action type: %s", ra_type)
+            continue
+
+        # ── Still working ────────────────────────────────────────────────
+        if status in (RunStatus.IN_PROGRESS, RunStatus.QUEUED):
+            continue
+
+        # ── Terminal states ──────────────────────────────────────────────
+        if status in _TERMINAL or any(t.name in str(status) for t in _TERMINAL):
+            logger.info("Foundry run %s reached terminal status: %s", run_id, status)
+            return run
+
+    raise RuntimeError(
+        f"Foundry run {run_id} did not complete within {max_iterations} iterations"
+    )
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────
+
+
+def _extract_tool_calls(required_action, attr_name: str) -> list:
+    if isinstance(required_action, dict):
+        return required_action.get(attr_name, {}).get("tool_calls", [])
+    sub = getattr(required_action, attr_name, None)
+    return getattr(sub, "tool_calls", []) if sub else []
+
+
+def _call_id(call) -> str:
+    return call.get("id", "") if isinstance(call, dict) else getattr(call, "id", "")
+
+
+def _describe(call) -> str:
+    if isinstance(call, dict):
+        return f"{call.get('server_label', '?')}/{call.get('name', '?')}"
+    return f"{getattr(call, 'server_label', '?')}/{getattr(call, 'name', '?')}"

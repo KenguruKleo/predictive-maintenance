@@ -139,12 +139,63 @@ def search_incident_history(
 
 if __name__ == "__main__":
     import uvicorn
+    from starlette.applications import Starlette
     from starlette.middleware.cors import CORSMiddleware
+    from starlette.requests import Request
+    from starlette.responses import JSONResponse
+    from starlette.routing import Route
+
+    # ── REST API routes (used by OpenApiTool in Foundry) ──────────────────
+    async def rest_search_sop(request: Request) -> JSONResponse:
+        q = request.query_params.get("query", "")
+        top_k = int(request.query_params.get("top_k", "5"))
+        return JSONResponse(search_sop_documents(q, top_k))
+
+    async def rest_search_manuals(request: Request) -> JSONResponse:
+        q = request.query_params.get("query", "")
+        eq = request.query_params.get("equipment_id")
+        top_k = int(request.query_params.get("top_k", "5"))
+        return JSONResponse(search_equipment_manuals(q, eq, top_k))
+
+    async def rest_search_bpr(request: Request) -> JSONResponse:
+        q = request.query_params.get("query", "")
+        eq = request.query_params.get("equipment_id")
+        top_k = int(request.query_params.get("top_k", "5"))
+        return JSONResponse(search_bpr_documents(q, eq, top_k))
+
+    async def rest_search_gmp(request: Request) -> JSONResponse:
+        q = request.query_params.get("query", "")
+        top_k = int(request.query_params.get("top_k", "5"))
+        return JSONResponse(search_gmp_policies(q, top_k))
+
+    async def rest_search_incidents(request: Request) -> JSONResponse:
+        q = request.query_params.get("query", "")
+        eq = request.query_params.get("equipment_id")
+        top_k = int(request.query_params.get("top_k", "5"))
+        return JSONResponse(search_incident_history(q, eq, top_k))
+
+    rest_routes = [
+        Route("/api/search/sop", rest_search_sop),
+        Route("/api/search/manuals", rest_search_manuals),
+        Route("/api/search/bpr", rest_search_bpr),
+        Route("/api/search/gmp", rest_search_gmp),
+        Route("/api/search/incidents", rest_search_incidents),
+    ]
 
     transport = os.getenv("MCP_TRANSPORT", "stdio")
     if transport == "streamable-http":
+        mcp_app = mcp.streamable_http_app()
+
+        async def health(request: Request) -> JSONResponse:
+            return JSONResponse({"status": "ok"})
+
+        all_routes = rest_routes + [
+            Route("/health", health),
+            Route("/mcp{path:path}", mcp_app),
+        ]
+
         app = CORSMiddleware(
-            mcp.streamable_http_app(),
+            Starlette(routes=all_routes),
             allow_origins=["*"],
             allow_methods=["*"],
             allow_headers=["*"],

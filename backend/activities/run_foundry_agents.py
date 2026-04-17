@@ -39,6 +39,7 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
+from shared.foundry_run import create_thread_and_process_run_with_approval
 from shared.search_utils import search_all_indexes
 
 logger = logging.getLogger(__name__)
@@ -113,10 +114,13 @@ def run_foundry_agents(input_data: dict) -> dict:
 
 
 def _call_orchestrator_agent(prompt: str) -> dict:
-    """Create a Foundry thread, run the Orchestrator Agent, return parsed result."""
-    # Use the connection string directly for Hub-based ML projects.
-    # AgentsClient activates the legacy ML workspace endpoint when
-    # AZURE_AI_AGENTS_TESTS_IS_TEST_RUN=True is set.
+    """Create a Foundry thread, run the Orchestrator Agent, return parsed result.
+
+    Uses ``create_thread_and_process_run_with_approval`` to handle MCP tool
+    approval automatically — the Foundry API (2025-05-15-preview) does not
+    persist ``require_approval="never"`` for MCP tools, so every MCP call
+    triggers a ``submit_tool_approval`` action that must be approved client-side.
+    """
     endpoint = os.environ.get(
         "AZURE_AI_FOUNDRY_AGENTS_ENDPOINT",
         os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
@@ -125,7 +129,8 @@ def _call_orchestrator_agent(prompt: str) -> dict:
     client = AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
     with client:
-        run = client.create_thread_and_process_run(
+        run = create_thread_and_process_run_with_approval(
+            client,
             agent_id=ORCHESTRATOR_AGENT_ID,
             thread=AgentThreadCreationOptions(
                 messages=[
@@ -139,7 +144,7 @@ def _call_orchestrator_agent(prompt: str) -> dict:
                 f"Foundry Orchestrator run failed: {getattr(run, 'last_error', run.status)}"
             )
 
-        messages = client.list_messages(thread_id=run.thread_id)
+        messages = client.messages.list(thread_id=run.thread_id)
 
         # list_messages returns newest-first; first ASSISTANT message is the answer
         raw_text = ""

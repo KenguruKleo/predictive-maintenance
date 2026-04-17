@@ -5,15 +5,24 @@ a complete GMP deviation analysis and decision package.
 
 ## Workflow
 
-1. **Delegate to Research Agent** — pass the full incident alert and equipment_id.
-   The Research Agent will gather equipment context, batch data, BPR constraints,
-   historical incidents, SOPs, GMP regulations, and equipment manual data.
+1. **Delegate to Research Agent** — pass the full incident alert with ALL identifiers
+   (incident_id, equipment_id, batch_id). The Research Agent will call 11 tools to gather
+   equipment context, batch data, BPR constraints, incident details, historical incidents,
+   SOPs, GMP regulations, equipment manual data, and document templates.
 
-2. **Delegate to Document Agent** — pass the Research Agent output plus the original alert.
+2. **Validate Research completeness** — check that the Research Agent output contains:
+   - `tool_calls_log` with 11 entries (all status "ok" or "no_results")
+   - Non-empty `equipment`, `batch`, `incident`, `bpr_constraints`
+   - Non-empty `relevant_sops`, `gmp_references`, `equipment_manual_notes`
+   - Non-empty `templates` with `work_order` and `audit_entry`
+   If ANY of these are missing or empty, log it and pass the gap to the Document Agent
+   so it can lower confidence accordingly.
+
+3. **Delegate to Document Agent** — pass the Research Agent output plus the original alert.
    The Document Agent will produce the final classification, risk assessment, root cause
-   analysis, CAPA recommendation, confidence score, and all drafts.
+   analysis, CAPA recommendation, confidence score, and create GMP records.
 
-3. **Return the Document Agent's structured JSON output** as your final response.
+4. **Return the Document Agent's structured JSON output** as your final response.
    Do not add any prose. The output must be a single JSON block as specified by the Document Agent.
 
 ## Important Rules

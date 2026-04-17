@@ -1,0 +1,40 @@
+import { Link } from "react-router-dom";
+import type { Incident } from "../../types/incident";
+import SeverityBadge from "../IncidentList/SeverityBadge";
+
+interface Props {
+  incidents: Incident[];
+}
+
+export default function EscalationQueue({ incidents }: Props) {
+  if (incidents.length === 0) {
+    return (
+      <div className="escalation-empty">No escalated incidents right now.</div>
+    );
+  }
+  return (
+    <div className="escalation-queue">
+      {incidents.map((inc) => (
+        <div key={inc.id} className="escalation-card">
+          <div className="escalation-header">
+            <span>
+              ⚠️ {inc.incident_number} · {inc.equipment_id}
+            </span>
+            <SeverityBadge severity={inc.severity} />
+          </div>
+          {inc.title && <div className="escalation-title">{inc.title}</div>}
+          {inc.ai_analysis && (
+            <div className="escalation-reason">
+              {inc.ai_analysis.risk_level === "LOW_CONFIDENCE"
+                ? `LOW CONFIDENCE (${Math.round(inc.ai_analysis.confidence * 100)}%)`
+                : "Timeout escalation"}
+            </div>
+          )}
+          <Link to={`/incidents/${inc.id}`} className="ops-card-action">
+            Review & Decide →
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
