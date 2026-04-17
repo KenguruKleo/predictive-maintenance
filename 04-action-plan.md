@@ -27,10 +27,10 @@
 - ✅ T-041 — Bicep IaC: 7 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics)
 - ✅ T-042 — GitHub Actions CI/CD: `ci.yml` + `deploy.yml` живі та зелені
 - ✅ T-022 — Service Bus: `alert-queue` + DLQ задеплоєно
-- 🔧 T-020 — Cosmos DB: 5 containers задеплоєно, seed script (`scripts/seed_cosmos.py`) відсутній
-- 🔧 T-021 — Mock data: JSON файли готові (`data/mock/`), seed_cosmos.py потрібен
+- ✅ T-020 — Cosmos DB: 6 containers задеплоєно (`templates` container додано 17 квітня)
+- ✅ T-021 — Mock data: 55 items залито в Cosmos DB (`scripts/seed_cosmos.py`)
 
-**Наступний крок:** T-021 seed script → T-023 ingestion API → T-024 Durable orchestrator skeleton
+**Наступний крок:** T-023 ingestion API → T-024 Durable orchestrator skeleton
 
 ---
 

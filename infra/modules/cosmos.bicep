@@ -43,6 +43,7 @@ var containers = [
   { id: 'batches', partitionKey: '/equipmentId' }
   { id: 'capa-plans', partitionKey: '/incidentId' }
   { id: 'approval-tasks', partitionKey: '/incidentId' }
+  { id: 'templates', partitionKey: '/id' }
 ]
 
 resource sqlContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2024-05-15' = [for c in containers: {

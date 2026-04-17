@@ -3,12 +3,14 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** � IN PROGRESS  
+**Статус:** ✅ DONE  
 **Блокує:** Demo flow, T-025, T-027  
 **Залежить від:** T-020 (Cosmos DB provisioned)
 
-> **Що зроблено:** JSON файли готові у `data/mock/` — equipment (3), batches (2), incidents (3), templates (2).  
-> **Що залишилось:** `scripts/seed_cosmos.py` — залежить від `backend/cosmos_client.py` (T-020).
+> **Завершено 17 квітня 2026:** 55 items завантажено в Cosmos DB.  
+> equipment (3) · batches (20) · incidents (30) · templates (2).  
+> Auth: `COSMOS_KEY` env var (для локального запуску). DefaultAzureCredential для Azure Functions (потребує Cosmos RBAC assignment).  
+> Idempotent: `upsert_item()` — можна запускати повторно.
 
 ---
 
