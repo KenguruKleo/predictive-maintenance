@@ -172,6 +172,13 @@ def main(update: bool = False) -> dict:
         db_mcp = McpTool(
             server_label="sentinel_db",
             server_url=mcp_db_url,
+            allowed_tools=[
+                "get_equipment",
+                "get_batch",
+                "get_incident",
+                "search_incidents",
+                "get_template",
+            ],
         )
         research_tools = research_tools + db_mcp.definitions  # type: ignore[operator]
         print(f"  + MCP sentinel-db: {mcp_db_url}")
@@ -180,6 +187,13 @@ def main(update: bool = False) -> dict:
         search_mcp = McpTool(
             server_label="sentinel_search",
             server_url=mcp_search_url,
+            allowed_tools=[
+                "search_sop_documents",
+                "search_equipment_manuals",
+                "search_bpr_documents",
+                "search_gmp_policies",
+                "search_incident_history",
+            ],
         )
         research_tools = research_tools + search_mcp.definitions  # type: ignore[operator]
         print(f"  + MCP sentinel-search: {mcp_search_url}")
@@ -199,6 +213,7 @@ def main(update: bool = False) -> dict:
         qms_mcp = McpTool(
             server_label="sentinel_qms",
             server_url=mcp_qms_url,
+            allowed_tools=["create_audit_entry"],
         )
         document_tools = document_tools + qms_mcp.definitions  # type: ignore[operator]
         print(f"  + MCP sentinel-qms: {mcp_qms_url}")
@@ -207,6 +222,7 @@ def main(update: bool = False) -> dict:
         cmms_mcp = McpTool(
             server_label="sentinel_cmms",
             server_url=mcp_cmms_url,
+            allowed_tools=["create_work_order"],
         )
         document_tools = document_tools + cmms_mcp.definitions  # type: ignore[operator]
         print(f"  + MCP sentinel-cmms: {mcp_cmms_url}")
