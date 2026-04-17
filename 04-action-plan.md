@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent + MCP-QMS/CMMS) · T-029 (Human Approval API + waitForExternalEvent) · T-031 (Backend API CRUD)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — SignalR + RBAC on /decision) · T-032 (React frontend core)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -45,8 +45,10 @@
 - ✅ T-037 — AI Search: 5 indexes, 9 docs, 117 chunks з HNSW vector embeddings
 - ✅ T-023 — Ingestion API: `POST /api/alerts` + validation + severity + idempotency + Service Bus publish; `scripts/simulate_alerts.py` з 6 demo сценаріями
 - ✅ T-028 — MCP servers: `mcp-sentinel-db` (5 tools), `mcp-qms` (create_audit_entry), `mcp-cmms` (create_work_order); `scripts/test_mcp_servers.py` — 8/8 passed
+- ✅ T-031 — Backend API: 9 REST endpoints (incidents, equipment, batches, templates, stats); role-based filtering; all 11 HTTP triggers deployed
+- ✅ T-035 — RBAC: App Registrations (API + SPA), 5 Entra ID roles, JWKS JWT signature verification (`auth.py`), security tests passed
 
-**Наступний крок:** T-027 Execution Agent → T-029 Human Approval API → T-031 Backend API → T-032 React Frontend
+**Наступний крок:** T-027 Execution Agent → T-029 Human Approval (SignalR + RBAC) → T-032 React Frontend core
 
 ---
 
@@ -108,13 +110,13 @@
 | 17 квіт | ✅ T-041 · ✅ T-042 · ✅ T-022 · ✅ T-020/T-021 · ✅ T-037 · ✅ T-023 · ✅ T-028 |
 | 18–19 квіт | ✅ T-024 (Durable orchestrator + all activities) · ✅ T-025 (Research Agent) · ✅ T-026 (Document Agent) · ✅ T-041 ext (AI Foundry Bicep) |
 | 20–21 квіт | T-027 (Execution Agent) · T-029 (Human Approval API) · T-036 (document ingestion) |
-| 22–23 квіт | T-031 (Backend API) · T-030 (SignalR) · T-035 (RBAC) |
+| 22–23 квіт | ✅ T-031 (Backend API) · T-030 (SignalR) · ✅ T-035 (RBAC) |
 
 ### Week 2 (24–30 квітня) — Agents + Frontend + Integration
 | День | Задачі |
 |---|---|
 | 24–25 квіт | T-027 (Execution Agent) · T-029 (human approval API) · T-030 (SignalR) |
-| 26–27 квіт | T-031 (backend API) · T-035 (RBAC) |
+| 26–27 квіт | ✅ T-031 (backend API) · ✅ T-035 (RBAC) |
 | 28–29 квіт | T-032 (React core) · T-033 (approval UX) |
 | 30 квіт | T-034 (інші ролі frontend) · T-040 (RAI layer) |
 
