@@ -1,17 +1,23 @@
-# T-026 · Document Agent (Azure AI Foundry + Templates + Confidence Gate)
+# T-026 · Document Agent (Azure AI Foundry Connected Agents — sub-agent)
 
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
 **Статус:** 🔜 TODO  
-**Блокує:** T-024 (step 3), T-033 (approval UX shows this output)  
-**Залежить від:** T-025 (Research Agent output), T-020 (templates collection)
+**Блокує:** T-024 (run_foundry_agents activity), T-033 (approval UX shows this output)  
+**Залежить від:** T-024 (Orchestrator Agent), T-025 (Research Agent output via Orchestrator), T-020 (templates collection)
+
+> **ADR-002:** Document Agent є **sub-agent** в Foundry Connected Agents pattern.  
+> Orchestrator Agent підключає його як `AgentTool` і передає Research Agent output безпосередньо в контексті thread — **не через Durable state**.  
+> Дивись [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація).
 
 ---
 
 ## Мета
 
-Document Agent приймає Research Agent output і formulates the decision package: classification, risk level, CAPA recommendation, work order draft, audit entry draft. Включає confidence gate (RAI Gap #4).
+Document Agent є sub-agent Foundry Orchestrator Agent (Connected Agents pattern).  
+Orchestrator Agent передає йому Research Agent output та alert context через thread всередині размови — Document Agent формує decision package: classification, risk level, CAPA recommendation, work order draft, audit entry draft.  
+Включає confidence gate (RAI Gap #4).
 
 ---
 
@@ -51,7 +57,7 @@ Document Agent приймає Research Agent output і formulates the decision p
 ## Confidence Gate (RAI Gap #4)
 
 ```python
-# In Durable Activity run_agents.py, after Document Agent returns result:
+# activities/run_foundry_agents.py — after Foundry Orchestrator Agent returns result:
 def apply_confidence_gate(result: dict) -> dict:
     confidence = result["confidence"]
     evidences = result.get("evidence_citations", [])
@@ -80,6 +86,29 @@ def apply_confidence_gate(result: dict) -> dict:
 - `confidence_flag == None` → normal recommendation display
 - `confidence_flag == "LOW_CONFIDENCE"` → червоний банер + коментар обов'язковий перед approve
 - `confidence_flag == "BLOCKED"` → recommendation не видно; авто-ескалація до QA Manager
+
+## Реєстрація як AgentTool (у orchestrator_agent.py)
+
+Document Agent **не має окремої функції запуску**. Orchestrator Agent реєструє його як `AgentTool`:
+
+```python
+# agents/orchestrator_agent.py — фрагмент create_agents.py
+from azure.ai.projects.models import AgentTool
+
+document_agent_id = os.environ["DOCUMENT_AGENT_ID"]
+document_tool = AgentTool(agent_id=document_agent_id)
+
+orchestrator = client.agents.create_agent(
+    model="gpt-4o",
+    name="sentinel-orchestrator",
+    instructions="...",  # orchestrator_system.md
+    tools=[research_tool, document_tool],
+    tool_resources={},
+)
+```
+
+Orchestrator Agent передає Research Agent output у Document Agent через thread context (нативний Foundry механізм).  
+Без окремого Durable state serialization.
 
 ---
 
@@ -114,8 +143,10 @@ CRITICAL RULES:
 ## Definition of Done
 
 - [ ] Document Agent створений у Foundry з правильними instructions
-- [ ] `run_document_agent()` повертає повний structured JSON (всі поля)
-- [ ] Confidence gate застосовується: якщо confidence < 0.7 → `risk_level = "LOW_CONFIDENCE"`
+- [ ] Document Agent зареєстрований як `AgentTool` в Orchestrator Agent (T-024)
+- [ ] Orchestrator Agent передає Research Agent output в Document Agent через thread context
+- [ ] Document Agent повертає повний structured JSON (всі поля зі схеми вище)
+- [ ] Confidence gate застосовується в `run_foundry_agents.py`: confidence < 0.7 → `risk_level = "LOW_CONFIDENCE"`
 - [ ] Evidence citations присутні (мінімум 2 на кожну рекомендацію)
 - [ ] Work order draft і audit entry draft коректно заповнені на основі templates
 - [ ] Тест на INC-2026-0001 (GR-204 impeller speed): ai_result відповідає очікуваному в mock incident

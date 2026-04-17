@@ -21,7 +21,12 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-024 (Durable orchestrator) · T-028 (MCP servers)
+**Зараз в роботі:** T-024 (Durable orchestrator + Foundry Connected Agents — ADR-002) · T-028 (MCP servers)
+
+> **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
+> Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
+> `more_info` loop: Durable накопичує `operator_questions`, знову запускає `run_foundry_agents`. Foundry керує internal iterations.  
+> Дивись [02-architecture §8.10b](./02-architecture.md#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація).
 
 **Завершено (17 квітня 2026):**
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)
@@ -50,9 +55,9 @@
 | T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 6 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | ✅ DONE | — |
 | T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment(3), batches(20), incidents(30), templates(2) | demo | 🔴 CRITICAL | ✅ DONE | — |
 | T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | ✅ DONE | — |
-| T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: create→enrich→agents→notify→wait→execute→finalize | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-029 |
-| T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry Agent + MCP + RAG tools | Gap #4 | 🔴 CRITICAL | 🔜 TODO | T-024 |
-| T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry Agent + template fill + confidence gate | Gap #4, #5 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: enrich→run_foundry_agents→notify→wait (24h HITL)→more_info loop→execute→finalize; ADR-002 | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-029 |
+| T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry sub-agent (Connected Agents) + MCP + AzureAISearchTool; підключається до Orchestrator Agent як `AgentTool` | Gap #4 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry sub-agent (Connected Agents) + template fill; confidence gate в `run_foundry_agents.py` | Gap #4, #5 | 🔴 CRITICAL | 🔜 TODO | T-024 |
 | T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS | — | 🔴 CRITICAL | 🔜 TODO | T-028 |
 | T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-cosmos-db, mcp-qms-mock, mcp-cmms-mock (stdio) | — | 🔴 CRITICAL | 🔜 TODO | T-025–T-027 |
 | T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-030, T-033 |

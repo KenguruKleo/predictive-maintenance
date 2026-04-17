@@ -17,6 +17,7 @@
 8. [Поточна версія (IN-PROGRESS)](#8-поточна-версія-in-progress)
    - [8.9 Два рівні оркестрації](#89-два-рівні-оркестрації)
    - [8.10 ADR-001: HITL механізм](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native)
+   - [8.10b ADR-002: Foundry Connected Agents vs ручна оркестрація агентів](#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація)
    - [8.11 Розбивка на Azure Functions](#811-розбивка-на-azure-functions--повна-карта)
    - [8.12 Azure SignalR — контракт](#812-azure-signalr--контракт)
    - [8.13 Шар документів — Ingestion Architecture](#813-шар-документів--ingestion-architecture)
@@ -305,16 +306,18 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  ┌────────────────────────────────────────────────────────────┐    │
 │  │ 1. Activity: CreateIncident ──► Cosmos DB                  │    │
 │  │ 2. Activity: EnrichContext  ──► Cosmos DB (equipment/batch)│    │
-│  │ 3. Activity: RunAgents      ──► Azure AI Foundry           │    │
-│  │    └─ Research Agent   (RAG + MCP-cosmos-db)               │    │
-│  │    └─ Document Agent   (templates + structured output)     │    │
-│  │ 4. Activity: NotifyOperator ──► Azure SignalR              │    │
-│  │ 5. waitForExternalEvent("operator_decision")               │    │
-│  │    OR Timer: 24h → escalate to QA Manager                  │    │
-│  │ 6a. "approved"     → Activity: ExecuteDecision             │    │
-│  │     └─ Execution Agent (MCP-qms-mock + MCP-cmms-mock)      │    │
-│  │ 6b. "rejected"     → Activity: CloseIncident(rejected)     │    │
-│  │ 6c. "more_info"    → loop back to step 2 + extra context   │    │
+│  3. Activity: RunFoundryAgents ──► Azure AI Foundry         │    │
+│     └─ Orchestrator Agent (Connected Agents)                │    │
+│         ├─ Research Agent  (MCP: cosmos-db, AI Search RAG)  │    │
+│         └─ Document Agent  (structured output + conf.gate)  │    │
+│     [Foundry керує reasoning loop та more_info всередині]   │    │
+│  4. Activity: NotifyOperator ──► Azure SignalR              │    │
+│  5. waitForExternalEvent("operator_decision")               │    │
+│     OR Timer: 24h → escalate to QA Manager                  │    │
+│  6a. "approved"     → Activity: RunExecutionAgent           │    │
+│      └─ Execution Agent (MCP-qms-mock + MCP-cmms-mock)      │    │
+│  6b. "rejected"     → Activity: CloseIncident(rejected)     │    │
+│  6c. "more_info"    → re-run step 3 з додатковим контекстом │    │
 │  │ 7. Activity: FinalizeAuditRecord ──► Cosmos DB             │    │
 │  └────────────────────────────────────────────────────────────┘    │
 └─────────────────────────┬───────────────────────────────────────────┘
@@ -394,8 +397,9 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **Workflow Engine** | Azure Durable Functions (Python) | Stateful orchestration, pause/resume, timeout | Gap #3 |
 | **Alert Queue** | Azure Service Bus | Decoupled ingestion, DLQ, at-least-once | Gap #3 |
 | **Agent Orchestrator** | Azure AI Foundry Agent Service | Routing між агентами, state, loops | — |
-| **Research Agent** | Foundry Agent + MCP + RAG | Збір контексту: equipment history, semantic SOPs | Gap #4 |
-| **Document Agent** | Foundry Agent + templates | Draft: work_order, audit_entry, recommendation, risk_level | Gap #5 |
+| **Foundry Orchestrator Agent** | Foundry Agent + Connected Agents pattern | Координує Research → Document pipeline; керує reasoning loop і more_info циклами всередині одного кроку | Gap #4 |
+| **Research Agent** | Foundry Agent + MCP + RAG | Збір контексту: equipment history, semantic SOPs. Підключений як sub-agent | Gap #4 |
+| **Document Agent** | Foundry Agent + templates + confidence gate | Draft: work_order, audit_entry, recommendation, risk_level | Gap #5 |
 | **Execution Agent** | Foundry Agent + MCP-QMS/CMMS | Виконання після approval: create WO + audit entry | — |
 | **MCP: mcp-cosmos-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
 | **MCP: mcp-qms-mock** | Python (stdio MCP server) | Tool: create_audit_entry (мок QMS) | — |
@@ -416,9 +420,18 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 ### 8.3 Агенти — детальний дизайн
 
+#### Foundry Orchestrator Agent (новий — ADR-002)
+- **Мета:** координувати Research та Document агентів через Connected Agents pattern
+- **Тип:** `prompt` agent з підключеними sub-agents як tools
+- **Входить:** incident payload + enriched context (від Durable activity `enrich_context`)
+- **Managing loops:** Foundry нативно управляє reasoning loop і кількістю ітерацій — не потрібен кастомний `loop_count` у Durable
+- **more_info handling:** якщо у відповідь на `more_info` від оператора Durable повертає додаткові дані → Orchestrator Agent отримує їх як додатковий контекст і запускає новий round Research → Document
+- **Виходить:** `DocumentAgentOutput` JSON (передається Durable для нотифікації оператора)
+
 #### Research Agent
 - **Мета:** зібрати весь релевантний контекст для incident
-- **RAG tools:** `search_sop_documents`, `search_equipment_manuals`, `search_gmp_policies`, **`search_bpr_documents`**, `search_incident_history`
+- **Тип:** sub-agent, підключений до Orchestrator Agent як `AgentTool`
+- **RAG tools (нативні Foundry `AzureAISearchTool`):** `search_sop_documents`, `search_equipment_manuals`, `search_gmp_policies`, **`search_bpr_documents`**, `search_incident_history`
 - **MCP tools:** `get_equipment(id)`, `get_batch(id)`, `search_incidents(equipment_id, date_range)`
 - **Output schema** (`ResearchAgentOutput`):
 
@@ -661,31 +674,40 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  Відповідає за: послідовність кроків, HITL паузу,                  │
 │                 таймаут 24h, стан всього процесу                    │
 │                                                                     │
-│  1. CreateIncident     ──► Cosmos DB                                │
-│  2. EnrichContext      ──► Cosmos DB (equipment/batch)              │
-│  3. RunAgents ─────────────────────────────────────────┐           │
-│  4. NotifyOperator     ──► Azure SignalR                │           │
-│  5. ⏸ waitForExternalEvent("operator_decision") ← ПАУЗА до 24h    │
-│  6a. "approved"  → ExecuteDecision ─────────────────────┐          │
-│  6b. "rejected"  → CloseIncident                        │           │
-│  6c. "more_info" → loop до кроку 2                      │           │
-│  7. FinalizeAuditRecord ──► Cosmos DB                   │           │
-└───────────────────────────────────────┬──────────────────┘           │
-             ↓ (activity calls)         │                             │
-┌────────────────────────────────────── ▼ ────────────────────────────┤
-│  РІВЕНЬ 2 — AI Orchestrator (Azure AI Foundry Agent Service)        │
-│  Відповідає за: агентну логіку, tool calls, reasoning loop,        │
-│                 routing між агентами всередині одного кроку         │
-│                                                                     │
-│  Крок 3 "RunAgents":                                                │
-│    Research Agent  ──► RAG (AI Search) + MCP-cosmos-db             │
-│       └─ внутрішній reasoning loop (Foundry manages)               │
-│    Document Agent  ──► structured output, confidence gate          │
-│       └─ внутрішній reasoning loop (Foundry manages)               │
-│                                                                     │
-│  Крок 6a "ExecuteDecision":                                         │
-│    Execution Agent ──► MCP-qms-mock + MCP-cmms-mock               │
-└─────────────────────────────────────────────────────────────────────┘
+│  1. enrich_context         ──► Cosmos DB (equipment/batch)          │
+│  2. run_foundry_agents ─────────────────────────────────────┐      │
+│  3. notify_operator        ──► Azure SignalR                │      │
+│  4. ⏸ waitForExternalEvent("operator_decision") ← ПАУЗА 24h       │
+│                                                             │      │
+│  якщо «more_info»:                                          │      │
+│     5m. enrich_context (append operator_question)          │      │
+│     6m. run_foundry_agents (новий round, all context)      │      │
+│     7m. notify_operator → loop до 4                        │      │
+│                                                             │      │
+│  6a. "approved"  → run_execution_agent ─────────────────────┘      │
+│  6b. "rejected"  → close_incident                                   │
+│  7. finalize_audit         ──► Cosmos DB                            │
+└───────────────────────────────────────┬─────────────────────────────┘
+             ↓ (activity calls)         │
+┌────────────────────────────────────── ▼ ─────────────────────────────┐
+│  РІВЕНЬ 2 — AI Orchestrator (Azure AI Foundry Agent Service)         │
+│  Відповідає за: агентну логіку, tool calls, reasoning loop,         │
+│    routing між агентами через Connected Agents pattern              │
+│                                                                      │
+│  run_foundry_agents activity (крок 2 / 6m):                         │
+│    Orchestrator Agent                                                │
+│      ├─ Research Agent (sub-agent via AgentTool)                    │
+│      │    ├─ AzureAISearchTool (SOPs, manuals, GMP, BPR, history)  │
+│      │    └─ MCP: mcp-cosmos-db (equipment, batch, incidents)       │
+│      └─ Document Agent (sub-agent via AgentTool)                    │
+│           └─ structured output + confidence gate                    │
+│    [Foundry manages reasoning loop + max_iterations нативно]        │
+│                                                                      │
+│  run_execution_agent activity (крок 6a):                            │
+│    Execution Agent                                                   │
+│      ├─ MCP: mcp-cmms-mock (create_work_order)                      │
+│      └─ MCP: mcp-qms-mock  (create_audit_entry)                     │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 **Чому не один рівень?**
@@ -696,9 +718,56 @@ Sensor Signal → Alert (already automated anomaly detection)
 | HITL пауза | ✅ `waitForExternalEvent` — до 24h | ❌ function_call timeout — 10 хв |
 | Стан між кроками | ✅ persisted у Azure Storage | ✅ всередині одного run |
 | Retry/DLQ | ✅ вбудований | ❌ треба вручну |
-| Агентний routing | ❌ не розуміє LLM | ✅ вбудований |
+| Агентний routing | ❌ не розуміє LLM | ✅ Connected Agents, нативно |
+| more_info loop count | ❌ потрібен кастомний лічильник | ✅ `max_iterations` у Foundry |
+| MCP tool connections | ❌ немає | ✅ нативно |
+| RAG (AI Search) | ❌ потрібен кастомний код | ✅ `AzureAISearchTool` нативно |
 
 **Відповідь на питання «де оркестратор?»**: Durable Functions — це **workflow orchestrator** (=«директор виробництва», керує процесом і людьми). Foundry — це **AI orchestrator** (=«мозок», який керує агентами всередині кожного кроку). Обидва — «оркестратори», але на різних рівнях.
+
+---
+
+### 8.10b ADR-002: Foundry Connected Agents vs ручна оркестрація
+
+> **Тип:** Architecture Decision Record  
+> **Дата рішення:** 17 квітня 2026  
+> **Статус:** Прийнято ✅
+
+#### Контекст
+По задумом T-024 передбачав окремі Durable activities для кожного агента (`run_research_agent`, `run_document_agent`) з ручною передачею результатів між ними. Також `more_info` loop управлявся лічильником `loop_count < 3` у Durable.
+
+#### Варіанти
+
+**Варіант A: Ручна оркестрація у Durable** (попередній дизайн)
+- Окрема activity для кожного агента
+- Ручна передача `ResearchAgentOutput` → Document Agent через Durable state
+- `loop_count` лічиться у Durable orchestrator
+- Логіка "скільки разів дозволено more_info" — у Python коді
+
+**Варіант B: Foundry Connected Agents** ← **ОБРАНО**
+- Один `run_foundry_agents` activity → запускає Foundry Orchestrator Agent
+- Research Agent підключений як `AgentTool` до Orchestrator Agent
+- Document Agent підключений як `AgentTool` до Orchestrator Agent
+- Foundry нативно управляє: reasoning loop, `max_iterations`, routing між агентами
+- `more_info` від оператора: Durable передає додатковий контекст → новий round Foundry agents
+
+#### Рішення: **Варіант B**
+
+| Критерій | Варіант A (ручна) | Варіант B (Connected Agents) |
+|---|---|---|
+| Кількість activity functions | 2 (research + document) | 1 (`run_foundry_agents`) |
+| Передача даних між агентами | ручна (через Durable state) | нативна (Foundry thread) |
+| more_info loop count | кастомний лічильник | `max_iterations` у Foundry |
+| MCP tool connections | кастомний wrapper | нативні Foundry MCP connections |
+| RAG tools | кастомний SDK код | `AzureAISearchTool` нативно |
+| Рядків коду | ~200 | ~50 |
+
+#### Наслідки
+- T-024 спрощується: `run_research_agent` + `run_document_agent` → одна activity `run_foundry_agents`
+- T-025/T-026 більше не окремі Durable activities — це Foundry Agent definitions
+- Foundry Orchestrator Agent потрібен як новий компонент (T-025 розширюється)
+- `more_info` loop: Durable gets decision, appends `operator_question` to context, calls `run_foundry_agents` again — Foundry handles the new round internally
+- Кількість `more_info` rounds: налаштовується через `max_iterations` у Foundry Orchestrator Agent, або через `MAX_MORE_INFO_ROUNDS` env var у Durable (для GMP audit trail)
 
 ---
 
@@ -789,19 +858,24 @@ Service Bus: alert-queue
 │                                                                     │
 │  yield CallActivity("create_incident")                              │
 │  yield CallActivity("enrich_context")                               │
-│  yield CallActivity("run_research_agent")   ─► Foundry             │
-│  yield CallActivity("run_document_agent")   ─► Foundry             │
+│  yield CallActivity("enrich_context")                               │
+│  yield CallActivity("run_foundry_agents")   ─► Foundry             │
 │  yield CallActivity("notify_operator")      ─► SignalR + Cosmos    │
 │                                                                     │
 │  ⏸  decision = yield WaitForExternalEvent("operator_decision")     │
 │     ← оркестратор серіалізується в Azure Storage, RAM звільняється │
 │                                                                     │
-│  if decision == "approved":                                         │
-│      yield CallActivity("run_execution_agent")  ─► Foundry         │
-│  elif decision == "rejected":                                       │
-│      yield CallActivity("close_incident")                           │
-│  elif decision == "more_info":                                      │
-│      # loop back to enrich_context                                  │
+│  # more_info loop (max rounds обмежено через env var)              │
+│  while decision["action"] == "more_info" and rounds < MAX_ROUNDS:  │
+│      context["operator_questions"].append(decision["question"])    │
+│      yield CallActivity("run_foundry_agents", context)  ─► Foundry │
+│      yield CallActivity("notify_operator")                          │
+│      decision = yield WaitForExternalEvent("operator_decision")    │
+│      rounds += 1                                                   │
+│  if decision["action"] == "approved":                              │
+│      yield CallActivity("run_execution_agent")  ─► Foundry        │
+│  elif decision["action"] == "rejected":                            │
+│      yield CallActivity("close_incident")                          │
 │  yield CallActivity("finalize_audit")       ─► Cosmos DB           │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -853,8 +927,7 @@ React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ 
 | `deviation_orchestrator` | Durable Orchestrator | `function_app.py` | Координує весь workflow |
 | `create_incident` | Durable Activity | `function_app.py` | Cosmos write: новий incident |
 | `enrich_context` | Durable Activity | `function_app.py` | Cosmos read: equipment + batch |
-| `run_research_agent` | Durable Activity | `function_app.py` | Foundry: Research Agent |
-| `run_document_agent` | Durable Activity | `function_app.py` | Foundry: Document Agent → capa-plans |
+| `run_foundry_agents` | Durable Activity | `function_app.py` | Foundry: Orchestrator Agent (Research + Document via Connected Agents) → capa-plans |
 | `notify_operator` | Durable Activity | `function_app.py` | Cosmos write + SignalR push |
 | `run_execution_agent` | Durable Activity | `function_app.py` | Foundry: Execution Agent → QMS/CMMS |
 | `close_incident` | Durable Activity | `function_app.py` | Cosmos update: status=rejected |
@@ -963,6 +1036,7 @@ infra/modules/storage.bicep — provisioned containers:
 | 2026-04-17 | v2.3 | **§8.11**: повна карта Azure Functions — усі 14 функцій з типами тригерів, ролями та потоком від Service Bus → оркестратор → activities → `raise_event`. | — |
 | 2026-04-17 | v2.4 | **Рев'ю:** §4 AS-SUBMITTED disclaimer + Component Evolution table (v1.0→v2.0); §8.3 JSON output schemas для всіх агентів + confidence gate failure matrix; §8.4 cross-partition query note; §8.6 LOW_CONFIDENCE гілка в HITL flow; §8.11 idempotency note; §8.12 SignalR contract (хуб, groups, events, negotiation flow). | Review |
 | 2026-04-17 | v2.5 | **Document Layer Architecture:** §8.1 AI Search: 4→5 indexes (додано `idx-bpr-documents`); §8.2 RAG Storage row оновлено; §8.3 Research Agent: додано `search_bpr_documents` RAG tool; §8.5 RAG vs Direct: додано BPR row; §8.8 Storage: 1 container → 5 окремих blob containers per source type; §8.13 новий розділ — Document Layer Ingestion Architecture (5 containers, 5 ingestors, table-aware BPR chunking, agent→index mapping). T-036 + T-025 оновлено. | Gap #4 review |
+| 2026-04-17 | v2.6 | **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent переведені в sub-agents Foundry Orchestrator Agent (`AgentTool`). Durable: 2 activities (`run_research_agent` + `run_document_agent`) → 1 activity `run_foundry_agents`. `more_info` loop: Durable накопичує `operator_questions`, Foundry керує internal iterations через `max_iterations`. §8.1 схема, §8.2 таблиця, §8.3 Orchestrator Agent, §8.9 діаграма, §8.10b ADR-002, §8.11 Functions map — оновлено. T-024, T-025, T-026, 04-action-plan оновлено. | — |
 
 ---
 
