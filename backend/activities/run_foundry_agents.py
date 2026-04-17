@@ -39,10 +39,13 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
+from shared.search_utils import search_all_indexes
+
 logger = logging.getLogger(__name__)
 
 ORCHESTRATOR_AGENT_ID = os.environ.get("ORCHESTRATOR_AGENT_ID", "")
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
+SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
 
 bp = df.Blueprint()
 
@@ -63,7 +66,32 @@ def run_foundry_agents(input_data: dict) -> dict:
             "Run agents/create_agents.py first to provision Foundry agents."
         )
 
-    prompt = _build_prompt(incident_id, context_data, more_info_round)
+    # ── Pre-fetch RAG context from all 5 AI Search indexes ─────────────────
+    rag_context: dict = {}
+    if SEARCH_ENABLED:
+        equipment_id = context_data.get("equipment_id") or (
+            context_data.get("equipment", {}).get("id")
+        )
+        alert = context_data.get("alert_payload", {})
+        search_query = (
+            f"{alert.get('alert_type', '')} {alert.get('deviation_description', '')} "
+            f"{alert.get('parameter', '')} {alert.get('equipment_id', '')}"
+        ).strip() or f"GMP deviation incident {incident_id}"
+        try:
+            rag_context = search_all_indexes(
+                query=search_query,
+                equipment_id=equipment_id,
+                top_k=3,
+            )
+            logger.info(
+                "RAG pre-fetch: %d total chunks for incident %s",
+                sum(len(v) for v in rag_context.values()),
+                incident_id,
+            )
+        except Exception as exc:
+            logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
+
+    prompt = _build_prompt(incident_id, context_data, more_info_round, rag_context)
     result = _call_orchestrator_agent(prompt)
 
     # Confidence gate (RAI Gap #4): log warning but still return result
@@ -128,7 +156,12 @@ def _call_orchestrator_agent(prompt: str) -> dict:
         return _parse_response(raw_text)
 
 
-def _build_prompt(incident_id: str, context_data: dict, more_info_round: int) -> str:
+def _build_prompt(
+    incident_id: str,
+    context_data: dict,
+    more_info_round: int,
+    rag_context: dict | None = None,
+) -> str:
     """Build the user message that drives the Orchestrator Agent."""
     equipment = context_data.get("equipment", {})
     batch = context_data.get("batch", {})
@@ -161,6 +194,31 @@ def _build_prompt(incident_id: str, context_data: dict, more_info_round: int) ->
         "```",
     ]
 
+    # ── RAG pre-fetched context (from all 5 AI Search indexes) ────────────
+    if rag_context:
+        _INDEX_LABELS = {
+            "idx-sop-documents": "Relevant SOP Sections",
+            "idx-equipment-manuals": "Equipment Manual Sections",
+            "idx-bpr-documents": "BPR / Product Process Specs (NOR/PAR)",
+            "idx-gmp-policies": "Applicable GMP Regulations & Policies",
+            "idx-incident-history": "Similar Historical Incidents",
+        }
+        lines.append("")
+        lines.append("### Pre-fetched RAG Context (AI Search — all 5 indexes)")
+        lines.append(
+            "> Use these excerpts as primary evidence. Cite document_title and section in your analysis."
+        )
+        for idx_name, hits in rag_context.items():
+            if not hits:
+                continue
+            label = _INDEX_LABELS.get(idx_name, idx_name)
+            lines.append(f"\n#### {label}")
+            for hit in hits:
+                lines.append(
+                    f"**[{hit['document_title']}]** (score={hit['score']:.3f}):\n"
+                    f"{hit['text'][:600]}"
+                )
+
     if operator_questions:
         lines += [
             "",
@@ -176,9 +234,11 @@ def _build_prompt(incident_id: str, context_data: dict, more_info_round: int) ->
         "---",
         "### Instructions",
         (
-            "Use your Research sub-agent to gather equipment history, batch context, "
-            "BPR constraints, relevant SOPs, GMP regulations, and similar past cases. "
-            "Then use your Document sub-agent to produce the final analysis."
+            "The Pre-fetched RAG Context above contains relevant excerpts from SOPs, "
+            "equipment manuals, BPR product specs, GMP regulations, and similar historical incidents "
+            "retrieved via semantic search. Use these as your primary evidence base — cite them explicitly. "
+            "Use your Research sub-agent to retrieve any additional context not covered above. "
+            "Then use your Document sub-agent to produce the final structured analysis."
         ),
         "",
         "Return your response as a **single JSON block** using this exact schema:",
