@@ -104,8 +104,8 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 
 ## Definition of Done
 
-- [ ] SignalR service provisioned (Bicep або portal)
-- [ ] `/api/signalr/negotiate` returns valid connection info
+- [ ] SignalR service provisioned via `infra/modules/signalr.bicep` (додати до `infra/main.bicep`)
+- [ ] `GET /api/negotiate` returns valid SignalR connection info (hub: `deviationHub`)
 - [ ] React `useSignalR` hook connects successfully
 - [ ] Toast notification appears in UI when new incident created (test: POST /api/alerts)
 - [ ] Incident list updates automatically when status changes (no page refresh needed)

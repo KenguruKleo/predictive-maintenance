@@ -100,7 +100,7 @@
 | 24–25 квіт | T-027 (Execution Agent) · T-029 (human approval API) · T-030 (SignalR) |
 | 26–27 квіт | T-031 (backend API) · T-035 (RBAC) |
 | 28–29 квіт | T-032 (React core) · T-033 (approval UX) |
-| 30 квіт | T-041 (Bicep IaC) · T-042 (GitHub Actions) |
+| 30 квіт | T-034 (інші ролі frontend) · T-040 (RAI layer) |
 
 ### Week 3 (1–7 травня) — Polish + Submission
 | Підзадача |

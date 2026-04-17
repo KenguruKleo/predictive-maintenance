@@ -123,4 +123,5 @@ frontend/
 - [ ] Clicking incident → detail view з AI analysis, parameter excursion, evidence citations
 - [ ] Event timeline показує chronological audit log
 - [ ] SignalR connection встановлюється, real-time оновлення працюють
+- [ ] Azure Static Web App provisioned via `infra/modules/static-web-app.bicep` (додати до `infra/main.bicep`)
 - [ ] `npm run build` успішно, deploy на Azure Static Web Apps

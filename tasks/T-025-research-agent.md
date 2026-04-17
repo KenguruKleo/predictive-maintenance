@@ -123,6 +123,7 @@ async def run_research_agent(incident_id: str, alert_payload: dict) -> dict:
 
 ## Definition of Done
 
+- [ ] Azure AI Foundry Hub + Project provisioned via `infra/modules/ai-foundry.bicep` (додати до `infra/main.bicep`)
 - [ ] `agents/create_agents.py` створює Research Agent в Foundry з усіма tools
 - [ ] `run_research_agent()` повертає структурований JSON з усіма 7 секціями
 - [ ] MCP tools викликаються і повертають дані (перевірено на INC-2026-0001)
