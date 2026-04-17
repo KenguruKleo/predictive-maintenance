@@ -5,6 +5,12 @@ param location string
 param tags object
 param openaiAccountName string
 
+@description('TPM capacity for text-embedding-3-small (in thousands). Default 50K.')
+param embeddingCapacity int = 50
+
+@description('TPM capacity for gpt-4o (in thousands). Default 150K.')
+param gpt4oCapacity int = 150
+
 resource openaiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: openaiAccountName
   location: location
@@ -25,7 +31,7 @@ resource embeddingDeployment 'Microsoft.CognitiveServices/accounts/deployments@2
   name: 'text-embedding-3-small'
   sku: {
     name: 'GlobalStandard'
-    capacity: 50
+    capacity: embeddingCapacity
   }
   properties: {
     model: {
@@ -43,7 +49,7 @@ resource gpt4oDeployment 'Microsoft.CognitiveServices/accounts/deployments@2024-
   dependsOn: [embeddingDeployment]
   sku: {
     name: 'GlobalStandard'
-    capacity: 30
+    capacity: gpt4oCapacity
   }
   properties: {
     model: {
