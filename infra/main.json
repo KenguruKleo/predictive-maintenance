@@ -5,7 +5,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "6048699766860434"
+      "templateHash": "18063928697317658432"
     }
   },
   "parameters": {
@@ -900,7 +900,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "15893129690324793267"
+              "templateHash": "5956317152393009309"
             }
           },
           "parameters": {
@@ -912,6 +912,20 @@
             },
             "openaiAccountName": {
               "type": "string"
+            },
+            "embeddingCapacity": {
+              "type": "int",
+              "defaultValue": 50,
+              "metadata": {
+                "description": "TPM capacity for text-embedding-3-small (in thousands). Default 50K."
+              }
+            },
+            "gpt4oCapacity": {
+              "type": "int",
+              "defaultValue": 150,
+              "metadata": {
+                "description": "TPM capacity for gpt-4o (in thousands). Default 150K."
+              }
             }
           },
           "resources": [
@@ -936,7 +950,7 @@
               "name": "[format('{0}/{1}', parameters('openaiAccountName'), 'text-embedding-3-small')]",
               "sku": {
                 "name": "GlobalStandard",
-                "capacity": 50
+                "capacity": "[parameters('embeddingCapacity')]"
               },
               "properties": {
                 "model": {
@@ -955,7 +969,7 @@
               "name": "[format('{0}/{1}', parameters('openaiAccountName'), 'gpt-4o')]",
               "sku": {
                 "name": "GlobalStandard",
-                "capacity": 30
+                "capacity": "[parameters('gpt4oCapacity')]"
               },
               "properties": {
                 "model": {
@@ -1238,6 +1252,113 @@
     {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
+      "name": "swa",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "westeurope"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "swaName": {
+            "value": "[format('swa-{0}-{1}', variables('prefix'), parameters('uniqueSuffix'))]"
+          },
+          "skuName": {
+            "value": "Free"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "4773176718557308726"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string",
+              "metadata": {
+                "description": "Azure region for the Static Web App."
+              }
+            },
+            "tags": {
+              "type": "object",
+              "metadata": {
+                "description": "Resource tags."
+              }
+            },
+            "swaName": {
+              "type": "string",
+              "metadata": {
+                "description": "Name for the Static Web App resource."
+              }
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Free",
+              "allowedValues": [
+                "Free",
+                "Standard"
+              ],
+              "metadata": {
+                "description": "SKU tier: Free or Standard."
+              }
+            }
+          },
+          "resources": [
+            {
+              "type": "Microsoft.Web/staticSites",
+              "apiVersion": "2023-01-01",
+              "name": "[parameters('swaName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "tier": "[parameters('skuName')]"
+              },
+              "properties": {
+                "stagingEnvironmentPolicy": "Enabled",
+                "allowConfigFileUpdates": true
+              }
+            }
+          ],
+          "outputs": {
+            "deploymentToken": {
+              "type": "string",
+              "metadata": {
+                "description": "Deployment token for GitHub Actions / swa-cli."
+              },
+              "value": "[listSecrets(resourceId('Microsoft.Web/staticSites', parameters('swaName')), '2023-01-01').properties.apiKey]"
+            },
+            "swaHostname": {
+              "type": "string",
+              "metadata": {
+                "description": "Default hostname of the Static Web App."
+              },
+              "value": "[reference(resourceId('Microsoft.Web/staticSites', parameters('swaName')), '2023-01-01').defaultHostname]"
+            },
+            "swaName": {
+              "type": "string",
+              "metadata": {
+                "description": "Resource name."
+              },
+              "value": "[parameters('swaName')]"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
       "name": "acr",
       "properties": {
         "expressionEvaluationOptions": {
@@ -1372,7 +1493,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "9038079058062759622"
+              "templateHash": "13060029198316517332"
             }
           },
           "parameters": {
@@ -1587,7 +1708,7 @@
                     }
                   ],
                   "scale": {
-                    "minReplicas": 0,
+                    "minReplicas": 1,
                     "maxReplicas": 3
                   }
                 }
@@ -1695,7 +1816,7 @@
                     }
                   ],
                   "scale": {
-                    "minReplicas": 0,
+                    "minReplicas": 1,
                     "maxReplicas": 3
                   }
                 }
@@ -1795,7 +1916,7 @@
                     }
                   ],
                   "scale": {
-                    "minReplicas": 0,
+                    "minReplicas": 1,
                     "maxReplicas": 2
                   }
                 }
@@ -1895,7 +2016,7 @@
                     }
                   ],
                   "scale": {
-                    "minReplicas": 0,
+                    "minReplicas": 1,
                     "maxReplicas": 2
                   }
                 }
@@ -1997,7 +2118,11 @@
     },
     "staticWebAppUrl": {
       "type": "string",
-      "value": "[format('https://{0}.azurestaticapps.net', variables('prefix'))]"
+      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'swa'), '2025-04-01').outputs.swaHostname.value)]"
+    },
+    "staticWebAppName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'swa'), '2025-04-01').outputs.swaName.value]"
     },
     "resourcePrefix": {
       "type": "string",
