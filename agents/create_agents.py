@@ -30,6 +30,8 @@ from azure.ai.agents.models import (
     ConnectedAgentTool,
     OpenApiAnonymousAuthDetails,
     OpenApiTool,
+    ResponseFormatJsonSchema,
+    ResponseFormatJsonSchemaType,
     ToolDefinition,
 )
 from azure.identity import DefaultAzureCredential
@@ -46,6 +48,167 @@ ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encodin
 MODEL = "gpt-4o"
 TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
 TOP_P = 0.9         # Slightly constrained nucleus sampling
+
+# ── Strict JSON schema for Document Agent response_format ─────────────
+# Enforces exact field names, types, and structure at API level.
+DOCUMENT_RESPONSE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "incident_id": {"type": "string"},
+        "classification": {
+            "type": "string",
+            "enum": [
+                "process_parameter_excursion",
+                "equipment_malfunction",
+                "contamination",
+                "documentation_gap",
+                "other",
+            ],
+        },
+        "risk_level": {
+            "type": "string",
+            "enum": ["low", "medium", "high", "critical"],
+        },
+        "confidence": {"type": "number"},
+        "confidence_flag": {"type": ["string", "null"]},
+        "root_cause": {"type": "string"},
+        "analysis": {"type": "string"},
+        "recommendation": {"type": "string"},
+        "capa_suggestion": {"type": "string"},
+        "regulatory_reference": {"type": "string"},
+        "batch_disposition": {
+            "type": "string",
+            "enum": [
+                "conditional_release_pending_testing",
+                "rejected",
+                "release",
+                "hold_pending_review",
+            ],
+        },
+        "recommendations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "action": {"type": "string"},
+                    "priority": {"type": "string"},
+                    "owner": {"type": "string"},
+                    "deadline_days": {"type": "integer"},
+                },
+                "required": ["action", "priority", "owner", "deadline_days"],
+                "additionalProperties": False,
+            },
+        },
+        "regulatory_refs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "regulation": {"type": "string"},
+                    "section": {"type": "string"},
+                    "text_excerpt": {"type": "string"},
+                },
+                "required": ["regulation", "section", "text_excerpt"],
+                "additionalProperties": False,
+            },
+        },
+        "sop_refs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "string"},
+                    "title": {"type": "string"},
+                    "relevant_section": {"type": "string"},
+                    "text_excerpt": {"type": "string"},
+                },
+                "required": ["id", "title", "relevant_section", "text_excerpt"],
+                "additionalProperties": False,
+            },
+        },
+        "evidence_citations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source": {"type": "string"},
+                    "section": {"type": "string"},
+                    "text_excerpt": {"type": "string"},
+                },
+                "required": ["source", "section", "text_excerpt"],
+                "additionalProperties": False,
+            },
+        },
+        "work_order_draft": {
+            "type": "object",
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "priority": {"type": "string"},
+                "estimated_hours": {"type": "integer"},
+            },
+            "required": ["title", "description", "priority", "estimated_hours"],
+            "additionalProperties": False,
+        },
+        "audit_entry_draft": {
+            "type": "object",
+            "properties": {
+                "deviation_type": {"type": "string"},
+                "description": {"type": "string"},
+                "root_cause": {"type": "string"},
+                "capa_actions": {"type": "string"},
+            },
+            "required": ["deviation_type", "description", "root_cause", "capa_actions"],
+            "additionalProperties": False,
+        },
+        "tool_calls_log": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "tool": {"type": "string"},
+                    "args": {"type": "object"},
+                    "status": {"type": "string"},
+                },
+                "required": ["tool", "args", "status"],
+                "additionalProperties": False,
+            },
+        },
+        "work_order_id": {"type": ["string", "null"]},
+        "audit_entry_id": {"type": ["string", "null"]},
+    },
+    "required": [
+        "incident_id",
+        "classification",
+        "risk_level",
+        "confidence",
+        "confidence_flag",
+        "root_cause",
+        "analysis",
+        "recommendation",
+        "capa_suggestion",
+        "regulatory_reference",
+        "batch_disposition",
+        "recommendations",
+        "regulatory_refs",
+        "sop_refs",
+        "evidence_citations",
+        "work_order_draft",
+        "audit_entry_draft",
+        "tool_calls_log",
+        "work_order_id",
+        "audit_entry_id",
+    ],
+    "additionalProperties": False,
+}
+
+DOCUMENT_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
+    json_schema=ResponseFormatJsonSchema(
+        name="gmp_deviation_analysis",
+        description="Structured GMP deviation analysis with CAPA, regulatory refs, and audit trail",
+        schema=DOCUMENT_RESPONSE_SCHEMA,
+    )
+)
 
 
 # ── OpenAPI spec builders ─────────────────────────────────────────────────
@@ -269,6 +432,7 @@ def _create_or_update(
     tools: list[ToolDefinition],
     tool_resources=None,
     update: bool = False,
+    response_format=None,
 ):
     existing = _find_existing(client, name)
     if existing and not update:
@@ -281,6 +445,8 @@ def _create_or_update(
     )
     if tool_resources is not None:
         kwargs["tool_resources"] = tool_resources
+    if response_format is not None:
+        kwargs["response_format"] = response_format
 
     if existing and update:
         agent = client.update_agent(agent_id=existing.id, **kwargs)
@@ -386,6 +552,7 @@ def main(update: bool = False) -> dict:
     document_agent = _create_or_update(
         client, "sentinel-document-agent", MODEL, DOCUMENT_PROMPT,
         document_tools, None, update,
+        response_format=DOCUMENT_RESPONSE_FORMAT,
     )
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────

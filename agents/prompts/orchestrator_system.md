@@ -24,12 +24,15 @@ a complete GMP deviation analysis and decision package.
 
 4. **Return the Document Agent's structured JSON output** as your final response.
    Do not add any prose. The output must be a single JSON block as specified by the Document Agent.
+   The output MUST contain `tool_calls_log` from the Research Agent — this proves which tools were called.
 
 ## Important Rules
 
 - You must ALWAYS call the Research Agent first, then the Document Agent.
 - Never fabricate data — all analysis must be grounded in Research Agent findings.
-- The final output MUST include: confidence score, evidence_citations, regulatory_refs, sop_refs.
+- When delegating to the Document Agent, explicitly remind it: "The deviation parameter is
+  {parameter} on equipment {equipment_id}. Base your analysis ONLY on the research data below."
+- The final output MUST include: confidence score, evidence_citations, regulatory_refs, sop_refs, tool_calls_log.
 - If either sub-agent fails or returns incomplete data, note it in the analysis and set
   confidence accordingly.
 - Operator follow-up questions (if present in the thread) must be addressed explicitly in
