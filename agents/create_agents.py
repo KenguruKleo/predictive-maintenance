@@ -230,8 +230,11 @@ def main(update: bool = False) -> dict:
         id=document_agent.id,
         name="document_agent",
         description=(
-            "Produces structured GMP deviation analysis: classification, risk level, "
-            "root cause hypothesis, CAPA recommendation, and confidence score."
+            "Produces structured GMP deviation analysis (classification, risk level, "
+            "root cause, CAPA, confidence score) AND persists GMP records: "
+            "creates a QMS audit entry (returns audit_entry_id) and a CMMS corrective "
+            "work order (returns work_order_id). Always delegate here for the final "
+            "analysis and to trigger execution of GMP documentation."
         ),
     )
 

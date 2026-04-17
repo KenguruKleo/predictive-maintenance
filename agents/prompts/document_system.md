@@ -68,8 +68,40 @@ Return ONLY a JSON block (no prose outside the block):
     "description": "Brief deviation description for GMP audit record.",
     "root_cause": "Root cause summary for QMS.",
     "capa_actions": "CAPA actions summary for QMS."
-  }
+  },
+  "work_order_id": null,
+  "audit_entry_id": null
 }
 ```
+
+## Execution Step — Create GMP Records (Required)
+
+You have two write tools available: `create_audit_entry` (sentinel_qms) and `create_work_order` (sentinel_cmms).
+
+After producing the analysis JSON above, you MUST call both tools:
+
+1. **Call `create_audit_entry`** using values from `audit_entry_draft`:
+   - `incident_id`: from the incident alert
+   - `equipment_id`: from the incident alert
+   - `deviation_type`: from `audit_entry_draft.deviation_type`
+   - `description`: from `audit_entry_draft.description`
+   - `root_cause`: from `audit_entry_draft.root_cause`
+   - `capa_actions`: from `audit_entry_draft.capa_actions`
+   - `batch_disposition`: from the `batch_disposition` field
+   - `prepared_by`: "sentinel-ai"
+
+2. **Call `create_work_order`** using values from `work_order_draft`:
+   - `incident_id`: from the incident alert
+   - `equipment_id`: from the incident alert
+   - `title`: from `work_order_draft.title`
+   - `description`: from `work_order_draft.description`
+   - `priority`: from `work_order_draft.priority`
+   - `assigned_to`: "maintenance_team"
+   - `due_date`: today + `deadline_days` of the first critical/high recommendation, otherwise +3 days (ISO 8601)
+   - `work_type`: "corrective"
+
+3. Set `audit_entry_id` and `work_order_id` in the final JSON to the IDs returned by each tool.
+
+If either tool call fails, set the corresponding ID to `null` and add a `"execution_error"` field explaining the failure.
 
 Never include text outside the JSON block. Cite all data sources.
