@@ -52,7 +52,12 @@ def _get_container(name: str):
 
 # ── FastMCP app ───────────────────────────────────────────────────────────
 
-mcp = FastMCP("mcp-qms")
+mcp = FastMCP(
+    "mcp-qms",
+    host=os.getenv("FASTMCP_HOST", "127.0.0.1"),
+    port=int(os.getenv("FASTMCP_PORT", "8000")),
+    stateless_http=os.getenv("FASTMCP_STATELESS_HTTP", "false").lower() == "true",
+)
 
 
 @mcp.tool()
@@ -122,4 +127,5 @@ def create_audit_entry(
 
 
 if __name__ == "__main__":
-    mcp.run()
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    mcp.run(transport=transport)  # type: ignore[arg-type]

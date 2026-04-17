@@ -53,7 +53,12 @@ def _clean(doc: dict) -> dict:
 
 # ── FastMCP app ───────────────────────────────────────────────────────────
 
-mcp = FastMCP("mcp-sentinel-db")
+mcp = FastMCP(
+    "mcp-sentinel-db",
+    host=os.getenv("FASTMCP_HOST", "127.0.0.1"),
+    port=int(os.getenv("FASTMCP_PORT", "8000")),
+    stateless_http=os.getenv("FASTMCP_STATELESS_HTTP", "false").lower() == "true",
+)
 
 
 @mcp.tool()
@@ -175,4 +180,5 @@ def get_template(template_type: str) -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    mcp.run()
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    mcp.run(transport=transport)  # type: ignore[arg-type]

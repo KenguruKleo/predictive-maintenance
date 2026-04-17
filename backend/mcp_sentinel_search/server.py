@@ -36,7 +36,12 @@ from shared.search_utils import (
 
 load_dotenv()
 
-mcp = FastMCP("mcp-sentinel-search")
+mcp = FastMCP(
+    "mcp-sentinel-search",
+    host=os.getenv("FASTMCP_HOST", "127.0.0.1"),
+    port=int(os.getenv("FASTMCP_PORT", "8000")),
+    stateless_http=os.getenv("FASTMCP_STATELESS_HTTP", "false").lower() == "true",
+)
 
 
 @mcp.tool()
@@ -133,4 +138,5 @@ def search_incident_history(
 
 
 if __name__ == "__main__":
-    mcp.run()
+    transport = os.getenv("MCP_TRANSPORT", "stdio")
+    mcp.run(transport=transport)  # type: ignore[arg-type]
