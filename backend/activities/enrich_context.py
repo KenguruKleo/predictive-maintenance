@@ -2,14 +2,16 @@
 Activity: enrich_context — pull equipment info + active batch from Cosmos DB (T-024)
 
 Returns a dict with:
+  - incident_id, equipment_id
   - equipment: equipment document
-  - activeBatch: most recent batch for this equipment (if any)
-  - recentIncidents: last 5 incidents for this equipment
-  - extra_info_request: populated by orchestrator if operator asked for more detail
+  - batch: most recent active batch for this equipment (or None)
+  - recent_incidents: last 5 incidents for this equipment
 """
 
 import logging
 import os
+
+import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
 
@@ -17,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
 
+bp = df.Blueprint()
 
+
+@bp.activity_trigger(input_name="input_data")
 def enrich_context(input_data: dict) -> dict:
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)
@@ -32,7 +37,7 @@ def enrich_context(input_data: dict) -> dict:
         eq_container = db.get_container_client("equipment")
         if equipment_id:
             eq_doc = eq_container.read_item(item=equipment_id, partition_key=equipment_id)
-            context["equipment"] = eq_doc
+            context["equipment"] = {k: v for k, v in eq_doc.items() if not k.startswith("_")}
             logger.info("Enriched equipment for %s", equipment_id)
     except Exception as exc:
         logger.warning("Could not fetch equipment %s: %s", equipment_id, exc)
@@ -51,10 +56,10 @@ def enrich_context(input_data: dict) -> dict:
         results = list(
             batches.query_items(query=query, parameters=params, enable_cross_partition_query=True)
         )
-        context["activeBatch"] = results[0] if results else None
+        context["batch"] = results[0] if results else None
     except Exception as exc:
         logger.warning("Could not fetch active batch: %s", exc)
-        context["activeBatch"] = None
+        context["batch"] = None
 
     # ── Recent incidents ────────────────────────────────────────────────────
     try:
@@ -71,15 +76,15 @@ def enrich_context(input_data: dict) -> dict:
         recent = list(
             incidents.query_items(query=query, parameters=params, enable_cross_partition_query=True)
         )
-        context["recentIncidents"] = recent
+        context["recent_incidents"] = recent
     except Exception as exc:
         logger.warning("Could not fetch recent incidents: %s", exc)
-        context["recentIncidents"] = []
+        context["recent_incidents"] = []
 
     logger.info(
         "Context enriched for incident %s — batch=%s, recent=%d",
         incident_id,
-        context["activeBatch"].get("id") if context.get("activeBatch") else "none",
-        len(context.get("recentIncidents", [])),
+        context["batch"].get("id") if context.get("batch") else "none",
+        len(context.get("recent_incidents", [])),
     )
     return context

@@ -14,6 +14,8 @@ param openaiEndpoint string
 param openaiAccountName string
 param searchEndpoint string
 param searchServiceName string
+param foundryProjectConnectionString string
+param foundrySearchConnectionId string
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
@@ -84,6 +86,20 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         // Azure AI Search
         { name: 'AZURE_SEARCH_ENDPOINT', value: searchEndpoint }
         { name: 'AZURE_SEARCH_ADMIN_KEY', value: searchService.listAdminKeys().primaryKey }
+        // Azure AI Foundry (agents)
+        // AZURE_AI_FOUNDRY_AGENTS_ENDPOINT uses the connection string format for Hub-based projects
+        { name: 'AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING', value: foundryProjectConnectionString }
+        { name: 'AZURE_AI_FOUNDRY_AGENTS_ENDPOINT', value: foundryProjectConnectionString }
+        { name: 'AZURE_AI_AGENTS_TESTS_IS_TEST_RUN', value: 'True' }
+        // Foundry Hub connection ID for AzureAISearchTool in Research Agent
+        { name: 'AZURE_AI_SEARCH_CONNECTION_ID', value: foundrySearchConnectionId }
+        { name: 'MAX_MORE_INFO_ROUNDS', value: '3' }
+        { name: 'CONFIDENCE_THRESHOLD', value: '0.75' }
+        // Agent IDs — populated after agents/create_agents.py runs
+        { name: 'ORCHESTRATOR_AGENT_ID', value: '' }
+        { name: 'RESEARCH_AGENT_ID', value: '' }
+        { name: 'DOCUMENT_AGENT_ID', value: '' }
+        { name: 'EXECUTION_AGENT_ID', value: '' }
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

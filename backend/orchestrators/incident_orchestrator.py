@@ -1,90 +1,81 @@
 """
-Incident Orchestrator — Azure Durable Functions (T-024)
+Incident Orchestrator — Azure Durable Functions (T-024, ADR-002)
 
-Workflow:
-  1. create_incident    — persist initial incident record to Cosmos DB
-  2. enrich_context     — pull equipment history + active batch from Cosmos DB
-  3. run_agents         — Research Agent + Document Agent via Azure AI Foundry
-  4. notify_operator    — push SignalR event to React UI
-  5. wait_for_decision  — waitForExternalEvent("operator_decision") with 24h timeout
-  6. execute_decision   — Execution Agent (if approved) or close (if rejected)
-  7. finalize_audit     — write final audit record
+Workflow (first half — enrich → agents → notify → HITL loop):
+  1. enrich_context         — pull equipment + batch context from Cosmos DB
+  2. run_foundry_agents     — Foundry Orchestrator Agent (Research + Document via Connected Agents)
+  3. notify_operator        — push SignalR notification to React UI (approval_required)
+  4. wait_for_external_event("operator_decision") with 24h timeout + more_info loop
+     └ more_info: re-run agents with operator questions (up to MAX_MORE_INFO_ROUNDS)
+     └ timeout:   escalate to qa-manager, wait indefinitely
 
-Human-in-the-loop loop supports "more_info" up to MAX_LOOPS times.
-On 24h timeout → escalate to QA Manager role; wait indefinitely for their decision.
+Workflow (second half — T-024 §2):
+  5. run_execution_agent    — Execution Agent builds & runs CAPA plan (if approved)
+     OR close_incident      — sets status=rejected (if rejected)
+  6. finalize_audit         — final audit record + close incident
+
+ADR-002: single run_foundry_agents activity; Connected Agents pattern in Foundry.
 """
 
-import json
 import logging
+import os
 from datetime import timedelta
 
 import azure.durable_functions as df
 
 logger = logging.getLogger(__name__)
 
-MAX_LOOPS = 3
+MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
+
+bp = df.Blueprint()
 
 
+@bp.orchestration_trigger(context_parameter="context")
 def incident_orchestrator(context: df.DurableOrchestrationContext):
     """Main stateful workflow triggered by a Service Bus message."""
 
     input_data: dict = context.get_input()
     incident_id: str = input_data["incident_id"]
-    alert_payload: dict = input_data.get("alert_payload", input_data)
 
     if not context.is_replaying:
         logger.info("Orchestrator started for incident %s", incident_id)
 
-    # ── Step 1: Create initial incident record ──────────────────────────────
-    incident_id = yield context.call_activity(
-        "create_incident",
-        {"incident_id": incident_id, "alert_payload": alert_payload, "status": "open"},
-    )
-
-    # ── Step 2: Enrich context ──────────────────────────────────────────────
+    # ── Step 1: Enrich context (equipment + batch from Cosmos) ─────────────
     context_data: dict = yield context.call_activity(
         "enrich_context",
-        {"incident_id": incident_id, "equipment_id": alert_payload.get("equipment_id")},
+        {"incident_id": incident_id, "equipment_id": input_data.get("equipment_id")},
+    )
+    context_data["operator_questions"] = []
+    # Carry alert payload into context so run_foundry_agents can use it
+    context_data["alert_payload"] = input_data
+
+    # ── Step 2: Run Foundry agents (Research + Document via Connected Agents) ─
+    ai_result: dict = yield context.call_activity(
+        "run_foundry_agents",
+        {"incident_id": incident_id, "context": context_data},
     )
 
-    # ── Human-in-the-loop ───────────────────────────────────────────────────
-    loop_count = 0
-    decision = None
-    ai_result = None
+    # ── Step 3: Notify operator via SignalR ────────────────────────────────
+    yield context.call_activity(
+        "notify_operator",
+        {"incident_id": incident_id, "ai_result": ai_result},
+    )
 
-    while decision is None and loop_count < MAX_LOOPS:
-        # Step 3: Run agents
-        ai_result = yield context.call_activity(
-            "run_agents",
-            {
-                "incident_id": incident_id,
-                "context": context_data,
-                "loop_count": loop_count,
-            },
-        )
+    # ── Step 4: HITL wait loop ─────────────────────────────────────────────
+    more_info_rounds = 0
+    decision: dict | None = None
 
-        # Step 4: Notify operator via SignalR
-        yield context.call_activity(
-            "notify_operator",
-            {
-                "incident_id": incident_id,
-                "ai_result": ai_result,
-                "escalation": False,
-                "role": "operator",
-            },
-        )
-
-        # Step 5: Wait for decision or 24h timeout
+    while True:
         deadline = context.current_utc_datetime + timedelta(hours=24)
-        decision_event = context.wait_for_external_event("operator_decision")
-        timeout_event = context.create_timer(deadline)
+        decision_task = context.wait_for_external_event("operator_decision")
+        timeout_task = context.create_timer(deadline)
 
-        winner = yield context.task_any([decision_event, timeout_event])
+        winner = yield context.task_any([decision_task, timeout_task])
 
-        if winner == timeout_event:
-            # Escalate to QA Manager
+        if winner is timeout_task:
+            # 24 h passed → escalate to QA Manager, wait indefinitely
             if not context.is_replaying:
-                logger.warning("Incident %s timed out — escalating to QA Manager", incident_id)
+                logger.warning("Incident %s timed out — escalating to qa-manager", incident_id)
             yield context.call_activity(
                 "notify_operator",
                 {
@@ -94,60 +85,67 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                     "role": "qa-manager",
                 },
             )
-            # Wait indefinitely for QA Manager
             decision = yield context.wait_for_external_event("operator_decision")
         else:
-            decision = winner.result
+            timeout_task.cancel()
+            decision = decision_task.result
 
-        # Handle "more_info" loop
-        if isinstance(decision, dict) and decision.get("action") == "more_info":
-            context_data["extra_info_request"] = decision.get("question", "")
-            loop_count += 1
-            decision = None  # Reset → loop again
+        action: str = decision.get("action", "rejected") if decision else "rejected"
 
-    # If we exhausted loops without a decision, auto-reject
-    if decision is None:
-        decision = {"action": "rejected", "reason": "Max info-request loops exceeded"}
+        if action == "more_info" and more_info_rounds < MAX_MORE_INFO_ROUNDS:
+            more_info_rounds += 1
+            context_data["operator_questions"].append(
+                {
+                    "round": more_info_rounds,
+                    "question": decision.get("question", ""),
+                    "asked_by": decision.get("user_id", "operator"),
+                }
+            )
+            # Re-run Foundry agents with enriched context (new round)
+            ai_result = yield context.call_activity(
+                "run_foundry_agents",
+                {
+                    "incident_id": incident_id,
+                    "context": context_data,
+                    "more_info_round": more_info_rounds,
+                },
+            )
+            yield context.call_activity(
+                "notify_operator",
+                {"incident_id": incident_id, "ai_result": ai_result},
+            )
+            continue  # loop back to wait for next decision
 
-    # ── Step 6: Execute or close ────────────────────────────────────────────
-    exec_result = None
-    if isinstance(decision, dict) and decision.get("action") == "approved":
-        exec_result = yield context.call_activity(
-            "execute_decision",
+        # approved / rejected / more_info limit reached → exit loop
+        break
+
+    # ── Step 5: Execute or close ───────────────────────────────────────────
+    if action == "approved":
+        yield context.call_activity(
+            "run_execution_agent",
             {
                 "incident_id": incident_id,
                 "ai_result": ai_result,
-                "approver": decision.get("user_id"),
+                "approver_id": decision.get("user_id"),
+                "approval_notes": decision.get("reason"),
             },
         )
     else:
         yield context.call_activity(
-            "create_incident",
+            "close_incident",
             {
                 "incident_id": incident_id,
-                "status": "rejected",
-                "rejection_reason": decision.get("reason", ""),
+                "rejection_reason": decision.get("reason") if decision else "auto-rejected",
             },
         )
 
-    # ── Step 7: Finalize audit ──────────────────────────────────────────────
+    # ── Step 6: Finalize audit record ──────────────────────────────────────
     yield context.call_activity(
         "finalize_audit",
         {
             "incident_id": incident_id,
             "decision": decision,
-            "exec_result": exec_result,
+            "more_info_rounds": more_info_rounds,
+            "ai_result": ai_result,
         },
     )
-
-    if not context.is_replaying:
-        logger.info(
-            "Orchestrator completed for incident %s — action: %s",
-            incident_id,
-            decision.get("action") if isinstance(decision, dict) else decision,
-        )
-
-    return {
-        "incident_id": incident_id,
-        "final_action": decision.get("action") if isinstance(decision, dict) else "unknown",
-    }

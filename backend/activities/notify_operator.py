@@ -9,13 +9,18 @@ import logging
 import os
 from datetime import datetime, timezone
 
+import azure.durable_functions as df
+
 from shared.cosmos_client import get_cosmos_client
 
 logger = logging.getLogger(__name__)
 
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
 
+bp = df.Blueprint()
 
+
+@bp.activity_trigger(input_name="input_data")
 def notify_operator(input_data: dict) -> dict:
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)

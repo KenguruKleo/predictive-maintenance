@@ -1,8 +1,11 @@
 """
-Activity: execute_decision — Execution Agent runs CAPA actions (T-024)
+Activity: run_execution_agent — Execution Agent runs CAPA actions (T-024 §2)
 
 Generates a structured CAPA execution plan via gpt-4o, writes it to Cosmos DB,
 and transitions the incident to 'in_progress'.
+
+Note: This is the second half of T-024. Will be replaced by a full Foundry
+Execution Agent (T-027) in a future iteration.
 """
 
 import json
@@ -10,6 +13,7 @@ import logging
 import os
 from datetime import datetime, timezone
 
+import azure.durable_functions as df
 from openai import AzureOpenAI
 
 from shared.cosmos_client import get_cosmos_client
@@ -17,15 +21,18 @@ from shared.cosmos_client import get_cosmos_client
 logger = logging.getLogger(__name__)
 
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
-OPENAI_ENDPOINT = os.environ["AZURE_OPENAI_ENDPOINT"]
-OPENAI_KEY = os.environ["AZURE_OPENAI_API_KEY"]
+OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT", "")
+OPENAI_KEY = os.environ.get("AZURE_OPENAI_API_KEY", "")
 GPT4O_DEPLOYMENT = os.getenv("AZURE_OPENAI_GPT4O_DEPLOYMENT", "gpt-4o")
 
+bp = df.Blueprint()
 
-def execute_decision(input_data: dict) -> dict:
+
+@bp.activity_trigger(input_name="input_data")
+def run_execution_agent(input_data: dict) -> dict:
     incident_id: str = input_data["incident_id"]
     ai_result: dict = input_data.get("ai_result", {})
-    approver: str = input_data.get("approver", "unknown")
+    approver: str = input_data.get("approver_id", input_data.get("approver", "unknown"))
     now_iso = datetime.now(timezone.utc).isoformat()
 
     logger.info("execute_decision for incident %s approved by %s", incident_id, approver)

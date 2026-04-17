@@ -1,4 +1,5 @@
-// Azure OpenAI Service + deployments for agents and embeddings
+// Azure AI Services account — provides OpenAI API + Agent Service endpoint
+// kind=AIServices replaces kind=OpenAI to enable Foundry Agent Service
 
 param location string
 param tags object
@@ -8,7 +9,7 @@ resource openaiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' = {
   name: openaiAccountName
   location: location
   tags: tags
-  kind: 'OpenAI'
+  kind: 'AIServices'
   sku: {
     name: 'S0'
   }
@@ -58,3 +59,5 @@ output openaiAccountName string = openaiAccount.name
 output openaiAccountId string = openaiAccount.id
 output embeddingDeploymentName string = embeddingDeployment.name
 output gpt4oDeploymentName string = gpt4oDeployment.name
+// Agents endpoint: https://<name>.services.ai.azure.com/api/projects/<project>
+output aiServicesEndpoint string = 'https://${openaiAccountName}.services.ai.azure.com'

@@ -85,6 +85,8 @@ module functions 'modules/functions.bicep' = {
     openaiAccountName: openai.outputs.openaiAccountName
     searchEndpoint: aiSearch.outputs.searchServiceEndpoint
     searchServiceName: aiSearch.outputs.searchServiceName
+    foundryProjectConnectionString: aiFoundry.outputs.projectConnectionString
+    foundrySearchConnectionId: aiFoundry.outputs.searchConnectionId
   }
 }
 
@@ -110,6 +112,24 @@ module openai 'modules/openai.bicep' = {
   }
 }
 
+// Azure AI Foundry — Hub + Project for Research/Document/Orchestrator agents
+module aiFoundry 'modules/ai-foundry.bicep' = {
+  name: 'aiFoundry'
+  params: {
+    location: location
+    tags: tags
+    hubName: 'aih-${prefix}-${uniqueSuffix}'
+    projectName: 'aip-${prefix}-${uniqueSuffix}'
+    storageAccountName: storage.outputs.storageName
+    appInsightsId: monitoring.outputs.appInsightsId
+    keyVaultName: 'kv-sntl-${environmentName}-${uniqueSuffix}'
+    openaiAccountName: openai.outputs.openaiAccountName
+    openaiEndpoint: openai.outputs.aiServicesEndpoint
+    searchServiceName: aiSearch.outputs.searchServiceName
+    searchServiceEndpoint: aiSearch.outputs.searchServiceEndpoint
+  }
+}
+
 // Outputs
 
 output functionsAppName string = functions.outputs.funcAppName
@@ -118,6 +138,10 @@ output cosmosEndpoint string = cosmos.outputs.cosmosEndpoint
 output cosmosDatabaseName string = cosmos.outputs.databaseName
 output serviceBusEndpoint string = servicebus.outputs.serviceBusEndpoint
 output storageAccountName string = storage.outputs.storageName
+output foundryProjectConnectionString string = aiFoundry.outputs.projectConnectionString
+output foundryProjectName string = aiFoundry.outputs.projectName
+output foundryAgentsEndpoint string = aiFoundry.outputs.agentsEndpoint
+output foundrySearchConnectionId string = aiFoundry.outputs.searchConnectionId
 output staticWebAppUrl string = 'https://${prefix}.azurestaticapps.net'
 output resourcePrefix string = prefix
 output searchServiceEndpoint string = aiSearch.outputs.searchServiceEndpoint
