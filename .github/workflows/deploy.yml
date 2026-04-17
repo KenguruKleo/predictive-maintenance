@@ -20,6 +20,7 @@ jobs:
       functionsAppName: ${{ steps.bicep.outputs.functionsAppName }}
       staticWebAppUrl: ${{ steps.bicep.outputs.staticWebAppUrl }}
       functionsExists: ${{ steps.check.outputs.functionsExists }}
+      resolvedAppName: ${{ steps.check.outputs.resolvedAppName }}
 
     steps:
       - uses: actions/checkout@v4
@@ -54,16 +55,19 @@ jobs:
       - name: Check if Functions app exists
         id: check
         run: |
+          APP_NAME="${{ steps.bicep.outputs.functionsAppName || env.FUNCTIONS_APP_NAME }}"
           EXISTS=$(az functionapp show \
-            --name "$FUNCTIONS_APP_NAME" \
+            --name "$APP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --query name -o tsv 2>/dev/null || echo "")
           if [ -n "$EXISTS" ]; then
             echo "functionsExists=true" >> "$GITHUB_OUTPUT"
+            echo "resolvedAppName=$APP_NAME" >> "$GITHUB_OUTPUT"
             echo "Azure Functions app '$EXISTS' found — will deploy backend"
           else
             echo "functionsExists=false" >> "$GITHUB_OUTPUT"
-            echo "Azure Functions app not provisioned yet — skipping backend deploy (T-041)"
+            echo "resolvedAppName=" >> "$GITHUB_OUTPUT"
+            echo "Azure Functions app not provisioned yet — skipping backend deploy"
           fi
 
   # ── 2. Deploy Azure Functions (Python backend) ──────────────────────
@@ -87,7 +91,7 @@ jobs:
       - name: Deploy to Azure Functions
         uses: azure/functions-action@v1
         with:
-          app-name: ${{ env.FUNCTIONS_APP_NAME }}
+          app-name: ${{ needs.infra.outputs.resolvedAppName || env.FUNCTIONS_APP_NAME }}
           package: backend/
           scm-do-build-during-deployment: true
 

@@ -6,8 +6,39 @@ param funcAppName string
 param storageAccountName string
 param appInsightsConnectionString string
 
+// Runtime wiring — endpoints + keys from other modules
+param cosmosEndpoint string
+param cosmosAccountName string
+param serviceBusNamespaceName string
+param openaiEndpoint string
+param openaiAccountName string
+param searchEndpoint string
+param searchServiceName string
+
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
+}
+
+// Existing resources for listKeys() calls
+resource cosmosAccount 'Microsoft.DocumentDB/databaseAccounts@2024-05-15' existing = {
+  name: cosmosAccountName
+}
+
+resource serviceBusNamespace 'Microsoft.ServiceBus/namespaces@2022-10-01-preview' existing = {
+  name: serviceBusNamespaceName
+}
+
+resource serviceBusAuthRule 'Microsoft.ServiceBus/namespaces/authorizationRules@2021-11-01' existing = {
+  parent: serviceBusNamespace
+  name: 'RootManageSharedAccessKey'
+}
+
+resource openaiAccount 'Microsoft.CognitiveServices/accounts@2024-10-01' existing = {
+  name: openaiAccountName
+}
+
+resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' existing = {
+  name: searchServiceName
 }
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
@@ -39,6 +70,20 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
+        // Cosmos DB
+        { name: 'COSMOS_ENDPOINT', value: cosmosEndpoint }
+        { name: 'COSMOS_KEY', value: cosmosAccount.listKeys().primaryMasterKey }
+        // Service Bus
+        { name: 'SERVICEBUS_CONNECTION_STRING', value: serviceBusAuthRule.listKeys().primaryConnectionString }
+        { name: 'SERVICEBUS_NAMESPACE', value: '${serviceBusNamespaceName}.servicebus.windows.net' }
+        // Azure OpenAI
+        { name: 'AZURE_OPENAI_ENDPOINT', value: openaiEndpoint }
+        { name: 'AZURE_OPENAI_API_KEY', value: openaiAccount.listKeys().key1 }
+        { name: 'AZURE_OPENAI_EMBEDDING_DEPLOYMENT', value: 'text-embedding-3-small' }
+        { name: 'AZURE_OPENAI_GPT4O_DEPLOYMENT', value: 'gpt-4o' }
+        // Azure AI Search
+        { name: 'AZURE_SEARCH_ENDPOINT', value: searchEndpoint }
+        { name: 'AZURE_SEARCH_ADMIN_KEY', value: searchService.listAdminKeys().primaryKey }
       ]
       ftpsState: 'Disabled'
       minTlsVersion: '1.2'

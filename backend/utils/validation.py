@@ -1,0 +1,109 @@
+"""
+Alert payload validation + prompt injection sanitization.
+
+validate_alert_payload() raises ValueError with a descriptive message on failure.
+sanitize_string_fields() strips prompt injection patterns from user-controlled strings.
+"""
+
+import re
+from typing import Any
+
+# ---------------------------------------------------------------------------
+# Required / optional fields
+# ---------------------------------------------------------------------------
+
+REQUIRED_FIELDS: list[tuple[str, type]] = [
+    ("equipment_id", str),
+    ("deviation_type", str),
+    ("parameter", str),
+    ("measured_value", (int, float)),
+    ("lower_limit", (int, float)),
+    ("upper_limit", (int, float)),
+    ("unit", str),
+]
+
+ALLOWED_DEVIATION_TYPES = {
+    "process_parameter_excursion",
+    "environmental_excursion",
+    "equipment_failure",
+    "material_defect",
+    "documentation_error",
+    "other",
+}
+
+# Max length for string fields — prevents oversized payloads
+MAX_STRING_LENGTH = 500
+
+# ---------------------------------------------------------------------------
+# Prompt injection patterns to strip / block
+# ---------------------------------------------------------------------------
+
+_INJECTION_PATTERNS = re.compile(
+    r"(ignore\s+(previous|all|above)\s+instructions?"
+    r"|you\s+are\s+now|new\s+system\s+prompt"
+    r"|disregard\s+(all|previous)"
+    r"|act\s+as\s+(?:a\s+)?(?:DAN|jailbreak)"
+    r"|<\s*(?:system|user|assistant)\s*>)",
+    re.IGNORECASE,
+)
+
+
+def validate_alert_payload(body: Any) -> None:
+    """
+    Validate required fields, types, and business rules.
+    Raises ValueError with a human-readable message on any failure.
+    """
+    if not isinstance(body, dict):
+        raise ValueError("Request body must be a JSON object")
+
+    # Required fields
+    for field, expected_type in REQUIRED_FIELDS:
+        if field not in body:
+            raise ValueError(f"Missing required field: '{field}'")
+        if not isinstance(body[field], expected_type):
+            raise ValueError(
+                f"Field '{field}' must be {expected_type.__name__ if isinstance(expected_type, type) else 'a number'}"
+            )
+
+    # String length guard
+    for field, expected_type in REQUIRED_FIELDS:
+        if expected_type is str and len(body[field]) > MAX_STRING_LENGTH:
+            raise ValueError(f"Field '{field}' exceeds maximum length of {MAX_STRING_LENGTH}")
+
+    # deviation_type allow-list
+    if body["deviation_type"] not in ALLOWED_DEVIATION_TYPES:
+        raise ValueError(
+            f"Invalid deviation_type '{body['deviation_type']}'. "
+            f"Allowed: {sorted(ALLOWED_DEVIATION_TYPES)}"
+        )
+
+    # Numeric range: lower_limit < upper_limit
+    if body["lower_limit"] >= body["upper_limit"]:
+        raise ValueError("'lower_limit' must be less than 'upper_limit'")
+
+    # Optional string fields length
+    for optional_field in ("batch_id", "alert_id", "detected_by"):
+        val = body.get(optional_field)
+        if val is not None:
+            if not isinstance(val, str):
+                raise ValueError(f"Optional field '{optional_field}' must be a string")
+            if len(val) > MAX_STRING_LENGTH:
+                raise ValueError(f"Optional field '{optional_field}' exceeds maximum length")
+
+
+def sanitize_string_fields(body: dict) -> None:
+    """
+    Scan all string-valued fields in the payload for prompt injection patterns.
+    Raises ValueError if a suspicious pattern is detected.
+    This is an in-place check — does NOT modify the payload.
+    """
+    string_fields = [
+        "equipment_id", "deviation_type", "parameter", "unit",
+        "detected_by", "batch_id", "alert_id",
+    ]
+    for field in string_fields:
+        value = body.get(field)
+        if isinstance(value, str) and _INJECTION_PATTERNS.search(value):
+            raise ValueError(
+                f"Potentially unsafe content detected in field '{field}'. Request rejected."
+            )

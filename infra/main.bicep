@@ -78,6 +78,13 @@ module functions 'modules/functions.bicep' = {
     funcAppName: 'func-${prefix}-${uniqueSuffix}'
     storageAccountName: storage.outputs.storageName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
+    cosmosEndpoint: cosmos.outputs.cosmosEndpoint
+    cosmosAccountName: cosmos.outputs.cosmosAccountName
+    serviceBusNamespaceName: servicebus.outputs.serviceBusName
+    openaiEndpoint: openai.outputs.openaiEndpoint
+    openaiAccountName: openai.outputs.openaiAccountName
+    searchEndpoint: aiSearch.outputs.searchServiceEndpoint
+    searchServiceName: aiSearch.outputs.searchServiceName
   }
 }
 

@@ -3,9 +3,11 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-024 (Service Bus → Durable trigger)  
 **Залежить від:** T-020 (Cosmos DB), T-022 (Service Bus)
+
+> **Завершено 17 квітня 2026:** `POST /api/alerts` реалізовано. Структура: `shared/` (cosmos_client, servicebus_client), `utils/` (validation, severity, id_generator), `triggers/http_ingest_alert.py`. `scripts/simulate_alerts.py` з 6 demo сценаріями.
 
 ---
 
@@ -134,9 +136,10 @@ backend/
 
 ## Definition of Done
 
-- [ ] `POST /api/alerts` з валідним payload → 202, message in Service Bus queue
-- [ ] `POST /api/alerts` з невалідним payload → 400 з описом помилки
-- [ ] Невідомий `equipment_id` → 404
-- [ ] Повторний `POST /api/alerts` з тим самим `alert_id` → 200 + existing `incident_id` (ідемпотентність)
-- [ ] Prompt injection у string fields → sanitized або 400
-- [ ] Severity classification: тест minor/major/critical кейси
+- [x] `POST /api/alerts` з валідним payload → 202, message in Service Bus queue
+- [x] `POST /api/alerts` з невалідним payload → 400 з описом помилки
+- [x] Невідомий `equipment_id` → 404
+- [x] Повторний `POST /api/alerts` з тим самим `alert_id` → 200 + existing `incident_id` (ідемпотентність)
+- [x] Prompt injection у string fields → 400 з описом
+- [x] Severity classification: minor/major/critical кейси (у `utils/severity.py`)
+- [x] `scripts/simulate_alerts.py` — 6 demo сценаріїв (local + Azure mode)

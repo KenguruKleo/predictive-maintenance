@@ -21,17 +21,18 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-023 (ingestion API) · T-024 (Durable orchestrator)
+**Зараз в роботі:** T-024 (Durable orchestrator) · T-028 (MCP servers)
 
 **Завершено (17 квітня 2026):**
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)
 - ✅ T-042 — GitHub Actions CI/CD: `ci.yml` + `deploy.yml` живі та зелені
 - ✅ T-022 — Service Bus: `alert-queue` + DLQ задеплоєно
-- ✅ T-020 — Cosmos DB: 6 containers задеплоєно (`templates` container додано 17 квітня), 55 items seeded
+- ✅ T-020 — Cosmos DB: 6 containers задеплоєно, 55 items seeded
 - ✅ T-021 — Mock data: 55 items залито в Cosmos DB (`scripts/seed_cosmos.py`)
-- ✅ T-037 — AI Search: 5 indexes з HNSW vector search (`srch-sentinel-intel-dev-erzrpo`, westeurope basic SKU); 9 документів завантажено до 4 blob containers; 117 chunks проіндексовано (OpenAI `text-embedding-3-small`); `scripts/upload_documents.py` + `scripts/create_search_indexes.py`
+- ✅ T-037 — AI Search: 5 indexes, 9 docs, 117 chunks з HNSW vector embeddings
+- ✅ T-023 — Ingestion API: `POST /api/alerts` + validation + severity + idempotency + Service Bus publish; `scripts/simulate_alerts.py` з 6 demo сценаріями
 
-**Наступний крок:** T-023 ingestion API → T-024 Durable orchestrator skeleton
+**Наступний крок:** T-024 Durable orchestrator → T-028 MCP servers
 
 ---
 
@@ -48,7 +49,7 @@
 | T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — повна demo презентація | Deliverables | 🔴 CRITICAL | 🔜 TODO | finals |
 | T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 6 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | ✅ DONE | — |
 | T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment(3), batches(20), incidents(30), templates(2) | demo | 🔴 CRITICAL | ✅ DONE | — |
-| T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-024 |
+| T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | ✅ DONE | — |
 | T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: create→enrich→agents→notify→wait→execute→finalize | Gap #3 | 🔴 CRITICAL | 🔜 TODO | T-029 |
 | T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry Agent + MCP + RAG tools | Gap #4 | 🔴 CRITICAL | 🔜 TODO | T-024 |
 | T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry Agent + template fill + confidence gate | Gap #4, #5 | 🔴 CRITICAL | 🔜 TODO | T-024 |
@@ -90,8 +91,8 @@
 ### Week 1 (17–23 квітня) — Infrastructure + Backend + Agents
 | День | Задачі |
 |---|---|
-| 17 квіт | ✅ T-041 (Bicep IaC) · ✅ T-042 (CI/CD) · ✅ T-022 (Service Bus) · ✅ T-020/T-021 (Cosmos + seed) · ✅ T-037 (AI Search indexes + 117 chunks) |
-| 18–19 квіт | T-023 (ingestion API) · T-028 (MCP servers) |
+| 17 квіт | ✅ T-041 · ✅ T-042 · ✅ T-022 · ✅ T-020/T-021 · ✅ T-037 · ✅ T-023 |
+| 18–19 квіт | T-024 (Durable orchestrator) · T-028 (MCP servers) |
 | 20–21 квіт | T-023 (ingestion API) · T-036 (document ingestion) |
 | 22–23 квіт | T-024 (Durable orchestrator) · T-025 (Research Agent) · T-026 (Document Agent) |
 
