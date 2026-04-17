@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-025, T-026, T-027  
 **Залежить від:** T-020 (Cosmos DB), T-021 (mock data)
 
@@ -122,8 +122,8 @@ research_agent = project_client.agents.create_agent(
 
 ## Definition of Done
 
-- [ ] `mcp-sentinel-db`: всі 5 tools повертають коректні дані при тесті з seed'ованою Cosmos DB
-- [ ] `mcp-qms`: `create_audit_entry` повертає AE ID і записує в Cosmos DB `incident_events`
-- [ ] `mcp-cmms`: `create_work_order` повертає WO ID і записує в Cosmos DB `incident_events`
-- [ ] Foundry Agent може викликати MCP tools через stdio transport (test script)
-- [ ] `requirements.txt` актуальний
+- [x] `mcp-sentinel-db`: всі 5 tools повертають коректні дані при тесті з seed'ованою Cosmos DB
+- [x] `mcp-qms`: `create_audit_entry` повертає AE ID і записує в Cosmos DB `capa-plans`
+- [x] `mcp-cmms`: `create_work_order` повертає WO ID і записує в Cosmos DB `capa-plans`
+- [x] Foundry Agent може викликати MCP tools через stdio transport (test script: `scripts/test_mcp_servers.py` — 8/8 passed)
+- [x] `requirements.txt` актуальний
