@@ -33,13 +33,14 @@ agents/
 
 | Tool | Source | Purpose |
 |---|---|---|
-| `get_equipment` | MCP mcp-cosmos-db | Equipment master data + validated params |
+| `get_equipment` | MCP mcp-cosmos-db | Equipment master data + **equipment-level** validated params (PAR) |
 | `get_batch` | MCP mcp-cosmos-db | Current batch context |
 | `search_incidents` | MCP mcp-cosmos-db | Historical incidents for this equipment |
-| `search_sop_documents` | Azure AI Search | RAG: relevant SOPs by semantic similarity |
-| `search_equipment_manuals` | Azure AI Search | RAG: equipment manual sections |
-| `search_incident_history` | Azure AI Search | RAG: similar historical cases (semantic) |
-| `search_gmp_policies` | Azure AI Search | RAG: GMP regulations cited |
+| `search_sop_documents` | Azure AI Search `idx-sop-documents` | RAG: relevant SOPs by semantic similarity |
+| `search_equipment_manuals` | Azure AI Search `idx-equipment-manuals` | RAG: equipment manual sections |
+| `search_gmp_policies` | Azure AI Search `idx-gmp-policies` | RAG: GMP regulations cited |
+| **`search_bpr_documents`** | **Azure AI Search `idx-bpr-documents`** | **RAG: product-specific CPP NOR/PAR — narrower than equipment PAR; answers «what is product NOR for Metformin impeller?»** |
+| `search_incident_history` | Azure AI Search `idx-incident-history` | RAG: similar historical cases (semantic) |
 
 ---
 
@@ -52,17 +53,25 @@ Your role: gather comprehensive context for a GMP deviation incident before anal
 
 Given an incident alert with equipment_id and deviation details, you MUST:
 
-1. Retrieve equipment master data (validated parameters, PM history, criticality)
+1. Retrieve equipment master data (validated parameters = equipment-level PAR, PM history, criticality)
 2. Retrieve current batch context (product, stage, BPR reference)
-3. Search for similar historical incidents on this equipment (last 12 months)
-4. Find the most relevant SOPs (top 3 by relevance to deviation type)
-5. Find relevant GMP policies and regulations
-6. Find equipment manual sections related to the failing component
+3. **Retrieve BPR product process specification** (search idx-bpr-documents for product NOR/PAR — these ranges are NARROWER than equipment PAR and take precedence for this product)
+4. Search for similar historical incidents on this equipment (last 12 months)
+5. Find the most relevant SOPs (top 3 by relevance to deviation type)
+6. Find relevant GMP policies and regulations
+7. Find equipment manual sections related to the failing component
 
 Return a structured JSON object:
+```json
 {
   "equipment": { ... equipment document ... },
   "batch": { ... batch document ... },
+  "bpr_constraints": {
+    "document_id": "BPR-MET-500-v3.2",
+    "product_nor": { "impeller_speed_rpm": [600, 700], "spray_rate_g_min": [75, 105] },
+    "product_par": { "impeller_speed_rpm": [580, 750] },
+    "note": "Product NOR/PAR narrower than equipment validated range. Use these limits for deviation assessment, not equipment PAR."
+  },
   "historical_incidents": [ ... top 5 similar past incidents ... ],
   "relevant_sops": [ { "id": "...", "title": "...", "relevant_section": "...", "text_excerpt": "..." } ],
   "gmp_references": [ { "regulation": "...", "section": "...", "text": "..." } ],

@@ -18,6 +18,8 @@
    - [8.9 Два рівні оркестрації](#89-два-рівні-оркестрації)
    - [8.10 ADR-001: HITL механізм](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native)
    - [8.11 Розбивка на Azure Functions](#811-розбивка-на-azure-functions--повна-карта)
+   - [8.12 Azure SignalR — контракт](#812-azure-signalr--контракт)
+   - [8.13 Шар документів — Ingestion Architecture](#813-шар-документів--ingestion-architecture)
 9. [Changelog архітектури](#9-changelog-архітектури)
 
 ---
@@ -337,12 +339,15 @@ Sensor Signal → Alert (already automated anomaly detection)
                           ▼
               ┌───────────────────────────┐
               │  AZURE AI SEARCH          │
-              │  4 indexes (RAG):         │
-              │  ├─ idx-equipment-manuals │
+              │  5 indexes (RAG):         │
               │  ├─ idx-sop-documents     │
+              │  ├─ idx-equipment-manuals │
               │  ├─ idx-gmp-policies      │
+              │  ├─ idx-bpr-documents ★  │
               │  └─ idx-incident-history  │
               └───────────────────────────┘
+                    ★ product-specific CPP ranges
+                      (NOR narrower than equip. PAR)
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │                  BACKEND API — Azure Functions HTTP                 │
@@ -396,7 +401,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **MCP: mcp-qms-mock** | Python (stdio MCP server) | Tool: create_audit_entry (мок QMS) | — |
 | **MCP: mcp-cmms-mock** | Python (stdio MCP server) | Tool: create_work_order (мок CMMS) | — |
 | **Incident DB** | Azure Cosmos DB Serverless | 5 containers: incidents, equipment, batches, capa-plans, approval-tasks | — |
-| **RAG Storage** | Azure AI Search | 4 indexes: manuals, SOPs, GMP policies, incident history | Gap #4 |
+| **RAG Storage** | Azure AI Search | **5 indexes**: SOPs, equipment manuals, GMP policies, **BPR product specs**, incident history | Gap #4 |
 | **Document Ingestion** | Blob Storage + blob trigger Function | Chunk → embed → AI Search (for SOPs/manuals) | — |
 | **Real-time Push** | Azure SignalR Service | Push notifications до React UI (approval pending, status change) | Gap #5 |
 | **Frontend** | React + Vite (Static Web Apps) | Operator dashboard, approval UX, manager/auditor views | Gap #5 |
@@ -413,7 +418,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 #### Research Agent
 - **Мета:** зібрати весь релевантний контекст для incident
-- **RAG tools:** `search_sop_documents`, `search_equipment_manuals`, `search_incident_history`, `search_gmp_policies`
+- **RAG tools:** `search_sop_documents`, `search_equipment_manuals`, `search_gmp_policies`, **`search_bpr_documents`**, `search_incident_history`
 - **MCP tools:** `get_equipment(id)`, `get_batch(id)`, `search_incidents(equipment_id, date_range)`
 - **Output schema** (`ResearchAgentOutput`):
 
@@ -421,7 +426,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 {
   "equipment_status": {
     "id": "GR-204",
-    "validated_params": { "impeller_speed_rpm": [600, 800] },
+    "validated_params": { "impeller_speed_rpm": [200, 800] },
     "last_maintenance": "2026-03-10",
     "open_deviations": 1
   },
@@ -430,6 +435,12 @@ Sensor Signal → Alert (already automated anomaly detection)
     "product": "Metformin 500mg",
     "stage": "wet_granulation",
     "current_params": { "impeller_speed_rpm": 580 }
+  },
+  "bpr_constraints": {
+    "document_id": "BPR-MET-500-v3.2",
+    "product_nor": { "impeller_speed_rpm": [600, 700], "spray_rate_g_min": [75, 105] },
+    "product_par": { "impeller_speed_rpm": [580, 750] },
+    "note": "Product NOR/PAR narrower than equipment PAR. Use for deviation assessment."
   },
   "relevant_sops": [
     { "doc_id": "SOP-DEV-001", "title": "Deviation Management", "section": "§4.2", "score": 0.94 }
@@ -523,12 +534,13 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 | Дані | Спосіб | Чому |
 |---|---|---|
-| Equipment validated parameters | MCP (Cosmos DB) | Структуровані — точне значення важливіше за semantic match |
+| Equipment validated parameters (PAR) | MCP (Cosmos DB) | Структуровані — точне значення важливіше за semantic match; містить equipment-level validated range |
 | Current batch context | MCP (Cosmos DB) | Structured, current state |
-| Historical incidents (semantic) | RAG (AI Search idx-incident-history) | Semantic similarity — "find similar cases" |
-| SOPs/procedures | RAG (AI Search idx-sop-documents) | Semantic search по тексту процедур |
-| Equipment manuals | RAG (AI Search idx-equipment-manuals) | Semantic search по технічній документації |
-| GMP policies/regulations | RAG (AI Search idx-gmp-policies) | Semantic search по регуляторним вимогам |
+| **BPR product process specs (NOR)** | **RAG (AI Search `idx-bpr-documents`)** | **Semantic search — product-specific CPP ranges narrower than equipment PAR; відповідь на «яка NOR для Metformin impeller?»** |
+| Historical incidents (semantic) | RAG (AI Search `idx-incident-history`) | Semantic similarity — "find similar cases" |
+| SOPs/procedures | RAG (AI Search `idx-sop-documents`) | Semantic search по тексту процедур |
+| Equipment manuals | RAG (AI Search `idx-equipment-manuals`) | Semantic search по технічній документації |
+| GMP policies/regulations | RAG (AI Search `idx-gmp-policies`) | Semantic search по регуляторним вимогам |
 | Work order status | MCP (CMMS mock) | Structured, external system |
 | Audit entry IDs | MCP (QMS mock) | Structured, external system |
 
@@ -609,7 +621,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 | Azure ресурс | Ім'я | Тип | Bicep модуль | Призначення |
 |---|---|---|---|---|
-| Storage Account | `stsentinelintelerzrpo` | `Microsoft.Storage/storageAccounts` | `modules/storage.bicep` | Стан Durable Functions + Blob container `documents` |
+| Storage Account | `stsentinelintelerzrpo` | `Microsoft.Storage/storageAccounts` | `modules/storage.bicep` | Стан Durable Functions + **5 Blob containers** для document ingestion (`blob-sop`, `blob-manuals`, `blob-gmp`, `blob-bpr`, `blob-history`). Наразі задеплоєно 1 container `documents` → потребує оновлення в T-036/T-041. |
 | Log Analytics | `log-sentinel-intel-dev-erzrpo` | `Microsoft.OperationalInsights/workspaces` | `modules/monitoring.bicep` | Workspace для App Insights (30 днів retention) |
 | Application Insights | `appi-sentinel-intel-dev-erzrpo` | `Microsoft.Insights/components` | `modules/monitoring.bicep` | Traces, metrics, exceptions для Functions |
 | Cosmos DB Account | `cosmos-sentinel-intel-dev-erzrpo` | `Microsoft.DocumentDB/databaseAccounts` | `modules/cosmos.bicep` | Serverless, database `sentinel-intelligence`, 5 containers |
@@ -892,6 +904,54 @@ React UI → connects to SignalR hub with accessToken
 
 ---
 
+### 8.13 Шар документів — Ingestion Architecture
+
+> **Нове в v2.5.** Перехід від одного blob container `documents` з path-based routing до **5 окремих контейнерів**, по одному на тип джерела. Кожен контейнер має власну Azure Function blob trigger з різною логікою чанкування.
+
+#### Чому окремі контейнери (а не один container з path-routing)?
+
+| Причина | Деталь |
+|---|---|
+| **Різна логіка чанкування** | BPR містить CPP-таблиці — потрібен table-aware chunking щоб таблиці не розбивались між чанками. SOPs — лінійний текст. Incident history — генерується зі скрипту. |
+| **Різна частота оновлень** | GMP-регуляції — рідко (місяцями); SOPs — квартально; BPR — при кожному product validation cycle; incident history — динамічно. Окремі контейнери дозволяють тригерити лише потрібний інгестор. |
+| **Різні upstream джерела (production)** | QMS → `blob-sop`; LIMS/EBR → `blob-bpr`; CMMS → `blob-manuals`; регуляторна база → `blob-gmp`. Для hackathon — ручний upload через `scripts/upload_documents.py`. |
+| **Незалежні retry/failure** | Відмова BPR-інгестора не блокує SOP або GMP pipeline. Кожен blob trigger retry незалежний. |
+
+#### 5 Blob Storage containers → 5 Ingestors → 5 AI Search indexes
+
+| Container | Local source | Ingestor Function | Target Index | Chunking strategy |
+|---|---|---|---|---|
+| `blob-sop` | `data/documents/sop/` | `ingest_sop_document` | `idx-sop-documents` | 500 токенів, 50 overlap |
+| `blob-manuals` | `data/documents/manuals/` | `ingest_equipment_manual` | `idx-equipment-manuals` | 500 токенів + `equipment_id` tag з імені файлу |
+| `blob-gmp` | `data/documents/gmp/` | `ingest_gmp_policy` | `idx-gmp-policies` | 500 токенів + clause metadata extraction |
+| `blob-bpr` | `data/documents/bpr/` | `ingest_bpr_document` | `idx-bpr-documents` | **Table-aware** — Markdown-таблиці CPP не розбиваються, max ~1200 токенів |
+| `blob-history` | Generated from Cosmos incidents | `ingest_history_document` | `idx-incident-history` | Generated by `scripts/generate_history_chunks.py` |
+
+> ⚠️ **BPR table-aware chunking — чому це critical для GMP:** BPR-документи містять таблиці CPP-параметрів (наприклад, "Impeller NOR: 650±50 RPM | PAR: 600–750 RPM | Equipment range: 200–800 RPM"). Якщо таблиця розбивається між чанками, Research Agent отримує неповну таблицю і ризикує синтезувати параметр — це GMP compliance risk (AI fabricates a process limit). Функція `ingest_bpr_document` детектує Markdown-таблиці (`|---|` паттерн) і зберігає їх цілими.
+
+#### Agent → Index mapping
+
+| Agent | Queries indexes | Purpose |
+|---|---|---|
+| **Research Agent** | Всі 5: `idx-sop-documents`, `idx-equipment-manuals`, `idx-gmp-policies`, `idx-bpr-documents`, `idx-incident-history` | Повний контекст: процедури + специфікації продукту + регулятори + historical cases |
+| **Document Agent** | Жодного (використовує output Research Agent) | Отримує вже зібраний контекст |
+| **Execution Agent** | Жодного | Тільки structured tool calls (MCP: CMMS + QMS) |
+
+#### Bicep — 5 blob containers (оновлення `infra/modules/storage.bicep`)
+
+```
+infra/modules/storage.bicep — provisioned containers:
+  'blob-sop'       ← new (замінює 'documents' для document ingestion)
+  'blob-manuals'   ← new
+  'blob-gmp'       ← new
+  'blob-bpr'       ← new
+  'blob-history'   ← new
+```
+
+> **Hackathon note:** Storage Account `stsentinelintelerzrpo` вже задеплоєно. Container `documents` вже існує — може залишитись для Durable Functions state (auto-managed). 5 нових containers додаються інкрементально оновленням storage.bicep + redeploy. Це робота в **T-036** (ingestion pipeline) + відповідне оновлення **T-041** (Bicep).
+
+---
+
 ## 9. Changelog архітектури
 
 | Дата | Версія | Зміна | Пов'язаний Gap |
@@ -902,6 +962,7 @@ React UI → connects to SignalR hub with accessToken
 | 2026-04-17 | v2.2 | **ADR-001** (§8.10): задокументовано вибір Durable `waitForExternalEvent` над Foundry-native HITL (10-хв ліміт Foundry несумісний з 24h approval). §8.9: пояснення двох рівнів оркестрації (Durable = workflow, Foundry = AI). | — |
 | 2026-04-17 | v2.3 | **§8.11**: повна карта Azure Functions — усі 14 функцій з типами тригерів, ролями та потоком від Service Bus → оркестратор → activities → `raise_event`. | — |
 | 2026-04-17 | v2.4 | **Рев'ю:** §4 AS-SUBMITTED disclaimer + Component Evolution table (v1.0→v2.0); §8.3 JSON output schemas для всіх агентів + confidence gate failure matrix; §8.4 cross-partition query note; §8.6 LOW_CONFIDENCE гілка в HITL flow; §8.11 idempotency note; §8.12 SignalR contract (хуб, groups, events, negotiation flow). | Review |
+| 2026-04-17 | v2.5 | **Document Layer Architecture:** §8.1 AI Search: 4→5 indexes (додано `idx-bpr-documents`); §8.2 RAG Storage row оновлено; §8.3 Research Agent: додано `search_bpr_documents` RAG tool; §8.5 RAG vs Direct: додано BPR row; §8.8 Storage: 1 container → 5 окремих blob containers per source type; §8.13 новий розділ — Document Layer Ingestion Architecture (5 containers, 5 ingestors, table-aware BPR chunking, agent→index mapping). T-036 + T-025 оновлено. | Gap #4 review |
 
 ---
 
