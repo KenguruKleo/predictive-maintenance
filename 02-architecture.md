@@ -150,6 +150,8 @@ Step 6: EXECUTION
 
 ## 4. Компоненти — деталі
 
+> ⚠️ **AS-SUBMITTED v1.0.** Термінологія цього розділу відповідає поданій архітектурі (26 березня 2026). В реалізаційній фазі v2.0 компоненти перейменовані та реструктуровані — дивись [§8.2 таблицю компонентів](#82-компоненти-v20--таблиця) та [таблицю еволюції нижче](#еволюція-компонентів-v10--v20).
+
 ### Azure Functions (Event Ingestion)
 - **Роль:** Тригер при аномальному сигналі з SCADA/MES/IoT
 - **Вхід:** Raw sensor signals, MES alerts, monitoring system events
@@ -190,6 +192,21 @@ Step 6: EXECUTION
 ### Audit Logging Service
 - **Роль:** Full traceability record для compliance
 - **Статус:** ✅ присутній (одна з сильних сторін)
+
+---
+
+### Еволюція компонентів: v1.0 → v2.0
+
+| Компонент v1.0 (AS-SUBMITTED) | Компонент v2.0 (реалізація) | Зміна |
+|---|---|---|
+| Azure Functions (Event Ingestion) | `ingest_alert` HTTP + `alert_processor` Service Bus trigger | Розбито: HTTP endpoint публікує в Service Bus; окремий тригер споживає чергу |
+| Context Enrichment Service | `enrich_context` Durable Activity | Вбудовано в Durable orchestrator — не окремий сервіс |
+| Agent Orchestrator (Foundry) | **Два рівні**: Durable Functions (workflow) + Foundry Agent Service (AI) | [ADR-001 §8.10](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native) |
+| Compliance Agent | Research Agent (context) + Document Agent (classification/risk) | Responsibilities розподілено |
+| CAPA / Audit Agent | Document Agent (CAPA drafting) + Execution Agent (execution) | Drafting відокремлено від execution після approval |
+| Human Approval | `decision_handler` HTTP → `waitForExternalEvent` + SignalR push | Конкретний механізм з resume API |
+| Work Order Service | Execution Agent → MCP `create_work_order` (CMMS mock) | MCP tool call — не окремий сервіс |
+| Audit Logging Service | `finalize_audit` Durable Activity → Cosmos `incidents` + `approval-tasks` | Вбудовано в Durable orchestrator |
 
 ---
 
@@ -398,19 +415,74 @@ Sensor Signal → Alert (already automated anomaly detection)
 - **Мета:** зібрати весь релевантний контекст для incident
 - **RAG tools:** `search_sop_documents`, `search_equipment_manuals`, `search_incident_history`, `search_gmp_policies`
 - **MCP tools:** `get_equipment(id)`, `get_batch(id)`, `search_incidents(equipment_id, date_range)`
-- **Output:** structured JSON `{ context_enrichment, relevant_sops, historical_cases, equipment_status }`
+- **Output schema** (`ResearchAgentOutput`):
+
+```json
+{
+  "equipment_status": {
+    "id": "GR-204",
+    "validated_params": { "impeller_speed_rpm": [600, 800] },
+    "last_maintenance": "2026-03-10",
+    "open_deviations": 1
+  },
+  "batch_context": {
+    "batch_id": "BPR-2026-0042",
+    "product": "Metformin 500mg",
+    "stage": "wet_granulation",
+    "current_params": { "impeller_speed_rpm": 580 }
+  },
+  "relevant_sops": [
+    { "doc_id": "SOP-DEV-001", "title": "Deviation Management", "section": "§4.2", "score": 0.94 }
+  ],
+  "historical_cases": [
+    { "incident_id": "INC-2025-0311", "similarity": 0.88, "resolution": "bearing replacement" }
+  ]
+}
+```
 
 #### Document Agent
 - **Мета:** скласти decision package з evidence
-- **Input:** Research Agent output + incident details
-- **Output:** `{ work_order_draft, audit_entry_draft, recommendation, risk_level, confidence, evidence_citations }`
-- **RAI gate:** якщо `confidence < 0.7` → `risk_level = "LOW_CONFIDENCE"` → operator побачить попередження
+- **Input:** `ResearchAgentOutput` + incident details
+- **Output schema** (`DocumentAgentOutput`):
+
+```json
+{
+  "recommendation": "Stop granulator, inspect impeller bearing",
+  "risk_level": "HIGH",
+  "confidence": 0.84,
+  "deviation_classification": "Equipment Deviation – Type II",
+  "evidence_citations": [
+    { "source": "SOP-DEV-001", "section": "§4.2", "text": "vibration thresholds..." },
+    { "source": "INC-2025-0311", "similarity": 0.88 }
+  ],
+  "work_order_draft": { "type": "corrective_maintenance", "priority": "urgent", "description": "..." },
+  "audit_entry_draft": { "deviation_type": "Equipment", "gmp_clause": "21 CFR 211.68" },
+  "capa_steps": ["Stop granulator", "Inspect bearing", "Run validation batch before restart"]
+}
+```
+
+- **RAI gate — confidence < 0.7:**
+
+| `confidence` | `risk_level` | Дія | Audit trail |
+|---|---|---|---|
+| ≥ 0.7 | `HIGH` / `MEDIUM` / `LOW` | Operator бачить рекомендацію | Confidence score записується |
+| < 0.7 | `LOW_CONFIDENCE` | ⚠️ Попередження: «AI впевненість недостатня» — коментар обов'язковий | `human_override = true` записується |
+| < 0.7 + no evidence | `BLOCKED` | Рекомендація не показується; авто-ескалація до QA Manager | Escalation event у `incidents` |
 
 #### Execution Agent
 - **Мета:** виконати дії після human approval
 - **Triggers:** тільки після `operator_decision == "approved"`
 - **MCP tools:** `create_work_order(payload)` (CMMS mock), `create_audit_entry(payload)` (QMS mock)
-- **Output:** `{ work_order_id, audit_entry_id, execution_timestamp }`
+- **Output schema** (`ExecutionAgentOutput`):
+
+```json
+{
+  "work_order_id": "WO-2026-0847",
+  "audit_entry_id": "AE-2026-1103",
+  "execution_timestamp": "2026-04-17T14:32:11Z",
+  "human_override": false
+}
+```
 
 ---
 
@@ -427,6 +499,8 @@ Sensor Signal → Alert (already automated anomaly detection)
 | `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
 | `capa-plans` | `/incidentId` | Згенеровані Document Agent CAPA плани |
 | `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks + execution results |
+
+> ⚠️ **Cross-partition query concern:** `incidents` партиціоновано по `/equipmentId`. Запити `GET /api/incidents` (список усіх) та фільтри по `status`/`date`/`severity` у dashboard — cross-partition (дорого). **Вирішення:** Cosmos DB автоматично підтримує cross-partition запити з `enableCrossPartitionQuery=True`; для hackathon обсягу (~100 incidents) прийнятно. В production — додати materialized view через Change Feed або secondary index по `status` + `createdAt`.
 
 #### Матриця доступу до контейнерів
 
@@ -484,12 +558,23 @@ Sensor Signal → Alert (already automated anomaly detection)
                    │ [❓ Need more info]            │
                    └──────────────────────────────┘
                           │
-          ┌───────────────┼─────────────────┐
-          ▼               ▼                 ▼
-       Approved        Rejected          More info
-          │               │                 │
-  ExecuteDecision   CloseRejected      loop → agents
-  (Execution Agent)    + log              + more context
+                          │  [якщо confidence < 0.7]
+                          │  ⚠️ LOW_CONFIDENCE банер:
+                          │  «Мене AI впевненість 58% — коментар обов'язковий»
+                          │
+          ┌───────────────┼─────────────────┬──────────────┐
+          ↓               ↓                 ↓              ↓
+       Approved        Rejected          More info    LOW_CONFIDENCE
+          │               │                 │         + human override
+  ExecuteDecision   CloseRejected      loop → agents      │
+  (Execution Agent)    + log              + more context   │
+          │                                          ExecuteDecision
+          │                                          audit: human_override=true
+          └──────────────────────────────────────────────┘
+                          │
+                  finalize_audit records:
+                  confidence_score, human_override,
+                  operator_comment (mandatory if override)
 ```
 
 ---
@@ -767,7 +852,43 @@ React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ 
 | `get_incident_by_id` | HTTP | `function_app.py` | REST: `GET /api/incidents/{id}` |
 | `ingest_alert` | HTTP | `function_app.py` | REST: `POST /api/alerts` → Service Bus |
 
+> **Idempotency:** `POST /api/alerts` повинен приймати `alert_id` у payload. Перед публікацією в Service Bus — перевірити чи існує incident з `sourceAlertId == alert_id` у Cosmos. Якщо так — повернути `HTTP 200` з existing `incident_id` без повторного старту оркестратора. Це запобігає дублікатам при retry від SCADA/MES.
+
 > **Foundry** — не Azure Function. Це зовнішній сервіс, який `run_*_agent` activities викликають через `azure-ai-projects` SDK. Foundry запускає агента, агент виконує tool calls (MCP/RAG), повертає result — activity завершується, оркестратор продовжує.
+
+---
+
+### 8.12 Azure SignalR — контракт
+
+**Hub name:** `deviationHub`  
+**Endpoint для negotiate:** `GET /api/negotiate` (Azure Functions HTTP trigger з SignalR input binding)  
+**Auth:** Bearer token (Entra ID) → SignalR Groups per user role
+
+#### Groups (підписки)
+
+| Group | Хто підписується | Які events отримує |
+|---|---|---|
+| `role:operator` | Всі operator-role users | `incident_pending_approval`, `incident_updated` |
+| `role:qa-manager` | QA Manager role | `incident_escalated`, `incident_pending_approval` |
+| `incident:{id}` | Будь-хто хто відкрив деталі incident | `incident_status_changed`, `agent_step_completed` |
+
+#### Events (server → client)
+
+| Event name | Payload | Коли |
+|---|---|---|
+| `incident_pending_approval` | `{ incident_id, equipment_id, risk_level, created_at }` | Після `notify_operator` activity |
+| `incident_status_changed` | `{ incident_id, old_status, new_status, timestamp }` | При кожній зміні status в Cosmos |
+| `agent_step_completed` | `{ incident_id, step, result_summary }` | Після completion кожної Durable activity |
+| `incident_escalated` | `{ incident_id, escalated_to, reason }` | Після 24h timer → QA Manager |
+
+#### Negotiation flow
+
+```
+React UI → GET /api/negotiate (with Bearer token)
+        ← { url: "https://...signalr.../client/", accessToken: "..." }
+React UI → connects to SignalR hub with accessToken
+        → joins group `role:{userRole}` + `incident:{currentIncidentId}`
+```
 
 ---
 
@@ -780,6 +901,7 @@ React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ 
 | 2026-04-17 | v2.1 | **First deployment:** 7 Azure ресурсів задеплоєно через Bicep. GitHub Actions CI/CD зелений. `func-sentinel-intel-dev-erzrpo` живий. Cosmos DB Serverless (5 containers). Service Bus `alert-queue`. App Insights + Log Analytics. | T-041, T-042 ✅ |
 | 2026-04-17 | v2.2 | **ADR-001** (§8.10): задокументовано вибір Durable `waitForExternalEvent` над Foundry-native HITL (10-хв ліміт Foundry несумісний з 24h approval). §8.9: пояснення двох рівнів оркестрації (Durable = workflow, Foundry = AI). | — |
 | 2026-04-17 | v2.3 | **§8.11**: повна карта Azure Functions — усі 14 функцій з типами тригерів, ролями та потоком від Service Bus → оркестратор → activities → `raise_event`. | — |
+| 2026-04-17 | v2.4 | **Рев'ю:** §4 AS-SUBMITTED disclaimer + Component Evolution table (v1.0→v2.0); §8.3 JSON output schemas для всіх агентів + confidence gate failure matrix; §8.4 cross-partition query note; §8.6 LOW_CONFIDENCE гілка в HITL flow; §8.11 idempotency note; §8.12 SignalR contract (хуб, groups, events, negotiation flow). | Review |
 
 ---
 

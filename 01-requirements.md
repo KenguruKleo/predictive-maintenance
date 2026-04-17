@@ -199,36 +199,40 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 
 Перевіряємо при кожній ітерації архітектури:
 
-### ✅ Виконано (AS-SUBMITTED + v2.0 Designed)
+### ✅ Реалізовано (код або інфраструктура існує)
 - [x] Strong GMP problem statement
-- [x] Multi-agent design на Azure AI Foundry
-- [x] RAG на SOP/BPR/CAPA (Azure AI Search)
-- [x] Human approval step (GxP)
-- [x] Audit logging
+- [x] Multi-agent design на Azure AI Foundry (архітектура)
+- [x] Human approval step (GxP) — механізм Durable `waitForExternalEvent` задокументовано (ADR-001)
 - [x] Enterprise integrations названі (MES, SCADA, CMMS, QMS)
 - [x] Clear KPIs (< 5 хв decision time)
 - [x] Stakeholders визначені
-- [x] **Track A явно задекларований** — в 02-architecture.md v2.0, GitHub Actions + Bicep (T-041, T-042)
-- [x] **GitHub + CI/CD** — GitHub Actions workflow descriptor (T-042)
-- [x] **Entra ID / Managed Identities** — архітектура описана (T-035, T-038)
-- [x] **RBAC модель** — 5 ролей: operator, qa-manager, maintenance-tech, auditor, it-admin (T-035)
-- [x] **Azure Key Vault** — архітектура описана (T-038)
-- [x] **Event Queue** — Azure Service Bus alert-queue + DLQ (T-022)
-- [x] **Retry / DLQ / Fallback** — Durable retry + fallback mode designed (T-039)
-- [x] **Responsible AI** — confidence gate 0.7, evidence-grounded output (T-040)
-- [x] **Prompt injection defenses** — sanitize_string_fields() in backend (T-040)
-- [x] **Content Safety** — Azure Content Safety on agent output (T-040)
-- [x] **Agent observability** — App Insights + custom metrics (T-040)
-- [x] **Operator UI** — React + Vite operator dashboard designed (T-032, T-033)
-- [x] **Sample decision package** — wireframe з evidence citations в T-033
-- [x] **Конкретний equipment scenario** — GR-204, Granulator, Plant-01, Line-2, 5 mock incidents
-- [x] **IaC** — Bicep infra/main.bicep + modules designed (T-041)
+- [x] **Track A явно задекларований** — в 02-architecture.md v2.0, GitHub Actions + Bicep
+- [x] **GitHub + CI/CD** — `ci.yml` (lint+test+bicep validate) + `deploy.yml` (push main) живі та зелені
+- [x] **Event Queue** — Azure Service Bus `alert-queue` + DLQ задеплоєно (Bicep, Sweden Central)
+- [x] **Cosmos DB** — 5 containers задеплоєно (incidents, equipment, batches, capa-plans, approval-tasks)
+- [x] **IaC** — Bicep `infra/main.bicep` + 5 modules, 7 ресурсів задеплоєно
+- [x] **App Insights + Log Analytics** — задеплоєно, traces доступні
+- [x] **Mock data** — equipment (3), batches (2), incidents (3), templates (2) у `data/mock/`
+- [x] **Конкретний equipment scenario** — GR-204, Granulator, Plant-01, Line-2
+
+### 🎨 Спроектовано (архітектура описана, реалізація не завершена)
+- [ ] **Entra ID / Managed Identities** — архітектура в §8.1, реалізація T-035, T-038
+- [ ] **RBAC модель** — 5 ролей визначено (§8.1), реалізація T-035
+- [ ] **Azure Key Vault** — архітектура в §8.1, не задеплоєно, T-038
+- [ ] **Retry / DLQ / Fallback** — Service Bus DLQ задеплоєно, retry logic у Durable orchestrator T-024, T-039
+- [ ] **Responsible AI** — confidence gate + evidence schema у §8.3, реалізація T-040
+- [ ] **Prompt injection defenses** — описано в §8, реалізація T-040
+- [ ] **Content Safety** — архітектура в cross-cutting concerns, реалізація T-040
+- [ ] **Agent observability** — App Insights задеплоєно, custom metrics T-040
+- [ ] **RAG на SOP/BPR/CAPA** — 4 AI Search indexes описано (§8.5), AI Search не задеплоєно, T-037
+- [ ] **Operator UI** — wireframe у T-033, React проект не створено, T-032
+- [ ] **Sample decision package** — schema у §8.3, реалізація T-026
 
 ### 🔧 В розробці (реалізація — квітень 2026)
-- [ ] Private Endpoints / VNet — розроблено (T-038), реалізація T-038
-- [ ] Latency SLOs задокументовані в T-039, реалізація під час dev
+- [ ] Private Endpoints / VNet — реалізація T-038
+- [ ] Latency SLOs — реалізація під час dev (T-039)
 - [ ] Token budgets / caching — T-039 nice-to-have
-- [ ] Model versioning / rollback — T-040, App Insights model tracking
+- [ ] Model versioning / rollback — T-040
 - [ ] Усі implementation задачі T-020 → T-042 (див. [04 · План дій](./04-action-plan.md))
 
 ---
