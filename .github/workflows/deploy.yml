@@ -95,7 +95,41 @@ jobs:
           package: backend/
           scm-do-build-during-deployment: true
 
-  # ── 3. Deploy React frontend (Azure Static Web Apps) ────────────────
+  # ── 3. Redeploy Foundry AI agents (prompts, tools, settings) ───────
+  agents:
+    name: Deploy Foundry Agents
+    runs-on: ubuntu-latest
+    needs: infra
+    # Always runs — create_agents.py --update is idempotent (just API calls)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: agents/requirements.txt
+
+      - name: Install agent dependencies
+        run: pip install -r agents/requirements.txt
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Foundry Agents (create/update)
+        env:
+          AZURE_AI_FOUNDRY_AGENTS_ENDPOINT: ${{ secrets.AZURE_AI_FOUNDRY_AGENTS_ENDPOINT }}
+          AZURE_AI_AGENTS_TESTS_IS_TEST_RUN: "True"
+          MCP_SENTINEL_DB_URL: ${{ vars.MCP_SENTINEL_DB_URL }}
+          MCP_SENTINEL_SEARCH_URL: ${{ vars.MCP_SENTINEL_SEARCH_URL }}
+          MCP_QMS_URL: ${{ vars.MCP_QMS_URL }}
+          MCP_CMMS_URL: ${{ vars.MCP_CMMS_URL }}
+        run: python agents/create_agents.py --update
+
+  # ── 4. Deploy React frontend (Azure Static Web Apps) ────────────────
   # TODO (T-032): uncomment when frontend/ is scaffolded
   # frontend:
   #   name: Deploy Frontend (Static Web App)
