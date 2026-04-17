@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-031 (role-filtering in API), T-029 (role check in decision API)  
 **Залежить від:** Azure Entra ID tenant access  
 **Gap:** Gap #2 Security ✅

@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-032 (React frontend needs these endpoints)  
 **Залежить від:** T-020 (Cosmos DB), T-035 (RBAC для role-filtering)
 

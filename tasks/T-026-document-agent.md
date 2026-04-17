@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE (18-19 квітня 2026)  
 **Блокує:** T-024 (run_foundry_agents activity), T-033 (approval UX shows this output)  
 **Залежить від:** T-024 (Orchestrator Agent), T-025 (Research Agent output via Orchestrator), T-020 (templates collection)
 
