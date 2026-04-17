@@ -36,7 +36,13 @@ flowchart TB
         end
 
         subgraph data["Data Layer"]
-            CDB["✅ Cosmos DB Serverless\ncosmos-sentinel-intel-dev-erzrpo\n5 containers"]
+            subgraph cosmos["✅ Cosmos DB Serverless · cosmos-sentinel-intel-dev-erzrpo"]
+                CDB_INC["incidents&#xa;/equipmentId"]
+                CDB_EQP["equipment&#xa;/id"]
+                CDB_BAT["batches&#xa;/equipmentId"]
+                CDB_CAPA["capa-plans&#xa;/incidentId"]
+                CDB_APPR["approval-tasks&#xa;/incidentId"]
+            end
             SEARCH["🔜 AI Search\nsrch-sentinel-intel-dev-erzrpo\n4 RAG indexes"]
             BLOB["✅ Storage Account\nstsentinelintelerzrpo\ncontainer: documents"]
         end
@@ -72,13 +78,19 @@ flowchart TB
     FOUNDRY --> RA & DA & EA
 
     %% Agents → Data
-    RA -->|"MCP: get_equipment\nget_batch\nsearch_incidents"| CDB
+    RA -->|"search_incidents"| CDB_INC
+    RA -->|"get_equipment"| CDB_EQP
+    RA -->|"get_batch"| CDB_BAT
     RA -->|"vector search"| SEARCH
-    DA --> CDB
-    EA -->|"MCP: create_work_order\ncreate_audit_entry"| CDB
+    DA -->|"write CAPA plan"| CDB_CAPA
+    EA -->|"read CAPA"| CDB_CAPA
+    EA -->|"create_audit_entry"| CDB_APPR
 
     %% Compute → Data
-    FUNC -->|"read/write\nincidents · batches · equipment"| CDB
+    FUNC -->|"CRUD"| CDB_INC
+    FUNC -->|"read"| CDB_EQP
+    FUNC -->|"read"| CDB_BAT
+    FUNC -->|"write (notify)"| CDB_APPR
     FUNC -->|"blob trigger → chunk → embed"| BLOB
     BLOB -->|"index documents"| SEARCH
 

@@ -1,182 +1,294 @@
-<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
-  <root>
-    <mxCell id="0" />
-    <mxCell id="1" parent="0" />
+<mxfile host="app.diagrams.net">
+    <diagram id="Bs6lZppIYroxiYebWqYK" name="Sentinel Intelligence - v2">
+        <mxGraphModel dx="2300" dy="1500" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2300" pageHeight="1500" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
 
-    <!-- ═══ EXTERNAL SOURCES ═══ -->
-    <mxCell id="ext-label" value="External / Mock Sources" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;spacingLeft=4;fontStyle=1;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="60" y="30" width="220" height="30" as="geometry" />
-    </mxCell>
-    <mxCell id="scada" value="&lt;b&gt;SCADA / MES&lt;/b&gt;&lt;br&gt;(simulated via seed script)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="60" y="65" width="190" height="55" as="geometry" />
-    </mxCell>
-    <mxCell id="react" value="&lt;b&gt;🔜 React + Vite SPA&lt;/b&gt;&lt;br&gt;swa-sentinel-intel-dev" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="290" y="65" width="200" height="55" as="geometry" />
-    </mxCell>
+                <!-- Title + date -->
+                <mxCell id="title" value="Sentinel Intelligence — Azure Infrastructure" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=16;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="10" width="1000" height="30" as="geometry"/>
+                </mxCell>
+                <mxCell id="updated" value="Last updated: 2026-04-17" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontColor=#666666;" parent="1" vertex="1">
+                    <mxGeometry x="2000" y="10" width="260" height="30" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ CI/CD ═══ -->
-    <mxCell id="gha" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br&gt;deploy.yml · push → main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
-      <mxGeometry x="1380" y="65" width="210" height="55" as="geometry" />
-    </mxCell>
+                <!-- External Sources swimlane (outside rg) -->
+                <mxCell id="ext-swim" value="External Sources" style="swimlane;startSize=25;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="55" width="510" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="scada" value="&lt;b&gt;SCADA / MES&lt;/b&gt;&lt;br&gt;simulated via seed script" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="ext-swim" vertex="1">
+                    <mxGeometry x="10" y="30" width="200" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="react" value="&lt;b&gt;🔜 React + Vite SPA&lt;/b&gt;&lt;br&gt;swa-sentinel-intel-dev" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="ext-swim" vertex="1">
+                    <mxGeometry x="295" y="30" width="200" height="50" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ AZURE RESOURCE GROUP BOUNDARY ═══ -->
-    <mxCell id="rg" value="ODL-GHAZ-2177134 · Sweden Central" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#0078D4;fontColor=#0078D4;fontStyle=1;fontSize=12;swimlaneLine=1;" vertex="1" parent="1">
-      <mxGeometry x="40" y="145" width="1574" height="990" as="geometry" />
-    </mxCell>
+                <!-- CI/CD swimlane (outside rg) -->
+                <mxCell id="cicd-swim" value="CI/CD · GitHub Actions" style="swimlane;startSize=25;fillColor=#fce8e8;strokeColor=#b85450;fontStyle=1;fontSize=11;" parent="1" vertex="1">
+                    <mxGeometry x="1940" y="55" width="310" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="gha" value="&lt;b&gt;GitHub Actions&lt;/b&gt;&lt;br&gt;deploy.yml · push → main" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" parent="cicd-swim" vertex="1">
+                    <mxGeometry x="15" y="30" width="275" height="50" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ INGESTION LAYER ═══ -->
-    <mxCell id="sb" value="&lt;b&gt;✅ Service Bus&lt;/b&gt;&lt;br&gt;sb-sentinel-intel-dev-erzrpo&lt;br&gt;queue: alert-queue · DLQ ✓" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="617" y="55" width="250" height="65" as="geometry" />
-    </mxCell>
+                <!-- Azure Resource Group container -->
+                <mxCell id="rg" value="ODL-GHAZ-2177134 · Sweden Central" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#0078D4;fontColor=#0078D4;fontStyle=1;fontSize=12;swimlaneLine=1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="165" width="1900" height="1100" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ COMPUTE ═══ -->
-    <mxCell id="plan" value="✅ App Service Plan · Y1 · Linux&lt;br&gt;asp-func-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" vertex="1" parent="rg">
-      <mxGeometry x="480" y="165" width="250" height="45" as="geometry" />
-    </mxCell>
-    <mxCell id="func" value="&lt;b&gt;✅ Azure Functions&lt;/b&gt;&lt;br&gt;func-sentinel-intel-dev-erzrpo&lt;br&gt;Python 3.11 · Consumption" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="617" y="160" width="250" height="65" as="geometry" />
-    </mxCell>
+                <!-- Compute group (in rg) -->
+                <mxCell id="compute-grp" value="Compute" style="swimlane;startSize=25;fillColor=#e8f5e9;strokeColor=#82b366;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="20" y="40" width="590" height="115" as="geometry"/>
+                </mxCell>
+                <mxCell id="plan" value="&lt;b&gt;✅ App Service Plan&lt;/b&gt;&lt;br&gt;asp-func-sentinel-intel-dev-erzrpo · Y1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;" parent="compute-grp" vertex="1">
+                    <mxGeometry x="10" y="30" width="240" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="func" value="&lt;b&gt;✅ Azure Functions&lt;/b&gt;&lt;br&gt;func-sentinel-intel-dev-erzrpo&lt;br&gt;Python 3.11 · Durable" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="compute-grp" vertex="1">
+                    <mxGeometry x="310" y="22" width="255" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-plan-func" value="hosts" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#82b366;fontSize=10;" parent="compute-grp" source="plan" target="func" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ AGENTS GROUP ═══ -->
-    <mxCell id="agents-grp" value="AI Agents · Azure AI Foundry" style="swimlane;startSize=25;fillColor=#fff9e6;strokeColor=#d6b656;fontStyle=1;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="50" y="275" width="490" height="360" as="geometry" />
-    </mxCell>
-    <mxCell id="foundry" value="&lt;b&gt;🔜 AI Foundry Project&lt;/b&gt;&lt;br&gt;aoai-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="agents-grp">
-      <mxGeometry x="130" y="40" width="230" height="55" as="geometry" />
-    </mxCell>
-    <mxCell id="ra" value="&lt;b&gt;🔜 Research Agent&lt;/b&gt;&lt;br&gt;RAG + MCP-cosmos-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="agents-grp">
-      <mxGeometry x="30" y="125" width="200" height="55" as="geometry" />
-    </mxCell>
-    <mxCell id="da" value="&lt;b&gt;🔜 Document Agent&lt;/b&gt;&lt;br&gt;templates + confidence 0.7" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="agents-grp">
-      <mxGeometry x="30" y="205" width="200" height="55" as="geometry" />
-    </mxCell>
-    <mxCell id="ea" value="&lt;b&gt;🔜 Execution Agent&lt;/b&gt;&lt;br&gt;MCP-qms-mock&lt;br&gt;MCP-cmms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="agents-grp">
-      <mxGeometry x="260" y="165" width="200" height="75" as="geometry" />
-    </mxCell>
-    <mxCell id="mcp-label" value="MCP servers (stdio)" style="text;html=1;strokeColor=none;fillColor=none;align=center;fontSize=10;fontStyle=2;" vertex="1" parent="agents-grp">
-      <mxGeometry x="30" y="290" width="200" height="30" as="geometry" />
-    </mxCell>
-    <mxCell id="mcp1" value="mcp-cosmos-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" vertex="1" parent="agents-grp">
-      <mxGeometry x="30" y="320" width="130" height="28" as="geometry" />
-    </mxCell>
-    <mxCell id="mcp2" value="mcp-qms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" vertex="1" parent="agents-grp">
-      <mxGeometry x="175" y="320" width="130" height="28" as="geometry" />
-    </mxCell>
-    <mxCell id="mcp3" value="mcp-cmms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" vertex="1" parent="agents-grp">
-      <mxGeometry x="320" y="320" width="130" height="28" as="geometry" />
-    </mxCell>
+                <!-- Service Bus (in rg) -->
+                <mxCell id="sb" value="&lt;b&gt;✅ Service Bus&lt;/b&gt;&lt;br&gt;sb-sentinel-intel-dev-erzrpo&lt;br&gt;queue: alert-queue · DLQ ✓" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="640" y="48" width="240" height="80" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ DATA LAYER GROUP ═══ -->
-    <mxCell id="data-grp" value="Data Layer" style="swimlane;startSize=25;fillColor=#f0f8ff;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="1030" y="275" width="510" height="250" as="geometry" />
-    </mxCell>
-    <mxCell id="cdb" value="&lt;b&gt;✅ Cosmos DB Serverless&lt;/b&gt;&lt;br&gt;cosmos-sentinel-intel-dev-erzrpo&lt;br&gt;5 containers" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="data-grp">
-      <mxGeometry x="30" y="40" width="210" height="65" as="geometry" />
-    </mxCell>
-    <mxCell id="search" value="&lt;b&gt;🔜 AI Search&lt;/b&gt;&lt;br&gt;srch-sentinel-intel-dev-erzrpo&lt;br&gt;4 RAG indexes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="data-grp">
-      <mxGeometry x="270" y="40" width="210" height="65" as="geometry" />
-    </mxCell>
-    <mxCell id="blob" value="&lt;b&gt;✅ Storage Account&lt;/b&gt;&lt;br&gt;stsentinelintelerzrpo&lt;br&gt;container: documents" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="data-grp">
-      <mxGeometry x="30" y="135" width="210" height="65" as="geometry" />
-    </mxCell>
+                <!-- SignalR (in rg) -->
+                <mxCell id="signalr" value="&lt;b&gt;🔜 SignalR Service&lt;/b&gt;&lt;br&gt;sigr-sentinel-intel-dev-erzrpo&lt;br&gt;human approval push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="920" y="48" width="220" height="80" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ REAL-TIME ═══ -->
-    <mxCell id="signalr" value="&lt;b&gt;🔜 SignalR Service&lt;/b&gt;&lt;br&gt;sigr-sentinel-intel-dev-erzrpo&lt;br&gt;human approval push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="50" y="700" width="220" height="65" as="geometry" />
-    </mxCell>
+                <!-- Observability group (in rg) -->
+                <mxCell id="obs-grp" value="Observability" style="swimlane;startSize=25;fillColor=#f9f0ff;strokeColor=#9673a6;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="1185" y="40" width="490" height="125" as="geometry"/>
+                </mxCell>
+                <mxCell id="appi" value="&lt;b&gt;✅ App Insights&lt;/b&gt;&lt;br&gt;appi-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="obs-grp" vertex="1">
+                    <mxGeometry x="15" y="35" width="210" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="log" value="&lt;b&gt;✅ Log Analytics&lt;/b&gt;&lt;br&gt;log-sentinel-intel-dev-erzrpo · 30d" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="obs-grp" vertex="1">
+                    <mxGeometry x="265" y="35" width="210" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-appi-log" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#9673a6;" parent="obs-grp" source="appi" target="log" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ SECURITY ═══ -->
-    <mxCell id="kv" value="&lt;b&gt;🔜 Key Vault&lt;/b&gt;&lt;br&gt;kv-sentinel-intel-erzrpo&lt;br&gt;Managed Identities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="617" y="700" width="220" height="65" as="geometry" />
-    </mxCell>
+                <!-- Key Vault (in rg) -->
+                <mxCell id="kv" value="&lt;b&gt;🔜 Key Vault&lt;/b&gt;&lt;br&gt;kv-sentinel-intel-erzrpo&lt;br&gt;Managed Identities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="20" y="197" width="225" height="68" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ OBSERVABILITY GROUP ═══ -->
-    <mxCell id="obs-grp" value="Observability" style="swimlane;startSize=25;fillColor=#f9f0ff;strokeColor=#9673a6;fontStyle=1;fontSize=11;" vertex="1" parent="rg">
-      <mxGeometry x="1030" y="590" width="510" height="120" as="geometry" />
-    </mxCell>
-    <mxCell id="appi" value="&lt;b&gt;✅ App Insights&lt;/b&gt;&lt;br&gt;appi-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="obs-grp">
-      <mxGeometry x="30" y="35" width="210" height="60" as="geometry" />
-    </mxCell>
-    <mxCell id="log" value="&lt;b&gt;✅ Log Analytics&lt;/b&gt;&lt;br&gt;log-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="obs-grp">
-      <mxGeometry x="270" y="35" width="210" height="60" as="geometry" />
-    </mxCell>
+                <!-- AI Agents group (in rg) -->
+                <mxCell id="agents-grp" value="AI Agents · Azure AI Foundry" style="swimlane;startSize=25;fillColor=#fff9e6;strokeColor=#d6b656;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="20" y="310" width="660" height="455" as="geometry"/>
+                </mxCell>
+                <mxCell id="foundry" value="&lt;b&gt;🔜 AI Foundry Project&lt;/b&gt;&lt;br&gt;aoai-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="125" y="40" width="240" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="ra" value="&lt;b&gt;🔜 Research Agent&lt;/b&gt;&lt;br&gt;RAG + MCP-cosmos-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="430" y="62" width="210" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="da" value="&lt;b&gt;🔜 Document Agent&lt;/b&gt;&lt;br&gt;templates + confidence 0.7" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="20" y="185" width="210" height="55" as="geometry"/>
+                </mxCell>
+                <mxCell id="ea" value="&lt;b&gt;🔜 Execution Agent&lt;/b&gt;&lt;br&gt;MCP-qms-mock&lt;br&gt;MCP-cmms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="310" y="175" width="210" height="75" as="geometry"/>
+                </mxCell>
+                <mxCell id="mcp-label" value="MCP servers (stdio)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="20" y="300" width="180" height="25" as="geometry"/>
+                </mxCell>
+                <mxCell id="mcp1" value="mcp-cosmos-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="20" y="330" width="135" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="mcp2" value="mcp-qms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="170" y="330" width="135" height="28" as="geometry"/>
+                </mxCell>
+                <mxCell id="mcp3" value="mcp-cmms-mock" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f0f0;strokeColor=#aaaaaa;fontSize=10;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="320" y="330" width="140" height="28" as="geometry"/>
+                </mxCell>
+                <!-- intra-agents edges (LCA = agents-grp) -->
+                <mxCell id="e-foundry-da" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="foundry" target="da" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-foundry-ea" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="foundry" target="ea" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-foundry-ra" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" parent="agents-grp" source="foundry" target="ra" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- ═══ EDGES ═══ -->
+                <!-- ================================================================
+                     DATA LAYER (in rg)
+                     Cosmos split into 5 individual containers + blob + search
+                     ================================================================ -->
+                <mxCell id="data-grp" value="Data Layer" style="swimlane;startSize=25;fillColor=#f0f8ff;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="720" y="290" width="740" height="600" as="geometry"/>
+                </mxCell>
 
-    <!-- CI/CD → RG -->
-    <mxCell id="e-gha-rg" value="bicep deploy&#xa;functions deploy" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#b85450;fontSize=10;" edge="1" source="gha" target="func" parent="1">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- Cosmos DB sub-group inside data-grp -->
+                <mxCell id="cosmos-subgrp" value="✅ Cosmos DB Serverless · cosmos-sentinel-intel-dev-erzrpo" style="swimlane;startSize=30;fillColor=#e8f5e9;strokeColor=#82b366;fontStyle=1;fontSize=10;" parent="data-grp" vertex="1">
+                    <mxGeometry x="15" y="35" width="340" height="530" as="geometry"/>
+                </mxCell>
+                <!-- 5 containers (all ✅ deployed, T-041) -->
+                <mxCell id="c-incidents" value="&lt;b&gt;incidents&lt;/b&gt;&lt;br&gt;&lt;font color='#555555' size='1'&gt;PK: /equipmentId&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="cosmos-subgrp" vertex="1">
+                    <mxGeometry x="30" y="40" width="280" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="c-equipment" value="&lt;b&gt;equipment&lt;/b&gt;&lt;br&gt;&lt;font color='#555555' size='1'&gt;PK: /id&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="cosmos-subgrp" vertex="1">
+                    <mxGeometry x="30" y="125" width="280" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="c-batches" value="&lt;b&gt;batches&lt;/b&gt;&lt;br&gt;&lt;font color='#555555' size='1'&gt;PK: /equipmentId&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="cosmos-subgrp" vertex="1">
+                    <mxGeometry x="30" y="210" width="280" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="c-capa-plans" value="&lt;b&gt;capa-plans&lt;/b&gt;&lt;br&gt;&lt;font color='#555555' size='1'&gt;PK: /incidentId&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="cosmos-subgrp" vertex="1">
+                    <mxGeometry x="30" y="295" width="280" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="c-approval-tasks" value="&lt;b&gt;approval-tasks&lt;/b&gt;&lt;br&gt;&lt;font color='#555555' size='1'&gt;PK: /incidentId&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="cosmos-subgrp" vertex="1">
+                    <mxGeometry x="30" y="380" width="280" height="60" as="geometry"/>
+                </mxCell>
 
-    <!-- External → Azure -->
-    <mxCell id="e-scada-sb" value="POST /api/alerts" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;fontSize=10;" edge="1" source="scada" target="sb" parent="1">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-react-func" value="REST + Entra ID token" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontSize=10;" edge="1" source="react" target="func" parent="1">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- blob + search (right column inside data-grp) -->
+                <mxCell id="blob" value="&lt;b&gt;✅ Storage Account&lt;/b&gt;&lt;br&gt;stsentinelintelerzrpo&lt;br&gt;container: documents" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="data-grp" vertex="1">
+                    <mxGeometry x="385" y="65" width="320" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="search" value="&lt;b&gt;🔜 AI Search&lt;/b&gt;&lt;br&gt;srch-sentinel-intel-dev-erzrpo&lt;br&gt;4 RAG indexes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="data-grp" vertex="1">
+                    <mxGeometry x="385" y="290" width="320" height="65" as="geometry"/>
+                </mxCell>
+                <!-- blob → search (same parent = data-grp) -->
+                <mxCell id="e-blob-search" value="chunk → embed → index" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="data-grp" source="blob" target="search" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Ingestion → Compute -->
-    <mxCell id="e-sb-func" value="ServiceBusTrigger" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#82b366;fontSize=10;" edge="1" source="sb" target="func" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- Legend (in rg) -->
+                <mxCell id="legend" value="Legend" style="swimlane;startSize=25;fillColor=#ffffff;strokeColor=#666666;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
+                    <mxGeometry x="1510" y="185" width="360" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg-green" value="Deployed ✅" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="legend" vertex="1">
+                    <mxGeometry x="15" y="35" width="140" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg-yellow" value="Planned 🔜" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="legend" vertex="1">
+                    <mxGeometry x="200" y="35" width="140" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg-blue" value="External" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" parent="legend" vertex="1">
+                    <mxGeometry x="15" y="90" width="140" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg-red" value="CI/CD" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" parent="legend" vertex="1">
+                    <mxGeometry x="200" y="90" width="140" height="38" as="geometry"/>
+                </mxCell>
+                <mxCell id="leg-e1" value="Data flow" style="endArrow=classic;html=1;fontSize=10;" edge="1" parent="legend">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="15" y="160" as="sourcePoint"/>
+                        <mxPoint x="145" y="160" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg-e2" value="MCP tool call" style="endArrow=classic;strokeColor=#d6b656;html=1;fontSize=10;" edge="1" parent="legend">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="160" as="sourcePoint"/>
+                        <mxPoint x="335" y="160" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg-e3" value="Managed Identity" style="endArrow=classic;dashed=1;strokeColor=#aaaaaa;html=1;fontSize=10;" edge="1" parent="legend">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="15" y="200" as="sourcePoint"/>
+                        <mxPoint x="145" y="200" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg-e4" value="CI/CD deploy" style="endArrow=classic;dashed=1;strokeColor=#b85450;html=1;fontSize=10;" edge="1" parent="legend">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="200" y="200" as="sourcePoint"/>
+                        <mxPoint x="335" y="200" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="leg-note" value="RG: ODL-GHAZ-2177134 · swedencentral&lt;br&gt;Suffix: erzrpo · Subscription: Sandbox AI DS" style="text;html=1;strokeColor=none;fillColor=none;fontSize=10;fontColor=#666666;align=left;" parent="legend" vertex="1">
+                    <mxGeometry x="15" y="235" width="330" height="65" as="geometry"/>
+                </mxCell>
 
-    <!-- Compute → Agents -->
-    <mxCell id="e-func-foundry" value="Durable: RunAgents" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="func" target="foundry" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-foundry-ra" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="foundry" target="ra" parent="agents-grp">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-foundry-da" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="foundry" target="da" parent="agents-grp">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-foundry-ea" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="foundry" target="ea" parent="agents-grp">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- ===== CROSS-BOUNDARY EDGES (parent=1, LCA=root) ===== -->
+                <mxCell id="e-scada-sb" value="POST /api/alerts" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#6c8ebf;fontSize=10;" parent="1" source="scada" target="sb" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-react-func" value="REST + Entra ID token" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#d6b656;fontSize=10;" parent="1" source="react" target="func" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-signalr-react" value="push: approval pending" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" parent="1" source="signalr" target="react" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-gha-func" value="bicep deploy · func deploy" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#b85450;fontSize=10;" parent="1" source="gha" target="func" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Agents → Data -->
-    <mxCell id="e-ra-cdb" value="MCP: get_equipment&#xa;get_batch · search" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="ra" target="cdb" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-ra-search" value="vector search" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="ra" target="search" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-ea-cdb" value="MCP: create_work_order&#xa;create_audit_entry" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="ea" target="cdb" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- ===== IN-RG EDGES (parent=rg, LCA=rg) ===== -->
+                <!-- ingestion -->
+                <mxCell id="e-sb-func" value="ServiceBusTrigger" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;strokeColor=#82b366;fontSize=10;" parent="rg" source="sb" target="func" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- orchestration -->
+                <mxCell id="e-func-foundry" value="Durable: RunAgents" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="rg" source="func" target="foundry" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- real-time -->
+                <mxCell id="e-func-signalr" value="NotifyOperator" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;entryX=0;entryY=0.5;fontSize=10;" parent="rg" source="func" target="signalr" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- security -->
+                <mxCell id="e-func-kv" value="Managed Identity" style="edgeStyle=orthogonalEdgeStyle;dashed=1;exitX=0;exitY=0.5;entryX=1;entryY=0.5;strokeColor=#aaaaaa;fontSize=10;" parent="rg" source="func" target="kv" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-foundry-kv" value="Managed Identity" style="edgeStyle=orthogonalEdgeStyle;dashed=1;exitX=0;exitY=0.7;entryX=0.5;entryY=1;strokeColor=#aaaaaa;fontSize=10;" parent="rg" source="foundry" target="kv" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- observability -->
+                <mxCell id="e-func-appi" value="traces · metrics" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.7;strokeColor=#9673a6;fontSize=10;" parent="rg" source="func" target="appi" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Compute → Data -->
-    <mxCell id="e-func-cdb" value="read/write incidents" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="func" target="cdb" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-func-blob" value="blob trigger" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="func" target="blob" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-blob-search" value="chunk → embed → index" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="blob" target="search" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- func → Cosmos containers (parent=rg): func in compute-grp>rg, containers in cosmos-subgrp>data-grp>rg → LCA=rg -->
+                <mxCell id="e-func-incidents" value="CRUD" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.25;entryX=0;entryY=0.5;strokeColor=#82b366;fontStyle=1;fontSize=10;" parent="rg" source="func" target="c-incidents" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-func-equipment" value="read" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.45;entryX=0;entryY=0.5;strokeColor=#82b366;fontSize=10;" parent="rg" source="func" target="c-equipment" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-func-batches" value="read" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.6;entryX=0;entryY=0.5;strokeColor=#82b366;fontSize=10;" parent="rg" source="func" target="c-batches" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-func-approval" value="write (notify)" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.8;entryX=0;entryY=0.5;strokeColor=#82b366;fontSize=10;" parent="rg" source="func" target="c-approval-tasks" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- func → blob -->
+                <mxCell id="e-func-blob" value="blob trigger" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" parent="rg" source="func" target="blob" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Real-time -->
-    <mxCell id="e-func-signalr" value="NotifyOperator" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="func" target="signalr" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-signalr-react" value="push: approval pending" style="edgeStyle=orthogonalEdgeStyle;fontSize=10;" edge="1" source="signalr" target="react" parent="1">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- ra → Cosmos (MCP tools, parent=rg, ra in agents-grp>rg, containers in cosmos-subgrp>data-grp>rg) -->
+                <mxCell id="e-ra-incidents" value="search_incidents" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.3;entryX=0;entryY=0.3;strokeColor=#d6b656;fontStyle=2;fontSize=10;" parent="rg" source="ra" target="c-incidents" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-ra-equipment" value="get_equipment" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#d6b656;fontStyle=2;fontSize=10;" parent="rg" source="ra" target="c-equipment" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-ra-batches" value="get_batch" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.7;entryX=0;entryY=0.5;strokeColor=#d6b656;fontStyle=2;fontSize=10;" parent="rg" source="ra" target="c-batches" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <!-- ra → AI Search (vector search) -->
+                <mxCell id="e-ra-search" value="vector search" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#d6b656;fontSize=10;" parent="rg" source="ra" target="search" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Secrets (dashed) -->
-    <mxCell id="e-func-kv" value="Managed Identity" style="edgeStyle=orthogonalEdgeStyle;dashed=1;strokeColor=#aaaaaa;fontSize=10;" edge="1" source="func" target="kv" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
+                <!-- da → capa-plans (writes CAPA document, parent=rg) -->
+                <mxCell id="e-da-capa" value="write CAPA" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;strokeColor=#d6b656;fontStyle=1;fontSize=10;" parent="rg" source="da" target="c-capa-plans" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
 
-    <!-- Observability -->
-    <mxCell id="e-func-appi" value="traces · metrics" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;fontSize=10;" edge="1" source="func" target="appi" parent="rg">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-    <mxCell id="e-appi-log" style="edgeStyle=orthogonalEdgeStyle;strokeColor=#9673a6;fontSize=10;" edge="1" source="appi" target="log" parent="obs-grp">
-      <mxGeometry relative="1" as="geometry" />
-    </mxCell>
-
-  </root>
-</mxGraphModel>
+                <!-- ea → capa-plans (reads CAPA) + ea → approval-tasks (creates audit entry, parent=rg) -->
+                <mxCell id="e-ea-capa" value="read CAPA" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.35;entryX=0;entryY=0.7;strokeColor=#d6b656;fontStyle=2;fontSize=10;" parent="rg" source="ea" target="c-capa-plans" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-ea-approval" value="create_audit_entry" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.7;entryX=0;entryY=0.5;strokeColor=#d6b656;fontStyle=2;fontSize=10;" parent="rg" source="ea" target="c-approval-tasks" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

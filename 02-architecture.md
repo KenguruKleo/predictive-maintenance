@@ -15,6 +15,9 @@
 6. [Ролі та стейкхолдери](#6-ролі-та-стейкхолдери)
 7. [AS-IS vs TO-BE процес](#7-as-is-vs-to-be-процес)
 8. [Поточна версія (IN-PROGRESS)](#8-поточна-версія-in-progress)
+   - [8.9 Два рівні оркестрації](#89-два-рівні-оркестрації)
+   - [8.10 ADR-001: HITL механізм](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native)
+   - [8.11 Розбивка на Azure Functions](#811-розбивка-на-azure-functions--повна-карта)
 9. [Changelog архітектури](#9-changelog-архітектури)
 
 ---
@@ -301,13 +304,13 @@ Sensor Signal → Alert (already automated anomaly detection)
           ▼               ▼                       ▼
 ┌──────────────┐  ┌───────────────────┐  ┌──────────────────────────┐
 │   AZURE      │  │  AZURE AI FOUNDRY │  │   AZURE COSMOS DB        │
-│   SIGNALR    │  │  AGENT SERVICE    │  │   (5 collections)        │
-│              │  │                   │  │                          │
+│   SIGNALR    │  │  AGENT SERVICE    │  │   Serverless             │
+│              │  │                   │  │   (5 containers)         │
 │  Real-time   │  │  Orchestrator     │  │  incidents               │
-│  push to     │  │  ├─ Research Agt  │  │  incident_events         │
-│  React UI    │  │  ├─ Document Agt  │  │  equipment (mock CMMS)   │
-│  (Gap #5 ✅) │  │  └─ Execution Agt │  │  batches (mock MES)      │
-└──────────────┘  │                   │  │  templates               │
+│  push to     │  │  ├─ Research Agt  │  │  equipment (mock CMMS)   │
+│  React UI    │  │  ├─ Document Agt  │  │  batches (mock MES)      │
+│  (Gap #5 ✅) │  │  └─ Execution Agt │  │  capa-plans              │
+└──────────────┘  │                   │  │  approval-tasks          │
                   │  MCP Servers:     │  └──────────────────────────┘
                   │  ├─ mcp-cosmos-db │
                   │  ├─ mcp-qms-mock  │
@@ -375,7 +378,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **MCP: mcp-cosmos-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
 | **MCP: mcp-qms-mock** | Python (stdio MCP server) | Tool: create_audit_entry (мок QMS) | — |
 | **MCP: mcp-cmms-mock** | Python (stdio MCP server) | Tool: create_work_order (мок CMMS) | — |
-| **Incident DB** | Azure Cosmos DB | 5 collections: incidents, events, equipment, batches, templates | — |
+| **Incident DB** | Azure Cosmos DB Serverless | 5 containers: incidents, equipment, batches, capa-plans, approval-tasks | — |
 | **RAG Storage** | Azure AI Search | 4 indexes: manuals, SOPs, GMP policies, incident history | Gap #4 |
 | **Document Ingestion** | Blob Storage + blob trigger Function | Chunk → embed → AI Search (for SOPs/manuals) | — |
 | **Real-time Push** | Azure SignalR Service | Push notifications до React UI (approval pending, status change) | Gap #5 |
@@ -411,15 +414,34 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 ---
 
-### 8.4 Cosmos DB — схема колекцій
+### 8.4 Cosmos DB — схема контейнерів та доступ
 
-| Колекція | Partition Key | Призначення |
+**Database:** `sentinel-intelligence` · Serverless · 5 контейнерів
+
+#### Контейнери
+
+| Контейнер | Partition Key | Призначення |
 |---|---|---|
-| `incidents` | `/equipment_id` | Основний документ incident + AI analysis + workflow state |
-| `incident_events` | `/incident_id` | Audit log кожної зміни (event sourcing) |
-| `equipment` | `/id` | Mock CMMS: equipment master data, validated params, PM history |
-| `batches` | `/equipment_id` | Mock MES: поточні та завершені batch records |
-| `templates` | `/type` | Work order та audit entry templates (IT Admin manages) |
+| `incidents` | `/equipmentId` | Основний документ incident + AI analysis + workflow state |
+| `equipment` | `/id` | Mock CMMS: master data, validated params, PM history |
+| `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
+| `capa-plans` | `/incidentId` | Згенеровані Document Agent CAPA плани |
+| `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks + execution results |
+
+#### Матриця доступу до контейнерів
+
+| Контейнер | Сервіс / Агент | Операція | Інструмент |
+|---|---|---|---|
+| `incidents` | Azure Functions | Create, Read, Update | `azure-cosmos` SDK |
+| `incidents` | Research Agent | Read (semantic search) | MCP: `search_incidents(equipment_id, date_range)` |
+| `equipment` | Azure Functions | Read | `azure-cosmos` SDK |
+| `equipment` | Research Agent | Read by ID | MCP: `get_equipment(id)` |
+| `batches` | Azure Functions | Read | `azure-cosmos` SDK |
+| `batches` | Research Agent | Read by ID | MCP: `get_batch(id)` |
+| `capa-plans` | Document Agent | **Write** (draft CAPA) | `azure-cosmos` SDK |
+| `capa-plans` | Execution Agent | Read (before execution) | MCP: read CAPA plan |
+| `approval-tasks` | Azure Functions | Write (create task), Read (poll decision) | `azure-cosmos` SDK |
+| `approval-tasks` | Execution Agent | Write (audit entry result) | MCP: `create_audit_entry` |
 
 ---
 
@@ -532,6 +554,223 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 ---
 
+### 8.9 Два рівні оркестрації
+
+> Вимоги (01-requirements §4) та AS-SUBMITTED схема називали Foundry «Agent Orchestrator». У v2.0 ця роль **розбита на два рівні з різними відповідальностями**.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  РІВЕНЬ 1 — Workflow Orchestrator (Azure Durable Functions)         │
+│  Відповідає за: послідовність кроків, HITL паузу,                  │
+│                 таймаут 24h, стан всього процесу                    │
+│                                                                     │
+│  1. CreateIncident     ──► Cosmos DB                                │
+│  2. EnrichContext      ──► Cosmos DB (equipment/batch)              │
+│  3. RunAgents ─────────────────────────────────────────┐           │
+│  4. NotifyOperator     ──► Azure SignalR                │           │
+│  5. ⏸ waitForExternalEvent("operator_decision") ← ПАУЗА до 24h    │
+│  6a. "approved"  → ExecuteDecision ─────────────────────┐          │
+│  6b. "rejected"  → CloseIncident                        │           │
+│  6c. "more_info" → loop до кроку 2                      │           │
+│  7. FinalizeAuditRecord ──► Cosmos DB                   │           │
+└───────────────────────────────────────┬──────────────────┘           │
+             ↓ (activity calls)         │                             │
+┌────────────────────────────────────── ▼ ────────────────────────────┤
+│  РІВЕНЬ 2 — AI Orchestrator (Azure AI Foundry Agent Service)        │
+│  Відповідає за: агентну логіку, tool calls, reasoning loop,        │
+│                 routing між агентами всередині одного кроку         │
+│                                                                     │
+│  Крок 3 "RunAgents":                                                │
+│    Research Agent  ──► RAG (AI Search) + MCP-cosmos-db             │
+│       └─ внутрішній reasoning loop (Foundry manages)               │
+│    Document Agent  ──► structured output, confidence gate          │
+│       └─ внутрішній reasoning loop (Foundry manages)               │
+│                                                                     │
+│  Крок 6a "ExecuteDecision":                                         │
+│    Execution Agent ──► MCP-qms-mock + MCP-cmms-mock               │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Чому не один рівень?**
+
+| Питання | Durable Functions | Foundry Agent Service |
+|---|---|---|
+| Керує: | workflow (кроки процесу) | AI reasoning (агентна логіка) |
+| HITL пауза | ✅ `waitForExternalEvent` — до 24h | ❌ function_call timeout — 10 хв |
+| Стан між кроками | ✅ persisted у Azure Storage | ✅ всередині одного run |
+| Retry/DLQ | ✅ вбудований | ❌ треба вручну |
+| Агентний routing | ❌ не розуміє LLM | ✅ вбудований |
+
+**Відповідь на питання «де оркестратор?»**: Durable Functions — це **workflow orchestrator** (=«директор виробництва», керує процесом і людьми). Foundry — це **AI orchestrator** (=«мозок», який керує агентами всередині кожного кроку). Обидва — «оркестратори», але на різних рівнях.
+
+---
+
+### 8.10 ADR-001: Human-in-the-Loop — Durable waitForExternalEvent vs Foundry-native
+
+> **Тип:** Architecture Decision Record  
+> **Дата рішення:** 17 квітня 2026  
+> **Статус:** Прийнято ✅
+
+#### Контекст
+GMP-виробництво вимагає mandatory human approval перед виконанням work order. Оператор має до 24 годин на рішення (відповідно до SOPs). Потрібен механізм:
+- призупинити agentний workflow після генерації рекомендацій
+- дочекатися рішення оператора (Approve / Reject / More info)
+- відновити workflow з результатом рішення
+- якщо 24h минуло — автоескалювати до QA Manager
+
+#### Розглянуті варіанти
+
+**Варіант A: Foundry function_call + previous_response_id**
+```
+response = openai.responses.create(input=...)
+# response.output[i].type == "function_call" → агент "чекає"
+# ... зберегти previous_response_id у Cosmos ...
+# ... оператор вирішує (пізніше) ...
+response = openai.responses.create(input=[FunctionCallOutput(...)], 
+                                   previous_response_id=saved_id)
+```
+**Проблема:** run expires після **10 хвилин** після створення — `previous_response_id` протухає і не може бути відновлений. Джерело: [Microsoft Foundry docs (квітень 2026)](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/function-calling):
+> *"Runs expire 10 minutes after creation. Submit your tool outputs before they expire."*
+
+**Варіант B: Durable Functions waitForExternalEvent** ← **ОБРАНО**
+```python
+# orchestrator (Python)
+yield context.wait_for_external_event("operator_decision")
+# ↑ безкоштовно спить скільки завгодно (Azure Storage persists state)
+
+# React UI → HTTP endpoint → resume orchestrator
+POST /runtime/webhooks/durabletask/instances/{id}/raiseEvent/operator_decision
+{"decision": "approved", "comment": "LIMS verified, proceed"}
+```
+
+#### Рішення
+**Варіант B (Durable Functions `waitForExternalEvent`)**.
+
+#### Обґрунтування
+
+| Критерій | Foundry function_call | Durable waitForExternalEvent |
+|---|---|---|
+| Максимальна пауза | ❌ 10 хвилин | ✅ необмежено (24h+) |
+| Відновлення після restart/crash | ❌ втрачається | ✅ persisted у Azure Storage |
+| Вартість під час паузи | n/a (протухає) | ✅ $0 (Consumption plan) |
+| Resume API | N/A | ✅ `raiseEvent` HTTP |
+| Timeout + ескалація | ❌ немає | ✅ `create_timer` + race pattern |
+| Вже в requirements.txt | ✅ (`azure-ai-projects`) | ✅ (`azure-durable-functions`) |
+
+#### Наслідки
+- Foundry агенти запускаються як короткі **activity functions** (секунди–хвилини) — вкладаються в 10-хв ліміт
+- Загальний workflow state живе у Durable (Azure Storage), а не у Foundry threads
+- `approval-tasks` Cosmos container зберігає pending approval для React UI
+- Azure SignalR пушить notification до React: «очікується рішення оператора»
+- `POST /api/incidents/{id}/decision` HTTP endpoint викликає `raise_event` → orchestrator resume
+
+---
+
+### 8.11 Розбивка на Azure Functions — повна карта
+
+> Деталізація всіх функцій, які реалізують workflow. Кожна з них — окрема Python-функція у `backend/function_app.py`.
+
+#### Потік від Service Bus до паузи
+
+```
+Service Bus: alert-queue
+      │  trigger
+      ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  alert_processor  (Service Bus Trigger)                             │
+│                                                                     │
+│  • Приймає alert з черги                                            │
+│  • Генерує incident_id (uuid)                                       │
+│  • Викликає client.start_new("deviation_orchestrator", input=...)   │
+│  • Завершується одразу — оркестратор запускається незалежно         │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │  start_new()
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  deviation_orchestrator  (Durable Orchestrator)                     │
+│  ⚠️  Не виконується лінійно — Durable replay-механізм              │
+│                                                                     │
+│  yield CallActivity("create_incident")                              │
+│  yield CallActivity("enrich_context")                               │
+│  yield CallActivity("run_research_agent")   ─► Foundry             │
+│  yield CallActivity("run_document_agent")   ─► Foundry             │
+│  yield CallActivity("notify_operator")      ─► SignalR + Cosmos    │
+│                                                                     │
+│  ⏸  decision = yield WaitForExternalEvent("operator_decision")     │
+│     ← оркестратор серіалізується в Azure Storage, RAM звільняється │
+│                                                                     │
+│  if decision == "approved":                                         │
+│      yield CallActivity("run_execution_agent")  ─► Foundry         │
+│  elif decision == "rejected":                                       │
+│      yield CallActivity("close_incident")                           │
+│  elif decision == "more_info":                                      │
+│      # loop back to enrich_context                                  │
+│  yield CallActivity("finalize_audit")       ─► Cosmos DB           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Activity functions (викликаються оркестратором)
+
+| Activity | Що робить | Куди ходить |
+|---|---|---|
+| `create_incident` | Створює документ incident у Cosmos DB | Cosmos: `incidents` |
+| `enrich_context` | Читає equipment + batch за ID з алерту | Cosmos: `equipment`, `batches` |
+| `run_research_agent` | Запускає Foundry Research Agent: RAG + MCP → повертає structured context JSON | Foundry SDK (`azure-ai-projects`) |
+| `run_document_agent` | Запускає Foundry Document Agent: будує decision package, зберігає CAPA чернетку | Foundry SDK → Cosmos: `capa-plans` |
+| `notify_operator` | 1. Пише record у `approval-tasks` (status: pending) 2. POST до SignalR REST API → push до React UI | Cosmos: `approval-tasks`, Azure SignalR |
+| `run_execution_agent` | Запускає Foundry Execution Agent після approval: create_work_order + create_audit_entry | Foundry SDK → MCP-QMS, MCP-CMMS |
+| `close_incident` | Оновлює incident status: "rejected" | Cosmos: `incidents` |
+| `finalize_audit` | Пише фінальний audit record: рішення + timestamps + агентні кроки | Cosmos: `approval-tasks`, `incidents` |
+
+#### Як оркестратор прокидається (FN-2)
+
+```
+React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ More info]
+      │
+      │  POST /api/incidents/{id}/decision
+      │  { "decision": "approved", "comment": "LIMS verified" }
+      ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  decision_handler  (HTTP Trigger)                                   │
+│                                                                     │
+│  1. Validates request (auth via Entra ID)                           │
+│  2. Читає instance_id з Cosmos: approval-tasks (by incident_id)     │
+│  3. await client.raise_event(                                       │
+│         instance_id,                                                │
+│         "operator_decision",                                        │
+│         { "decision": "approved", "comment": "..." }               │
+│     )                                                               │
+│  4. Повертає HTTP 200                                               │
+│                                                                     │
+│  → Durable знаходить instance у Azure Storage                       │
+│  → replay orchestrator від початку                                  │
+│  → доходить до WaitForExternalEvent → event вже є → продовжує      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+#### Повна карта функцій
+
+| Функція | Тип тригера | Файл | Роль |
+|---|---|---|---|
+| `alert_processor` | Service Bus | `function_app.py` | Вхідна точка: алерт → старт оркестратора |
+| `deviation_orchestrator` | Durable Orchestrator | `function_app.py` | Координує весь workflow |
+| `create_incident` | Durable Activity | `function_app.py` | Cosmos write: новий incident |
+| `enrich_context` | Durable Activity | `function_app.py` | Cosmos read: equipment + batch |
+| `run_research_agent` | Durable Activity | `function_app.py` | Foundry: Research Agent |
+| `run_document_agent` | Durable Activity | `function_app.py` | Foundry: Document Agent → capa-plans |
+| `notify_operator` | Durable Activity | `function_app.py` | Cosmos write + SignalR push |
+| `run_execution_agent` | Durable Activity | `function_app.py` | Foundry: Execution Agent → QMS/CMMS |
+| `close_incident` | Durable Activity | `function_app.py` | Cosmos update: status=rejected |
+| `finalize_audit` | Durable Activity | `function_app.py` | Cosmos write: audit record |
+| `decision_handler` | HTTP | `function_app.py` | REST endpoint: `POST /api/incidents/{id}/decision` → `raise_event` |
+| `get_incidents` | HTTP | `function_app.py` | REST: `GET /api/incidents` |
+| `get_incident_by_id` | HTTP | `function_app.py` | REST: `GET /api/incidents/{id}` |
+| `ingest_alert` | HTTP | `function_app.py` | REST: `POST /api/alerts` → Service Bus |
+
+> **Foundry** — не Azure Function. Це зовнішній сервіс, який `run_*_agent` activities викликають через `azure-ai-projects` SDK. Foundry запускає агента, агент виконує tool calls (MCP/RAG), повертає result — activity завершується, оркестратор продовжує.
+
+---
+
 ## 9. Changelog архітектури
 
 | Дата | Версія | Зміна | Пов'язаний Gap |
@@ -539,6 +778,8 @@ Sensor Signal → Alert (already automated anomaly detection)
 | 2026-03-26 | v1.0 | Initial submission | — |
 | 2026-04-17 | v2.0 | Full implementation design: Durable Functions, Cosmos DB, SignalR, Service Bus, 3 MCP servers, React frontend, Entra ID RBAC, Key Vault, Bicep IaC, GitHub Actions | Gap #1–6 ✅ |
 | 2026-04-17 | v2.1 | **First deployment:** 7 Azure ресурсів задеплоєно через Bicep. GitHub Actions CI/CD зелений. `func-sentinel-intel-dev-erzrpo` живий. Cosmos DB Serverless (5 containers). Service Bus `alert-queue`. App Insights + Log Analytics. | T-041, T-042 ✅ |
+| 2026-04-17 | v2.2 | **ADR-001** (§8.10): задокументовано вибір Durable `waitForExternalEvent` над Foundry-native HITL (10-хв ліміт Foundry несумісний з 24h approval). §8.9: пояснення двох рівнів оркестрації (Durable = workflow, Foundry = AI). | — |
+| 2026-04-17 | v2.3 | **§8.11**: повна карта Azure Functions — усі 14 функцій з типами тригерів, ролями та потоком від Service Bus → оркестратор → activities → `raise_event`. | — |
 
 ---
 
