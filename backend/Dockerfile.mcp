@@ -1,0 +1,39 @@
+# Shared Dockerfile for all MCP servers.
+# Build with --build-arg SERVER_MODULE=<module> (mcp_sentinel_db | mcp_sentinel_search | mcp_qms | mcp_cmms).
+#
+# Example:
+#   docker build --build-arg SERVER_MODULE=mcp_sentinel_search -t mcp-sentinel-search -f Dockerfile.mcp .
+#   docker run -e AZURE_SEARCH_KEY=... -p 8080:8080 mcp-sentinel-search
+
+FROM python:3.11-slim
+
+ARG SERVER_MODULE=mcp_sentinel_db
+
+WORKDIR /app
+
+# Minimal requirements (no Azure Functions runtime)
+COPY requirements-mcp.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy shared utilities (search_utils, cosmos_client, etc.)
+COPY shared/ ./shared/
+
+# Copy the selected MCP server module
+COPY ${SERVER_MODULE}/ ./${SERVER_MODULE}/
+
+ENV SERVER_MODULE=${SERVER_MODULE}
+
+# FastMCP HTTP transport settings (read by FastMCP via FASTMCP_ prefix)
+ENV MCP_TRANSPORT=streamable-http
+ENV FASTMCP_HOST=0.0.0.0
+ENV FASTMCP_PORT=8080
+# Stateless mode: no server-side session — safe for multi-replica scale-out
+ENV FASTMCP_STATELESS_HTTP=true
+# Disable DNS rebinding protection so Container Apps ingress FQDN is accepted
+ENV FASTMCP_TRANSPORT_SECURITY__ENABLE_DNS_REBINDING_PROTECTION=false
+
+ENV PYTHONUNBUFFERED=1
+
+EXPOSE 8080
+
+CMD python -m ${SERVER_MODULE}.server

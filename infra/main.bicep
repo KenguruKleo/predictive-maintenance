@@ -130,6 +130,36 @@ module aiFoundry 'modules/ai-foundry.bicep' = {
   }
 }
 
+// Azure Container Registry — stores MCP server Docker images
+module acr 'modules/acr.bicep' = {
+  name: 'acr'
+  params: {
+    location: location
+    tags: tags
+    acrName: 'acrsntl${uniqueSuffix}'
+  }
+}
+
+// MCP Server Container Apps — 4 lightweight HTTP MCP servers for AI agents
+module containerApps 'modules/container-apps.bicep' = {
+  name: 'containerApps'
+  params: {
+    location: location
+    tags: tags
+    namePrefix: prefix
+    uniqueSuffix: uniqueSuffix
+    logAnalyticsWorkspaceName: monitoring.outputs.workspaceName
+    acrName: acr.outputs.acrName
+    cosmosAccountName: cosmos.outputs.cosmosAccountName
+    cosmosDatabaseName: cosmos.outputs.databaseName
+    searchServiceName: aiSearch.outputs.searchServiceName
+    searchEndpoint: aiSearch.outputs.searchServiceEndpoint
+    openaiAccountName: openai.outputs.openaiAccountName
+    openaiEndpoint: openai.outputs.openaiEndpoint
+    embeddingDeployment: openai.outputs.embeddingDeploymentName
+  }
+}
+
 // Outputs
 
 output functionsAppName string = functions.outputs.funcAppName
@@ -150,3 +180,9 @@ output openaiEndpoint string = openai.outputs.openaiEndpoint
 output openaiAccountName string = openai.outputs.openaiAccountName
 output embeddingDeploymentName string = openai.outputs.embeddingDeploymentName
 output gpt4oDeploymentName string = openai.outputs.gpt4oDeploymentName
+output acrLoginServer string = acr.outputs.acrLoginServer
+output acrName string = acr.outputs.acrName
+output mcpDbUrl string = containerApps.outputs.mcpDbUrl
+output mcpSearchUrl string = containerApps.outputs.mcpSearchUrl
+output mcpQmsUrl string = containerApps.outputs.mcpQmsUrl
+output mcpCmmsUrl string = containerApps.outputs.mcpCmmsUrl

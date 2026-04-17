@@ -32,6 +32,7 @@ from azure.ai.agents.models import (
     AzureAISearchTool,
     AzureAISearchToolResource,
     ConnectedAgentTool,
+    McpTool,
     ToolDefinition,
     ToolResources,
 )
@@ -112,6 +113,22 @@ def _create_or_update(
 
 def main(update: bool = False) -> dict:
     search_connection_id = os.environ.get("AZURE_AI_SEARCH_CONNECTION_ID", "").strip()
+
+    # MCP server URLs (output by infra/main.bicep or backend/scripts/deploy-mcp.sh)
+    mcp_db_url = os.environ.get("MCP_SENTINEL_DB_URL", "").strip()
+    mcp_search_url = os.environ.get("MCP_SENTINEL_SEARCH_URL", "").strip()
+    mcp_qms_url = os.environ.get("MCP_QMS_URL", "").strip()
+    mcp_cmms_url = os.environ.get("MCP_CMMS_URL", "").strip()
+
+    if not any([mcp_db_url, mcp_search_url, mcp_qms_url, mcp_cmms_url]):
+        print(
+            "  INFO: No MCP_*_URL env vars set — MCP tools disabled.\n"
+            "  Build and deploy MCP Container Apps first:\n"
+            "    bash backend/scripts/deploy-mcp.sh --acr-build\n"
+            "  Then set MCP_SENTINEL_DB_URL, MCP_SENTINEL_SEARCH_URL, "
+            "MCP_QMS_URL, MCP_CMMS_URL."
+        )
+
     client = _build_client()
 
     # ── 1. Research Agent (T-025) ─────────────────────────────────────────
@@ -149,6 +166,24 @@ def main(update: bool = False) -> dict:
             "--resource-group ODL-GHAZ-2177134 -o table"
         )
 
+    # MCP tools: sentinel-db (equipment / batch / incident context)
+    # and sentinel-search (5-index RAG: SOP, manuals, BPR, GMP, incidents)
+    if mcp_db_url:
+        db_mcp = McpTool(
+            server_label="sentinel-db",
+            server_url=mcp_db_url,
+        )
+        research_tools = research_tools + db_mcp.definitions  # type: ignore[operator]
+        print(f"  + MCP sentinel-db: {mcp_db_url}")
+
+    if mcp_search_url:
+        search_mcp = McpTool(
+            server_label="sentinel-search",
+            server_url=mcp_search_url,
+        )
+        research_tools = research_tools + search_mcp.definitions  # type: ignore[operator]
+        print(f"  + MCP sentinel-search: {mcp_search_url}")
+
     research_agent = _create_or_update(
         client, "sentinel-research-agent", MODEL, RESEARCH_PROMPT,
         research_tools, research_tr, update,
@@ -156,9 +191,29 @@ def main(update: bool = False) -> dict:
 
     # ── 2. Document Agent (T-026) ─────────────────────────────────────────
     print("\n[2/3] Document Agent...")
+
+    document_tools: list[ToolDefinition] = []
+
+    # MCP tools: qms (create audit entries) and cmms (create work orders)
+    if mcp_qms_url:
+        qms_mcp = McpTool(
+            server_label="sentinel-qms",
+            server_url=mcp_qms_url,
+        )
+        document_tools = document_tools + qms_mcp.definitions  # type: ignore[operator]
+        print(f"  + MCP sentinel-qms: {mcp_qms_url}")
+
+    if mcp_cmms_url:
+        cmms_mcp = McpTool(
+            server_label="sentinel-cmms",
+            server_url=mcp_cmms_url,
+        )
+        document_tools = document_tools + cmms_mcp.definitions  # type: ignore[operator]
+        print(f"  + MCP sentinel-cmms: {mcp_cmms_url}")
+
     document_agent = _create_or_update(
         client, "sentinel-document-agent", MODEL, DOCUMENT_PROMPT,
-        [], None, update,
+        document_tools, None, update,
     )
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
