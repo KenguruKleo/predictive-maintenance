@@ -168,6 +168,8 @@ def main(update: bool = False) -> dict:
 
     # MCP tools: sentinel-db (equipment / batch / incident context)
     # and sentinel-search (5-index RAG: SOP, manuals, BPR, GMP, incidents)
+    research_mcp_resources: list = []  # collect MCPToolResource items
+
     if mcp_db_url:
         db_mcp = McpTool(
             server_label="sentinel_db",
@@ -180,8 +182,10 @@ def main(update: bool = False) -> dict:
                 "get_template",
             ],
         )
+        db_mcp.set_approval_mode("never")
         research_tools = research_tools + db_mcp.definitions  # type: ignore[operator]
-        print(f"  + MCP sentinel-db: {mcp_db_url}")
+        research_mcp_resources.extend(db_mcp.resources.mcp)
+        print(f"  + MCP sentinel-db: {mcp_db_url} (approval=never)")
 
     if mcp_search_url:
         search_mcp = McpTool(
@@ -195,8 +199,20 @@ def main(update: bool = False) -> dict:
                 "search_incident_history",
             ],
         )
+        search_mcp.set_approval_mode("never")
         research_tools = research_tools + search_mcp.definitions  # type: ignore[operator]
-        print(f"  + MCP sentinel-search: {mcp_search_url}")
+        research_mcp_resources.extend(search_mcp.resources.mcp)
+        print(f"  + MCP sentinel-search: {mcp_search_url} (approval=never)")
+
+    # Merge MCP resources into tool_resources
+    if research_mcp_resources:
+        if research_tr is None:
+            research_tr = ToolResources(mcp=research_mcp_resources)
+        else:
+            research_tr = ToolResources(
+                azure_ai_search=research_tr.azure_ai_search,
+                mcp=research_mcp_resources,
+            )
 
     research_agent = _create_or_update(
         client, "sentinel-research-agent", MODEL, RESEARCH_PROMPT,
@@ -209,14 +225,18 @@ def main(update: bool = False) -> dict:
     document_tools: list[ToolDefinition] = []
 
     # MCP tools: qms (create audit entries) and cmms (create work orders)
+    document_mcp_resources: list = []
+
     if mcp_qms_url:
         qms_mcp = McpTool(
             server_label="sentinel_qms",
             server_url=mcp_qms_url,
             allowed_tools=["create_audit_entry"],
         )
+        qms_mcp.set_approval_mode("never")
         document_tools = document_tools + qms_mcp.definitions  # type: ignore[operator]
-        print(f"  + MCP sentinel-qms: {mcp_qms_url}")
+        document_mcp_resources.extend(qms_mcp.resources.mcp)
+        print(f"  + MCP sentinel-qms: {mcp_qms_url} (approval=never)")
 
     if mcp_cmms_url:
         cmms_mcp = McpTool(
@@ -224,12 +244,16 @@ def main(update: bool = False) -> dict:
             server_url=mcp_cmms_url,
             allowed_tools=["create_work_order"],
         )
+        cmms_mcp.set_approval_mode("never")
         document_tools = document_tools + cmms_mcp.definitions  # type: ignore[operator]
-        print(f"  + MCP sentinel-cmms: {mcp_cmms_url}")
+        document_mcp_resources.extend(cmms_mcp.resources.mcp)
+        print(f"  + MCP sentinel-cmms: {mcp_cmms_url} (approval=never)")
+
+    document_tr = ToolResources(mcp=document_mcp_resources) if document_mcp_resources else None
 
     document_agent = _create_or_update(
         client, "sentinel-document-agent", MODEL, DOCUMENT_PROMPT,
-        document_tools, None, update,
+        document_tools, document_tr, update,
     )
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
