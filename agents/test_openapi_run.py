@@ -22,7 +22,7 @@ client.messages.create(thread_id=thread.id, role="user", content=prompt)
 run = client.runs.create(thread_id=thread.id, agent_id=agent_id)
 print(f"Run: {run.id} status={run.status}")
 
-for i in range(40):
+for i in range(90):
     time.sleep(2)
     run = client.runs.get(thread_id=thread.id, run_id=run.id)
     status = run.status
