@@ -11,6 +11,7 @@ Role-based filtering:
 
 import json
 import logging
+from urllib.parse import parse_qs, urlparse
 
 import azure.functions as func
 
@@ -40,7 +41,10 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
     try:
         page = max(1, int(req.params.get("page", "1")))
         page_size = min(100, max(1, int(req.params.get("page_size", "20"))))
-        status_filter = req.params.get("status", "")
+        # req.params is a plain dict so duplicate keys are dropped.
+        # Parse the raw query string to support ?status=a&status=b.
+        qs = parse_qs(urlparse(req.url).query)
+        status_filter: list[str] = qs.get("status", [])
         severity_filter = req.params.get("severity", "")
     except (ValueError, TypeError):
         return _error(400, "Invalid pagination parameters")
@@ -126,8 +130,10 @@ def _build_query(roles, status_filter, severity_filter, page, page_size) -> tupl
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
 
     if status_filter:
-        where_clauses.append("c.status = @status")
-        params.append({"name": "@status", "value": status_filter})
+        placeholders = ", ".join(f"@s{i}" for i in range(len(status_filter)))
+        where_clauses.append(f"c.status IN ({placeholders})")
+        for i, s in enumerate(status_filter):
+            params.append({"name": f"@s{i}", "value": s})
 
     if severity_filter:
         where_clauses.append("c.severity = @severity")
@@ -154,8 +160,10 @@ def _build_count_query(roles, status_filter, severity_filter) -> tuple[str, list
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
 
     if status_filter:
-        where_clauses.append("c.status = @status")
-        params.append({"name": "@status", "value": status_filter})
+        placeholders = ", ".join(f"@s{i}" for i in range(len(status_filter)))
+        where_clauses.append(f"c.status IN ({placeholders})")
+        for i, s in enumerate(status_filter):
+            params.append({"name": f"@s{i}", "value": s})
     if severity_filter:
         where_clauses.append("c.severity = @severity")
         params.append({"name": "@severity", "value": severity_filter})
@@ -170,11 +178,14 @@ def _slim_incident(doc: dict) -> dict:
     wf = doc.get("workflow_state", {})
     return {
         "id": doc.get("id"),
+        "incident_number": doc.get("incident_number") or doc.get("id"),
         "equipment_id": doc.get("equipment_id"),
+        "batch_id": doc.get("batch_id"),
         "title": doc.get("title"),
         "severity": doc.get("severity"),
         "status": doc.get("status"),
         "reported_at": doc.get("reported_at"),
+        "created_at": doc.get("created_at") or doc.get("reported_at"),
         "reported_by": doc.get("reported_by"),
         "risk_level": ai.get("risk_level"),
         "confidence": ai.get("confidence"),

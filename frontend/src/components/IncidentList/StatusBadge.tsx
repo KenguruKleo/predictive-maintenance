@@ -11,6 +11,6 @@ const STATUS_MAP: Record<IncidentStatus, { label: string; className: string }> =
 };
 
 export default function StatusBadge({ status }: { status: IncidentStatus }) {
-  const cfg = STATUS_MAP[status];
+  const cfg = STATUS_MAP[status] ?? { label: status ?? "Unknown", className: "badge badge--closed" };
   return <span className={cfg.className}>{cfg.label}</span>;
 }
