@@ -27,7 +27,7 @@ export default function IncidentTable({ incidents }: Props) {
             <tr key={inc.id}>
               <td>
                 <Link to={`/incidents/${inc.id}`} className="table-link">
-                  {inc.incident_number}
+                  {inc.incident_number ?? inc.id}
                 </Link>
               </td>
               <td>{inc.equipment_id}</td>
@@ -39,7 +39,14 @@ export default function IncidentTable({ incidents }: Props) {
                 <StatusBadge status={inc.status} />
               </td>
               <td>{inc.batch_id ?? "—"}</td>
-              <td>{new Date(inc.created_at).toLocaleDateString()}</td>
+              <td>
+                {(() => {
+                  const raw = inc.created_at ?? inc.reported_at;
+                  if (!raw) return "—";
+                  const d = new Date(raw);
+                  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+                })()}
+              </td>
             </tr>
           ))}
           {incidents.length === 0 && (

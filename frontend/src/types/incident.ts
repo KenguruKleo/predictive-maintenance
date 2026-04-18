@@ -1,6 +1,7 @@
 export type Severity = "critical" | "major" | "moderate" | "minor";
 
 export type IncidentStatus =
+  | "open"
   | "ingested"
   | "analyzing"
   | "pending_approval"
@@ -67,7 +68,7 @@ export interface WorkflowState {
 
 export interface Incident {
   id: string;
-  incident_number: string;
+  incident_number?: string;
   title?: string;
   equipment_id: string;
   batch_id?: string;
@@ -76,8 +77,9 @@ export interface Incident {
   severity: Severity;
   status: IncidentStatus;
   assigned_to?: string;
-  created_at: string;
-  updated_at: string;
+  reported_at?: string;
+  created_at?: string;
+  updated_at?: string;
   parameter_excursion?: ParameterExcursion;
   ai_analysis?: AiAnalysis;
   document_drafts?: DocumentDraft[];

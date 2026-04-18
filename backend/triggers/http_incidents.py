@@ -46,16 +46,18 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
         qs = parse_qs(urlparse(req.url).query)
         status_filter: list[str] = qs.get("status", [])
         severity_filter = req.params.get("severity", "")
+        date_from = req.params.get("date_from", "")
+        date_to = req.params.get("date_to", "")
     except (ValueError, TypeError):
         return _error(400, "Invalid pagination parameters")
 
     try:
         container = get_container("incidents")
-        query, params = _build_query(roles, status_filter, severity_filter, page, page_size)
+        query, params = _build_query(roles, status_filter, severity_filter, date_from, date_to, page, page_size)
         items = list(container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
 
         # Count query (without pagination)
-        count_query, count_params = _build_count_query(roles, status_filter, severity_filter)
+        count_query, count_params = _build_count_query(roles, status_filter, severity_filter, date_from, date_to)
         count_result = list(container.query_items(query=count_query, parameters=count_params, enable_cross_partition_query=True))
         total = count_result[0] if count_result else len(items)
 
@@ -118,7 +120,7 @@ def get_incident(req: func.HttpRequest) -> func.HttpResponse:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _build_query(roles, status_filter, severity_filter, page, page_size) -> tuple[str, list]:
+def _build_query(roles, status_filter, severity_filter, date_from, date_to, page, page_size) -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
@@ -138,6 +140,14 @@ def _build_query(roles, status_filter, severity_filter, page, page_size) -> tupl
     if severity_filter:
         where_clauses.append("c.severity = @severity")
         params.append({"name": "@severity", "value": severity_filter})
+
+    if date_from:
+        where_clauses.append("(c.reported_at >= @date_from OR c.created_at >= @date_from)")
+        params.append({"name": "@date_from", "value": date_from})
+
+    if date_to:
+        where_clauses.append("(c.reported_at <= @date_to OR c.created_at <= @date_to)")
+        params.append({"name": "@date_to", "value": date_to})
 
     offset = (page - 1) * page_size
     where = " AND ".join(where_clauses)
@@ -148,7 +158,7 @@ def _build_query(roles, status_filter, severity_filter, page, page_size) -> tupl
     return query, params
 
 
-def _build_count_query(roles, status_filter, severity_filter) -> tuple[str, list]:
+def _build_count_query(roles, status_filter, severity_filter, date_from="", date_to="") -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
@@ -167,6 +177,14 @@ def _build_count_query(roles, status_filter, severity_filter) -> tuple[str, list
     if severity_filter:
         where_clauses.append("c.severity = @severity")
         params.append({"name": "@severity", "value": severity_filter})
+
+    if date_from:
+        where_clauses.append("(c.reported_at >= @date_from OR c.created_at >= @date_from)")
+        params.append({"name": "@date_from", "value": date_from})
+
+    if date_to:
+        where_clauses.append("(c.reported_at <= @date_to OR c.created_at <= @date_to)")
+        params.append({"name": "@date_to", "value": date_to})
 
     where = " AND ".join(where_clauses)
     return f"SELECT VALUE COUNT(1) FROM c WHERE {where}", params

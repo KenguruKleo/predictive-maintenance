@@ -7,9 +7,14 @@ interface Props {
   onStatusChange: (v: IncidentStatus | "") => void;
   severity: Severity | "";
   onSeverityChange: (v: Severity | "") => void;
+  dateFrom?: string;
+  onDateFromChange?: (v: string) => void;
+  dateTo?: string;
+  onDateToChange?: (v: string) => void;
 }
 
 const STATUSES: IncidentStatus[] = [
+  "open",
   "ingested",
   "analyzing",
   "pending_approval",
@@ -28,6 +33,10 @@ export default function Filters({
   onStatusChange,
   severity,
   onSeverityChange,
+  dateFrom,
+  onDateFromChange,
+  dateTo,
+  onDateToChange,
 }: Props) {
   return (
     <div className="filters-bar">
@@ -62,6 +71,24 @@ export default function Filters({
           </option>
         ))}
       </select>
+      {onDateFromChange && (
+        <input
+          type="date"
+          className="filter-input filter-input--date"
+          value={dateFrom ?? ""}
+          onChange={(e) => onDateFromChange(e.target.value)}
+          title="From date"
+        />
+      )}
+      {onDateToChange && (
+        <input
+          type="date"
+          className="filter-input filter-input--date"
+          value={dateTo ?? ""}
+          onChange={(e) => onDateToChange(e.target.value)}
+          title="To date"
+        />
+      )}
     </div>
   );
 }
