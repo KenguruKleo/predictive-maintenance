@@ -24,6 +24,8 @@ export async function getIncidents(
   if (filters.page_size) params.set("page_size", String(filters.page_size));
   if (filters.date_from) params.set("date_from", filters.date_from);
   if (filters.date_to) params.set("date_to", filters.date_to);
+  if (filters.sort_by) params.set("sort_by", filters.sort_by);
+  if (filters.sort_order) params.set("sort_order", filters.sort_order);
   const { data } = await client.get<IncidentListResponse>("/incidents", {
     params,
   });

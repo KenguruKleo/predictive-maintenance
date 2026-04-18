@@ -117,4 +117,6 @@ export interface IncidentFilters {
   page_size?: number;
   date_from?: string;
   date_to?: string;
+  sort_by?: string;
+  sort_order?: "asc" | "desc";
 }

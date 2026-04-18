@@ -278,6 +278,13 @@
   font-style: italic;
 }
 
+.sidebar-loading {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: var(--space-2) 20px;
+  text-align: center;
+}
+
 /* ── Active Incident Item ── */
 .sidebar-incident-item {
   display: flex;

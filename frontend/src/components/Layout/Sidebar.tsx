@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { useIncidents } from "../../hooks/useIncidents";
+import { useInfiniteActiveIncidents } from "../../hooks/useIncidents";
 import ActiveIncidentItem from "./ActiveIncidentItem";
 
 const MIN_WIDTH = 180;
@@ -89,23 +89,38 @@ export default function Sidebar() {
   const { roles } = useAuth();
   const { dragging, onMouseDown } = useSidebarResize();
 
-  const { data: activeData } = useIncidents({
-    status: [
-      "ingested",
-      "analyzing",
-      "pending_approval",
-      "escalated",
-      "approved",
-    ],
-    page_size: 50,
-  });
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteActiveIncidents(20);
+
+  // flatten all pages
+  const activeIncidents = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
+
+  // sentinel element for infinite scroll
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const hasRole = (itemRoles: readonly string[]) => {
     if (itemRoles[0] === "*") return true;
     return roles.some((r) => (itemRoles as readonly string[]).includes(r));
   };
-
-  const activeIncidents = activeData?.items ?? [];
 
   return (
     <aside className="sidebar">
@@ -143,7 +158,7 @@ export default function Sidebar() {
 
       <div className="sidebar-active-incidents">
         <div className="sidebar-section-title">
-          Active Incidents ({activeIncidents.length})
+          Active Incidents ({total > 0 ? total : activeIncidents.length})
         </div>
         {activeIncidents.length === 0 && (
           <div className="sidebar-empty">No active incidents</div>
@@ -151,6 +166,11 @@ export default function Sidebar() {
         {activeIncidents.map((inc) => (
           <ActiveIncidentItem key={inc.id} incident={inc} />
         ))}
+        {/* Infinite scroll sentinel */}
+        <div ref={sentinelRef} style={{ height: 1 }} />
+        {isFetchingNextPage && (
+          <div className="sidebar-loading">Loading…</div>
+        )}
       </div>
     </aside>
   );
