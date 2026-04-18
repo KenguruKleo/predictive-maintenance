@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** ✅ DONE  
 **Блокує:** T-033 (real-time UX)  
 **Залежить від:** T-031 (backend API)
 
@@ -104,8 +104,8 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 
 ## Definition of Done
 
-- [ ] SignalR service provisioned via `infra/modules/signalr.bicep` (додати до `infra/main.bicep`)
-- [ ] `GET /api/negotiate` returns valid SignalR connection info (hub: `deviationHub`)
-- [ ] React `useSignalR` hook connects successfully
-- [ ] Toast notification appears in UI when new incident created (test: POST /api/alerts)
-- [ ] Incident list updates automatically when status changes (no page refresh needed)
+- [x] SignalR service provisioned via `infra/modules/signalr.bicep` (додати до `infra/main.bicep`)
+- [x] `GET /api/negotiate` returns valid SignalR connection info (hub: `deviationHub`)
+- [x] React `useSignalR` hook connects successfully
+- [x] Toast notification appears in UI when new incident created (test: POST /api/alerts)
+- [x] Incident list updates automatically when status changes (no page refresh needed)

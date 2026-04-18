@@ -87,6 +87,7 @@ module functions 'modules/functions.bicep' = {
     searchServiceName: aiSearch.outputs.searchServiceName
     foundryProjectConnectionString: aiFoundry.outputs.projectConnectionString
     foundrySearchConnectionId: aiFoundry.outputs.searchConnectionId
+    signalrConnectionString: signalr.outputs.signalrConnectionString
   }
 }
 
@@ -140,6 +141,16 @@ module swa 'modules/static-web-app.bicep' = {
     tags: tags
     swaName: 'swa-${prefix}-${uniqueSuffix}'
     skuName: 'Free'
+  }
+}
+
+// Azure SignalR Service — real-time push notifications (T-030)
+module signalr 'modules/signalr.bicep' = {
+  name: 'signalr'
+  params: {
+    location: location
+    tags: tags
+    signalrName: 'sigr-${prefix}-${uniqueSuffix}'
   }
 }
 

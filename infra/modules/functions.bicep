@@ -16,6 +16,7 @@ param searchEndpoint string
 param searchServiceName string
 param foundryProjectConnectionString string
 param foundrySearchConnectionId string
+param signalrConnectionString string
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
@@ -93,6 +94,8 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AZURE_AI_AGENTS_TESTS_IS_TEST_RUN', value: 'True' }
         // Foundry Hub connection ID for AzureAISearchTool in Research Agent
         { name: 'AZURE_AI_SEARCH_CONNECTION_ID', value: foundrySearchConnectionId }
+        // Azure SignalR (T-030)
+        { name: 'AzureSignalRConnectionString', value: signalrConnectionString }
         { name: 'MAX_MORE_INFO_ROUNDS', value: '3' }
         { name: 'CONFIDENCE_THRESHOLD', value: '0.75' }
         // Agent IDs — populated after agents/create_agents.py runs

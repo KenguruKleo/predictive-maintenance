@@ -58,7 +58,11 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
     # ── Step 3: Notify operator via SignalR ────────────────────────────────
     yield context.call_activity(
         "notify_operator",
-        {"incident_id": incident_id, "ai_result": ai_result},
+        {
+            "incident_id": incident_id,
+            "ai_result": ai_result,
+            "equipment_id": input_data.get("equipment_id", ""),
+        },
     )
 
     # ── Step 4: HITL wait loop ─────────────────────────────────────────────

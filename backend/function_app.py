@@ -36,6 +36,7 @@ from triggers.http_equipment import bp as equipment_bp
 from triggers.http_incident_events import bp as incident_events_bp
 from triggers.http_incidents import bp as incidents_bp
 from triggers.http_ingest_alert import bp as ingest_bp
+from triggers.http_signalr import bp as signalr_bp
 from triggers.http_stats import bp as stats_bp
 from triggers.http_templates import bp as templates_bp
 from triggers.service_bus_trigger import bp as sb_trigger_bp
@@ -45,6 +46,7 @@ app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 # ── HTTP triggers ─────────────────────────────────────────────────────────
 app.register_functions(ingest_bp)
 app.register_functions(decision_bp)
+app.register_functions(signalr_bp)
 
 # ── REST API (T-031) ──────────────────────────────────────────────────────
 app.register_functions(incidents_bp)

@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
+from shared.signalr_client import notify_signalr_sync
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def notify_operator(input_data: dict) -> dict:
     ai_result: dict = input_data.get("ai_result", {})
     is_escalation: bool = input_data.get("escalation", False)
     target_role: str = input_data.get("role", "operator")
+    equipment_id: str = input_data.get("equipment_id", "")
     now_iso = datetime.now(timezone.utc).isoformat()
 
     notification_type = "escalation" if is_escalation else "approval_required"
@@ -68,6 +70,24 @@ def notify_operator(input_data: dict) -> dict:
         notification_type,
         target_role,
     )
+
+    # Push real-time notification via SignalR (T-030)
+    signalr_event = "incident_escalated" if is_escalation else "incident_pending_approval"
+    signalr_payload = {
+        "incident_id": incident_id,
+        "equipment_id": equipment_id,
+        "type": notification_type,
+        "risk_level": ai_result.get("risk_level", "unknown"),
+        "created_at": now_iso,
+    }
+    notify_signalr_sync(
+        hub="deviationHub",
+        event=signalr_event,
+        payload=signalr_payload,
+        target_role=target_role,
+        incident_id=incident_id,
+    )
+
     return {"notification_id": notification["id"], "type": notification_type}
 
 
