@@ -215,6 +215,7 @@ Track A: GitHub + Azure + Azure AI Foundry
 - **Explainability** — оператор може розгорнути "чому AI так вирішив" і побачити конкретний параметр з SOP та відхилення від golden batch
 - **Real-time updates** — статус змінюється на екрані без перезавантаження (SignalR push); видно де зараз знаходиться кожен incident у pipeline
 - **Role-based views** — оператор, менеджер, QA, аудитор — кожен бачить свій контекст, без зайвого шуму
+- **Command Palette (⌘K)** — швидка навігація між розділами без миші, як у VS Code або Linear. Це деталь, яка сигналізує: додаток зроблений для людей, що постійно ним користуються, а не для разового demo. Keyboard-first UX — ознака enterprise-grade продукту
 
 > 📌 Slide pitch: *"Every screen answers one question: what do I need to do right now, and why?"*
 
