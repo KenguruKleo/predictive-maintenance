@@ -164,6 +164,7 @@ export interface IncidentEvent {
   actor: string;
   actor_type: "system" | "agent" | "human";
   action: string;
+  category?: "status" | "transcript";
   details: string;
   round?: number | null;
   message_kind?: string;

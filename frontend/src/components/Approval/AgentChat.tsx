@@ -33,7 +33,9 @@ export default function AgentChat({
   const chatMessages: ChatMsg[] = events
     .filter(
       (e) =>
-        e.action === "operator_question" || e.action === "agent_response",
+        e.action === "operator_question" ||
+        e.action === "agent_response" ||
+        e.action === "more_info",
     )
     .map((e) => ({
       id: e.id,

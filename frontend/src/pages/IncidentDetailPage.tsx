@@ -15,7 +15,8 @@ import type { ParameterExcursion as ParamExcursion } from "../types/incident";
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: incident, isLoading, error } = useIncident(id!);
-  const { data: events = [] } = useIncidentEvents(id!);
+  const { data: events = [], error: eventsError } = useIncidentEvents(id!);
+  if (eventsError) console.warn("[EventTimeline] events fetch failed:", eventsError);
   const { hasAnyRole } = useAuth();
 
   if (isLoading) return <div className="loading">Loading incident...</div>;
@@ -106,6 +107,14 @@ export default function IncidentDetailPage() {
         </div>
 
         <div className="incident-right">
+          <ErrorBoundary inline section="Status History">
+            <EventTimeline
+              events={events}
+              title="Status History"
+              emptyMessage="No audit events have been recorded for this incident yet."
+            />
+          </ErrorBoundary>
+
           {(showApproval || showReadonlyChat) && (
             <ErrorBoundary inline section="Approval Panel">
               <ApprovalPanel incident={incident} events={events} />
@@ -127,15 +136,6 @@ export default function IncidentDetailPage() {
               </p>
             </div>
           )}
-
-          <ErrorBoundary inline section="Status History">
-            <EventTimeline
-              events={events}
-              title="Status History"
-              emptyMessage="No audit events have been recorded for this incident yet."
-              compact
-            />
-          </ErrorBoundary>
         </div>
       </div>
     </div>

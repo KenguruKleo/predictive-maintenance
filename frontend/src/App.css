@@ -1142,30 +1142,23 @@
 }
 
 /* ── Event Timeline ── */
-.timeline {
+.evt-timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  padding-left: 28px;
 }
-
-.timeline--compact {
-  padding-left: 24px;
-}
-
-.timeline::before {
+.evt-timeline::before {
   content: '';
   position: absolute;
-  left: 11px;
-  top: 6px;
-  bottom: 6px;
+  left: 7px;
+  top: 8px;
+  bottom: 8px;
   width: 1px;
   background: var(--gray-200);
 }
-
-.timeline-item {
-  position: relative;
-  padding-bottom: var(--space-4);
-}
-.timeline-item:last-child { padding-bottom: 0; }
 
 .timeline-empty {
   font-size: 13px;
@@ -1173,49 +1166,69 @@
   font-style: italic;
 }
 
-.timeline-dot {
-  position: absolute;
-  left: -20px;
-  top: 4px;
-  width: 12px;
-  height: 12px;
+.evt-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  position: relative;
+}
+.evt-item:last-child { padding-bottom: 0; }
+
+.evt-dot {
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: var(--gray-300);
   border: 2px solid var(--bg-card);
+  margin-top: 2px;
+  z-index: 1;
 }
-.timeline--system   .timeline-dot { background: var(--gray-400); }
-.timeline--agent    .timeline-dot { background: var(--blue-primary); }
-.timeline--human    .timeline-dot { background: var(--conf-high); }
-.timeline--operator .timeline-dot { background: var(--conf-high); }
+.evt-dot--system    { background: var(--gray-500); }
+.evt-dot--agent     { background: var(--blue-primary); }
+.evt-dot--approved  { background: var(--conf-high); }
+.evt-dot--rejected  { background: var(--conf-low); }
+.evt-dot--escalated { background: var(--severity-major); }
+.evt-dot--closed    { background: var(--gray-500); }
 
-.timeline-content {
+.evt-body {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.timeline-time {
-  font-size: 11px;
-  font-family: var(--font-mono);
-  color: var(--text-subtle);
+.evt-header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
-.timeline-actor {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.timeline-action {
+.evt-label {
   font-size: 13px;
   font-weight: 600;
   color: var(--text-heading);
 }
 
-.timeline-details {
-  font-size: 13px;
+.evt-time {
+  font-size: 11px;
+  font-family: var(--font-mono);
+  color: var(--text-subtle);
+  white-space: nowrap;
+}
+
+.evt-actor {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.evt-details {
+  font-size: 12px;
   color: var(--text);
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 /* ══════════════════════════════════════════════════════

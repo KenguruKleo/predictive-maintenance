@@ -122,6 +122,12 @@ def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
         logger.exception("Failed to persist incident stub to Cosmos: %s", exc)
         return _error(500, "Failed to persist incident. Please retry.")
 
+    # Write incident_registered audit event (best-effort — never block ingestion)
+    try:
+        _write_registered_event(payload, now)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not write incident_registered event for %s: %s", incident_id, exc)
+
     # ------------------------------------------------------------------
     # 8. Publish to Service Bus → Durable orchestrator (T-024) will pick up
     # ------------------------------------------------------------------
@@ -196,6 +202,65 @@ def _write_incident_stub(payload: dict) -> None:
         container.create_item(payload, enable_automatic_id_generation=False)
     except CosmosResourceExistsError:
         pass  # concurrent duplicate — idempotent
+
+
+def _write_registered_event(payload: dict, now: str) -> None:
+    """Write an incident_registered audit event so the timeline starts at ingestion time."""
+    incident_id = payload.get("incident_id") or payload.get("id", "")
+    param = payload.get("parameter", "")
+    measured = payload.get("measured_value")
+    unit = payload.get("unit", "")
+    upper = payload.get("upper_limit")
+    lower = payload.get("lower_limit")
+    detected_by = str(payload.get("detected_by") or "SCADA")
+    severity = str(payload.get("severity") or "")
+
+    if measured is not None and upper is not None and measured > upper:
+        direction = "HIGH"
+    elif measured is not None and lower is not None and measured < lower:
+        direction = "LOW"
+    else:
+        direction = None
+
+    parts: list[str] = []
+    if param:
+        param_label = " ".join(w.capitalize() for w in param.replace("_", " ").split())
+        val_str = f"{measured} {unit}".strip() if measured is not None else ""
+        if upper is not None and lower is not None:
+            limit_str = f"(limit {lower}–{upper} {unit})".strip()
+        elif upper is not None:
+            limit_str = f"(limit \u2264{upper} {unit})".strip()
+        elif lower is not None:
+            limit_str = f"(limit \u2265{lower} {unit})".strip()
+        else:
+            limit_str = ""
+        excursion = f"{param_label}: {val_str}"
+        if direction:
+            excursion += f" \u2014 {direction}"
+        if limit_str:
+            excursion += f" {limit_str}"
+        parts.append(excursion + ".")
+    parts.append(f"Detected by {detected_by}.")
+    if severity:
+        parts.append(f"Severity: {severity}.")
+
+    details = " ".join(parts)
+    event = {
+        "id": f"{incident_id}-registered-{now}",
+        "incident_id": incident_id,
+        "timestamp": now,
+        "action": "incident_registered",
+        "actor": detected_by,
+        "actor_type": "system",
+        "category": "status",
+        "details": details,
+    }
+    container = get_container("incident_events")
+    from azure.cosmos.exceptions import CosmosResourceExistsError
+    try:
+        container.create_item(event, enable_automatic_id_generation=False)
+    except CosmosResourceExistsError:
+        pass  # already written (retry scenario)
 
 
 def _get_equipment(equipment_id: str) -> dict | None:

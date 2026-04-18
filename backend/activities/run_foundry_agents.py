@@ -41,6 +41,7 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
+from shared.cosmos_client import get_container
 from shared.foundry_run import create_thread_and_process_run_with_approval
 from shared.search_utils import search_all_indexes
 
@@ -69,6 +70,10 @@ def run_foundry_agents(input_data: dict) -> dict:
     logger.info(
         "run_foundry_agents: incident=%s round=%d", incident_id, more_info_round
     )
+
+    # Write analysis_started event on the first (non-more_info) run
+    if more_info_round == 0:
+        _write_analysis_started_event(incident_id)
 
     orchestrator_agent_id = os.environ.get("ORCHESTRATOR_AGENT_ID", "") or "asst_CNYK3TZIaOCH4OPKcP4N9B2r"
     if not orchestrator_agent_id:
@@ -611,3 +616,28 @@ def _infer_known_document(item: dict) -> dict | None:
             "document_title": "BPR Metformin 500mg Process Specification",
         }
     return None
+
+
+def _write_analysis_started_event(incident_id: str) -> None:
+    """Write an analysis_started audit event when the AI agent begins processing."""
+    from azure.cosmos.exceptions import CosmosResourceExistsError
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    event = {
+        "id": f"{incident_id}-analysis-started-{int(datetime.now(timezone.utc).timestamp())}",
+        "incident_id": incident_id,
+        "incidentId": incident_id,
+        "timestamp": now,
+        "action": "analysis_started",
+        "actor": "AI Orchestrator",
+        "actor_type": "agent",
+        "category": "status",
+        "details": "AI agent started analyzing the incident — researching SOPs, equipment history and GMP guidelines.",
+    }
+    try:
+        container = get_container("incident_events")
+        container.create_item(event, enable_automatic_id_generation=False)
+    except CosmosResourceExistsError:
+        pass  # idempotent on orchestrator replay
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not write analysis_started event for %s: %s", incident_id, exc)

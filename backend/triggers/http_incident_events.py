@@ -80,6 +80,7 @@ def _normalize_event(item: dict, incident_id: str) -> dict:
         "actor": actor,
         "actor_type": actor_type,
         "action": action,
+        "category": item.get("category") or _event_category(action),
         "details": details,
         "round": item.get("round"),
         "message_kind": item.get("message_kind") or item.get("messageKind"),
@@ -88,12 +89,16 @@ def _normalize_event(item: dict, incident_id: str) -> dict:
     }
 
 
+def _event_category(action: str) -> str:
+    """Separate conversation transcript events from status-change events."""
+    if action in {"agent_response", "operator_question"}:
+        return "transcript"
+    return "status"
+
+
 def _normalize_action(item: dict) -> str:
     raw_action = str(item.get("action") or "").strip()
     event_type = str(item.get("eventType") or item.get("type") or "").strip()
-
-    if raw_action == "more_info" and item.get("question"):
-        return "operator_question"
 
     if raw_action:
         return raw_action
@@ -157,6 +162,10 @@ def _normalize_details(item: dict, action: str) -> str:
 
     if action == "operator_question":
         return str(item.get("question") or "Operator requested additional analysis.")
+
+    if action == "more_info":
+        question = item.get("question") or ""
+        return question or "Operator requested more information."
 
     if action == "approved":
         reason = item.get("reason")
