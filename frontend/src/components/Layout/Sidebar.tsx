@@ -1,7 +1,52 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useIncidents } from "../../hooks/useIncidents";
 import ActiveIncidentItem from "./ActiveIncidentItem";
+
+const MIN_WIDTH = 180;
+const MAX_WIDTH = 420;
+const DEFAULT_WIDTH = 240;
+
+function useSidebarResize() {
+  const [width, setWidth] = useState<number>(() => {
+    const saved = localStorage.getItem("sidebar-width");
+    return saved ? parseInt(saved, 10) : DEFAULT_WIDTH;
+  });
+  const [dragging, setDragging] = useState(false);
+  const startX = useRef(0);
+  const startW = useRef(0);
+
+  useEffect(() => {
+    document.documentElement.style.setProperty("--sidebar-width", `${width}px`);
+    localStorage.setItem("sidebar-width", String(width));
+  }, [width]);
+
+  const onMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    startX.current = e.clientX;
+    startW.current = width;
+    setDragging(true);
+  }, [width]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onMove = (e: MouseEvent) => {
+      const delta = e.clientX - startX.current;
+      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startW.current + delta));
+      setWidth(next);
+    };
+    const onUp = () => setDragging(false);
+    document.addEventListener("mousemove", onMove);
+    document.addEventListener("mouseup", onUp);
+    return () => {
+      document.removeEventListener("mousemove", onMove);
+      document.removeEventListener("mouseup", onUp);
+    };
+  }, [dragging]);
+
+  return { dragging, onMouseDown };
+}
 
 const NAV_GROUPS = [
   {
@@ -42,6 +87,7 @@ const NAV_GROUPS = [
 
 export default function Sidebar() {
   const { roles } = useAuth();
+  const { dragging, onMouseDown } = useSidebarResize();
 
   const { data: activeData } = useIncidents({
     status: [
@@ -63,6 +109,11 @@ export default function Sidebar() {
 
   return (
     <aside className="sidebar">
+      <div
+        className={`sidebar-resize-handle${dragging ? " dragging" : ""}`}
+        onMouseDown={onMouseDown}
+        title="Drag to resize"
+      />
       <nav className="sidebar-nav">
         {NAV_GROUPS.map((group) => {
           const visibleItems = group.items.filter((item) => hasRole(item.roles));
