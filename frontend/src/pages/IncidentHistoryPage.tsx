@@ -1,9 +1,12 @@
-import { useState } from "react";
-import { useIncidents } from "../hooks/useIncidents";
+import { useEffect, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
+import { getIncidents } from "../api/incidents";
 import Filters from "../components/IncidentList/Filters";
 import Breadcrumb from "../components/Layout/Breadcrumb";
 import IncidentTable from "../components/IncidentList/IncidentTable";
 import type { IncidentStatus, Severity } from "../types/incident";
+
+const PAGE_SIZE = 20;
 
 export default function IncidentHistoryPage() {
   const [search, setSearch] = useState("");
@@ -11,23 +14,54 @@ export default function IncidentHistoryPage() {
   const [severity, setSeverity] = useState<Severity | "">("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [page, setPage] = useState(1);
 
-  const { data, isLoading } = useIncidents({
+  const filters = {
     search: search || undefined,
     status: status || undefined,
     severity: severity || undefined,
     date_from: dateFrom || undefined,
     date_to: dateTo ? dateTo + "T23:59:59Z" : undefined,
-    page,
-    page_size: 20,
+    page_size: PAGE_SIZE,
+    sort_by: "created_at",
+    sort_order: "desc" as const,
+  };
+
+  const {
+    data,
+    isLoading,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["incident-history", filters],
+    queryFn: ({ pageParam = 1 }) =>
+      getIncidents({ ...filters, page: pageParam as number }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const fetched = (lastPage.page - 1) * lastPage.page_size + lastPage.items.length;
+      return fetched < lastPage.total ? lastPage.page + 1 : undefined;
+    },
   });
 
-  const incidents = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / 20);
+  const incidents = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
 
-  const resetPage = () => setPage(1);
+  // Infinite scroll sentinel
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   return (
     <div className="page-history">
@@ -36,15 +70,15 @@ export default function IncidentHistoryPage() {
 
       <Filters
         search={search}
-        onSearchChange={(v) => { setSearch(v); resetPage(); }}
+        onSearchChange={setSearch}
         status={status}
-        onStatusChange={(v) => { setStatus(v); resetPage(); }}
+        onStatusChange={setStatus}
         severity={severity}
-        onSeverityChange={(v) => { setSeverity(v); resetPage(); }}
+        onSeverityChange={setSeverity}
         dateFrom={dateFrom}
-        onDateFromChange={(v) => { setDateFrom(v); resetPage(); }}
+        onDateFromChange={setDateFrom}
         dateTo={dateTo}
-        onDateToChange={(v) => { setDateTo(v); resetPage(); }}
+        onDateToChange={setDateTo}
       />
 
       <div className="history-meta">
@@ -54,30 +88,18 @@ export default function IncidentHistoryPage() {
       {isLoading ? (
         <div className="loading">Loading...</div>
       ) : (
-        <IncidentTable incidents={incidents} />
-      )}
-
-      {totalPages > 1 && (
-        <div className="pagination">
-          <button
-            className="btn btn--secondary"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => p - 1)}
-          >
-            ← Prev
-          </button>
-          <span className="pagination-info">
-            Page {page} of {totalPages}
-          </span>
-          <button
-            className="btn btn--secondary"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => p + 1)}
-          >
-            Next →
-          </button>
-        </div>
+        <>
+          <IncidentTable incidents={incidents} />
+          <div ref={sentinelRef} style={{ height: 1 }} />
+          {isFetchingNextPage && (
+            <div className="pagination-loading">Loading more…</div>
+          )}
+          {!hasNextPage && incidents.length > 0 && (
+            <div className="pagination-end">All {total} incidents loaded</div>
+          )}
+        </>
       )}
     </div>
   );
 }
+

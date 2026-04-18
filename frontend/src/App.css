@@ -1267,20 +1267,19 @@
   font-style: italic;
 }
 
-/* Pagination */
-.pagination {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-4);
-  margin-top: var(--space-5);
+/* Pagination (legacy) → replaced by infinite scroll */
+.pagination-loading {
+  text-align: center;
+  padding: var(--space-4);
   font-size: 13px;
   color: var(--text-muted);
 }
 
-.pagination-info {
-  font-size: 13px;
-  color: var(--text-muted);
+.pagination-end {
+  text-align: center;
+  padding: var(--space-4) 0 var(--space-6);
+  font-size: 12px;
+  color: var(--gray-400);
 }
 
 /* ══════════════════════════════════════════════════════
