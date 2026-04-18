@@ -298,11 +298,26 @@
   border-left-color: var(--blue-focus);
 }
 
+.sidebar-incident-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+}
+
 .sidebar-incident-number {
   font-weight: 700;
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--chrome-text-strong);
+  flex-shrink: 0;
+}
+
+.sidebar-incident-date {
+  font-size: 10px;
+  color: var(--chrome-text);
+  opacity: 0.7;
+  white-space: nowrap;
 }
 
 .sidebar-incident-meta {
