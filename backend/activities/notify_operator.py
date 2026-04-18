@@ -1,17 +1,18 @@
 """
-Activity: notify_operator — write SignalR notification record to Cosmos DB (T-024)
+Activity: notify_operator — create operator approval task and notification (T-024)
 
-SignalR push (T-030) will pick up the `notifications` container.
-Also updates the incident record with the latest AI result summary.
+Creates the pending human-in-the-loop task, updates the incident state, and
+pushes a SignalR notification to the React UI.
 """
 
 import logging
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
+from shared.incident_store import patch_incident_by_id
 from shared.signalr_client import notify_signalr_sync
 
 logger = logging.getLogger(__name__)
@@ -31,9 +32,31 @@ def notify_operator(input_data: dict) -> dict:
     is_escalation: bool = input_data.get("escalation", False)
     target_role: str = input_data.get("role", "operator")
     equipment_id: str = input_data.get("equipment_id", "")
+    assigned_to: str = input_data.get("assigned_to", "ivan.petrenko")
     now_iso = datetime.now(timezone.utc).isoformat()
+    due_at_iso = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
 
     notification_type = "escalation" if is_escalation else "approval_required"
+    incident_status = "escalated" if is_escalation else "pending_approval"
+    current_step = "awaiting_qa_manager_decision" if is_escalation else "awaiting_operator_decision"
+
+    approval_task = {
+        "id": f"approval-{incident_id}",
+        "incidentId": incident_id,
+        "durableInstanceId": f"durable-{incident_id}",
+        "type": notification_type,
+        "status": "pending",
+        "targetRole": target_role,
+        "assignedTo": assigned_to if target_role == "operator" else target_role,
+        "aiAnalysis": ai_result,
+        "confidence": ai_result.get("confidence", 0.0),
+        "riskLevel": ai_result.get("risk_level", "unknown"),
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
+        "dueAt": due_at_iso,
+    }
+    if is_escalation:
+        approval_task["escalatedAt"] = now_iso
 
     notification = {
         "id": f"notif-{incident_id}-{int(datetime.now(timezone.utc).timestamp())}",
@@ -48,6 +71,37 @@ def notify_operator(input_data: dict) -> dict:
         "createdAt": now_iso,
     }
 
+    # Create/update the active HITL task for the React approval UX.
+    approval_tasks = db.get_container_client("approval-tasks")
+    try:
+        approval_tasks.upsert_item(approval_task)
+    except Exception as e:
+        logger.error("Failed to upsert approval task for incident %s: %s", incident_id, e, exc_info=True)
+        raise
+
+    # Move incident from open/queued into the human decision state.
+    try:
+        patch_incident_by_id(
+            db,
+            incident_id,
+            [
+                {"op": "set", "path": "/status", "value": incident_status},
+                {"op": "set", "path": "/ai_analysis", "value": ai_result},
+                {"op": "set", "path": "/workflow_state", "value": {
+                    "durable_instance_id": f"durable-{incident_id}",
+                    "current_step": current_step,
+                    "assigned_to": assigned_to,
+                    "target_role": target_role,
+                    "approval_task_id": approval_task["id"],
+                    "escalation_deadline": due_at_iso,
+                }},
+                {"op": "set", "path": "/updatedAt", "value": now_iso},
+                {"op": "set", "path": "/updated_at", "value": now_iso},
+            ],
+        )
+    except Exception as e:
+        logger.error("Failed to update incident %s to %s: %s", incident_id, incident_status, e, exc_info=True)
+        raise
 
     # Write to notifications container (T-030 SignalR trigger reads this)
     notif_container = db.get_container_client("notifications")
@@ -66,6 +120,8 @@ def notify_operator(input_data: dict) -> dict:
                 "incidentId": incident_id,
                 "eventType": notification_type,
                 "targetRole": target_role,
+                "approvalTaskId": approval_task["id"],
+                "incidentStatus": incident_status,
                 "timestamp": now_iso,
             }
         )
@@ -97,7 +153,12 @@ def notify_operator(input_data: dict) -> dict:
         incident_id=incident_id,
     )
 
-    return {"notification_id": notification["id"], "type": notification_type}
+    return {
+        "notification_id": notification["id"],
+        "approval_task_id": approval_task["id"],
+        "type": notification_type,
+        "incident_status": incident_status,
+    }
 
 
 def _build_message(incident_id: str, ai_result: dict, is_escalation: bool) -> str:

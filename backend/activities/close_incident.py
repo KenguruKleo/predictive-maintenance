@@ -12,6 +12,7 @@ from datetime import datetime, timezone
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
+from shared.incident_store import patch_incident_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +29,9 @@ def close_incident(input_data: dict) -> dict:
 
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)
-    incidents = db.get_container_client("incidents")
-
-    incidents.patch_item(
-        item=incident_id,
-        partition_key=incident_id,
+    patch_incident_by_id(
+        db,
+        incident_id,
         patch_operations=[
             {"op": "set", "path": "/status", "value": "rejected"},
             {"op": "set", "path": "/closedAt", "value": now_iso},
