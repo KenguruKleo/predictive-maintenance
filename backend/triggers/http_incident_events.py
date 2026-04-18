@@ -47,23 +47,12 @@ def get_incident_events(req: func.HttpRequest) -> func.HttpResponse:
             parameters=[{"name": "@incident_id", "value": incident_id}],
             enable_cross_partition_query=True,
         ))
-
-        # If no events found, check incident exists at all
-        if not items:
-            inc_container = get_container("incidents")
-            exists = list(inc_container.query_items(
-                query="SELECT VALUE COUNT(1) FROM c WHERE c.id = @id",
-                parameters=[{"name": "@id", "value": incident_id}],
-                enable_cross_partition_query=True,
-            ))
-            if not exists or exists[0] == 0:
-                return _error(404, f"Incident '{incident_id}' not found")
-
-        return _json({"incident_id": incident_id, "events": items, "total": len(items)})
-
     except Exception as exc:  # noqa: BLE001
-        logger.exception("get_incident_events %s failed: %s", incident_id, exc)
-        return _error(500, "Internal server error")
+        # audit_events container may not exist yet — return empty timeline
+        logger.warning("audit_events query failed for %s (container may not exist yet): %s", incident_id, exc)
+        items = []
+
+    return _json({"incident_id": incident_id, "events": items, "total": len(items)})
 
 
 def _json(data) -> func.HttpResponse:

@@ -10,6 +10,7 @@ import IncidentHistoryPage from "./pages/IncidentHistoryPage";
 import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import TemplateManagementPage from "./pages/TemplateManagementPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.css";
 
 export default function App() {
@@ -31,17 +32,39 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <Routes>
-        <Route element={<AppShell />}>
-          <Route index element={<OperationsDashboard />} />
-          <Route path="incidents/:id" element={<IncidentDetailPage />} />
-          <Route path="history" element={<IncidentHistoryPage />} />
-          <Route path="manager" element={<ManagerDashboardPage />} />
-          <Route path="templates" element={<TemplateManagementPage />} />
-          <Route path="login" element={<Navigate to="/" replace />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Route>
-      </Routes>
+      <ErrorBoundary section="Application">
+        <Routes>
+          <Route element={<AppShell />}>
+            <Route index element={
+              <ErrorBoundary section="Operations Dashboard">
+                <OperationsDashboard />
+              </ErrorBoundary>
+            } />
+            <Route path="incidents/:id" element={
+              <ErrorBoundary section="Incident Detail">
+                <IncidentDetailPage />
+              </ErrorBoundary>
+            } />
+            <Route path="history" element={
+              <ErrorBoundary section="Incident History">
+                <IncidentHistoryPage />
+              </ErrorBoundary>
+            } />
+            <Route path="manager" element={
+              <ErrorBoundary section="Manager Dashboard">
+                <ManagerDashboardPage />
+              </ErrorBoundary>
+            } />
+            <Route path="templates" element={
+              <ErrorBoundary section="Template Management">
+                <TemplateManagementPage />
+              </ErrorBoundary>
+            } />
+            <Route path="login" element={<Navigate to="/" replace />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Route>
+        </Routes>
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }

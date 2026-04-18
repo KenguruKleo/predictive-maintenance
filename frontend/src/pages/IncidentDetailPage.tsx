@@ -10,6 +10,7 @@ import BatchDisposition from "../components/Incident/BatchDisposition";
 import EventTimeline from "../components/Incident/EventTimeline";
 import ApprovalPanel from "../components/Approval/ApprovalPanel";
 import StatusBadge from "../components/IncidentList/StatusBadge";
+import ErrorBoundary from "../components/ErrorBoundary";
 
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,38 +52,54 @@ export default function IncidentDetailPage() {
 
       <div className="incident-columns">
         <div className="incident-left">
-          <IncidentInfo incident={incident} />
+          <ErrorBoundary inline section="Incident Info">
+            <IncidentInfo incident={incident} />
+          </ErrorBoundary>
 
           {incident.parameter_excursion && (
-            <ParameterExcursion excursion={incident.parameter_excursion} />
+            <ErrorBoundary inline section="Parameter Excursion">
+              <ParameterExcursion excursion={incident.parameter_excursion} />
+            </ErrorBoundary>
           )}
 
           {incident.ai_analysis && (
-            <AiAnalysis analysis={incident.ai_analysis} />
+            <ErrorBoundary inline section="AI Analysis">
+              <AiAnalysis analysis={incident.ai_analysis} />
+            </ErrorBoundary>
           )}
 
           {incident.ai_analysis?.evidence_citations && (
-            <EvidenceCitations
-              citations={incident.ai_analysis.evidence_citations}
-            />
+            <ErrorBoundary inline section="Evidence Citations">
+              <EvidenceCitations
+                citations={incident.ai_analysis.evidence_citations}
+              />
+            </ErrorBoundary>
           )}
 
           {incident.document_drafts && incident.document_drafts.length > 0 && (
-            <DocumentPreviews drafts={incident.document_drafts} />
+            <ErrorBoundary inline section="Document Previews">
+              <DocumentPreviews drafts={incident.document_drafts} />
+            </ErrorBoundary>
           )}
 
-          <BatchDisposition
-            batchId={incident.batch_id}
-            product={incident.product}
-            analysis={incident.ai_analysis}
-          />
+          <ErrorBoundary inline section="Batch Disposition">
+            <BatchDisposition
+              batchId={incident.batch_id}
+              product={incident.product}
+              analysis={incident.ai_analysis}
+            />
+          </ErrorBoundary>
 
-          <EventTimeline events={events} />
+          <ErrorBoundary inline section="Event Timeline">
+            <EventTimeline events={events} />
+          </ErrorBoundary>
         </div>
 
         <div className="incident-right">
           {(showApproval || showReadonlyChat) && (
-            <ApprovalPanel incident={incident} events={events} />
+            <ErrorBoundary inline section="Approval Panel">
+              <ApprovalPanel incident={incident} events={events} />
+            </ErrorBoundary>
           )}
 
           {!showApproval && !showReadonlyChat && (

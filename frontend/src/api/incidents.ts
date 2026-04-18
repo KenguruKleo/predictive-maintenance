@@ -38,10 +38,14 @@ export async function getIncident(id: string): Promise<Incident> {
 export async function getIncidentEvents(
   id: string,
 ): Promise<IncidentEvent[]> {
-  const { data } = await client.get<IncidentEvent[]>(
+  const { data } = await client.get<{ events: IncidentEvent[] } | IncidentEvent[]>(
     `/incidents/${encodeURIComponent(id)}/events`,
   );
-  return data;
+  // Backend wraps events in { incident_id, events, total }
+  if (data && !Array.isArray(data) && Array.isArray((data as { events: IncidentEvent[] }).events)) {
+    return (data as { events: IncidentEvent[] }).events;
+  }
+  return Array.isArray(data) ? data : [];
 }
 
 export async function submitDecision(
