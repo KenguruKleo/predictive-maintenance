@@ -17,9 +17,13 @@ const STATUSES: IncidentStatus[] = [
   "open",
   "ingested",
   "analyzing",
+  "awaiting_agents",
   "pending_approval",
   "escalated",
   "approved",
+  "in_progress",
+  "executed",
+  "completed",
   "rejected",
   "closed",
 ];

@@ -4,6 +4,12 @@ import { useSubmitDecision } from "../../hooks/useIncidents";
 import ConfidenceBanner from "./ConfidenceBanner";
 import RejectModal from "./RejectModal";
 import AgentChat from "./AgentChat";
+import {
+  getConfidencePct,
+  getRecommendation,
+  getRootCause,
+  labelize,
+} from "../../utils/analysis";
 
 interface Props {
   incident: Incident;
@@ -18,11 +24,11 @@ export default function ApprovalPanel({ incident, events }: Props) {
     incident.status === "escalated";
 
   const handleApprove = () => {
-    decision.mutate({ action: "approve" });
+    decision.mutate({ action: "approved" });
   };
 
   const handleReject = (reason: string) => {
-    decision.mutate({ action: "reject", reason });
+    decision.mutate({ action: "rejected", reason });
     setShowRejectModal(false);
   };
 
@@ -44,19 +50,24 @@ export default function ApprovalPanel({ incident, events }: Props) {
               <div className="approval-recommendation">
                 <p>
                   <strong>AI Recommendation:</strong>{" "}
-                  {incident.ai_analysis.root_cause_hypothesis}
+                  {getRecommendation(incident.ai_analysis)}
                 </p>
+                {getRootCause(incident.ai_analysis) && (
+                  <p>
+                    <strong>Root Cause:</strong>{" "}
+                    {getRootCause(incident.ai_analysis)}
+                  </p>
+                )}
                 <p>
-                  Risk: {incident.ai_analysis.risk_level.replace("_", " ")} ·
-                  Confidence:{" "}
-                  {Math.round(incident.ai_analysis.confidence * 100)}%
+                  Risk: {labelize(incident.ai_analysis.risk_level)} ·
+                  Confidence: {getConfidencePct(incident.ai_analysis)}%
                 </p>
               </div>
             )}
 
             {incident.ai_analysis?.batch_disposition && (
               <div className="approval-batch-note">
-                📦 {incident.batch_id} → {incident.ai_analysis.batch_disposition.replace(/_/g, " ")}
+                Batch {incident.batch_id} to {labelize(incident.ai_analysis.batch_disposition)}
               </div>
             )}
           </div>

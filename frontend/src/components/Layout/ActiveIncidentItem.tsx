@@ -10,6 +10,9 @@ const STATUS_CONFIG: Record<
   analyzing: {
     text: "AI analyzing...",
   },
+  awaiting_agents: {
+    text: "Awaiting agent response",
+  },
   pending_approval: {
     text: "Awaiting decision",
   },
@@ -18,6 +21,15 @@ const STATUS_CONFIG: Record<
   },
   approved: {
     text: "Approved, executing...",
+  },
+  in_progress: {
+    text: "Execution in progress",
+  },
+  executed: {
+    text: "Executed",
+  },
+  completed: {
+    text: "Completed",
   },
   rejected: { text: "Rejected" },
   closed: { text: "Closed" },

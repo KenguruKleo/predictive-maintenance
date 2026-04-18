@@ -1,4 +1,5 @@
 import type { AiAnalysis } from "../../types/incident";
+import { labelize } from "../../utils/analysis";
 
 const DISPOSITION_CONFIG: Record<
   string,
@@ -7,6 +8,7 @@ const DISPOSITION_CONFIG: Record<
   in_production: { icon: "🟢", color: "var(--color-approved)", label: "In Production" },
   hold: { icon: "🔴", color: "var(--color-rejected)", label: "Hold" },
   conditional_release: { icon: "🟡", color: "var(--color-escalated)", label: "Conditional Release" },
+  conditional_release_pending_testing: { icon: "🟡", color: "var(--color-escalated)", label: "Conditional Release Pending Testing" },
   released: { icon: "🟢", color: "var(--color-approved)", label: "Released" },
   rejected: { icon: "⚫", color: "var(--color-closed)", label: "Rejected" },
   pending: { icon: "🟡", color: "var(--color-pending)", label: "Pending" },
@@ -25,7 +27,7 @@ export default function BatchDisposition({ batchId, product, analysis }: Props) 
 
   const recommended =
     DISPOSITION_CONFIG[analysis.batch_disposition] ??
-    { icon: "⚪", color: "var(--color-closed)", label: analysis.batch_disposition };
+    { icon: "⚪", color: "var(--color-closed)", label: labelize(analysis.batch_disposition) };
 
   return (
     <section className="incident-section">

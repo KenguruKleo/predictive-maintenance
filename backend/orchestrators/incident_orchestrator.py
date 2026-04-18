@@ -17,6 +17,7 @@ Workflow (second half — T-024 §2):
 ADR-002: single run_foundry_agents activity; Connected Agents pattern in Foundry.
 """
 
+import json
 import logging
 import os
 from datetime import timedelta
@@ -30,30 +31,62 @@ MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
 bp = df.Blueprint()
 
 
+def _coerce_dict(value: object, fallback: dict | None = None) -> dict:
+    """Normalize Durable payloads across SDK serialization shapes."""
+    if isinstance(value, dict):
+        return value
+
+    if isinstance(value, str):
+        raw: object = value
+        for _ in range(2):
+            try:
+                raw = json.loads(raw) if isinstance(raw, str) else raw
+            except json.JSONDecodeError:
+                break
+            if isinstance(raw, dict):
+                return raw
+
+    return fallback or {}
+
+
+def _coerce_decision(value: object) -> dict:
+    """Normalize Durable external event payloads across SDK serialization shapes."""
+    decision = _coerce_dict(value)
+    if not decision and isinstance(value, str):
+        decision = {"action": "rejected", "reason": "Invalid operator decision payload"}
+    elif not decision:
+        decision = {"action": "rejected", "reason": "Missing operator decision payload"}
+
+    action_aliases = {"approve": "approved", "reject": "rejected"}
+    action = str(decision.get("action", "rejected"))
+    decision["action"] = action_aliases.get(action, action)
+    return decision
+
+
 @bp.orchestration_trigger(context_name="context")
 def incident_orchestrator(context: df.DurableOrchestrationContext):
     """Main stateful workflow triggered by a Service Bus message."""
 
-    input_data: dict = context.get_input()
+    input_data: dict = _coerce_dict(context.get_input())
     incident_id: str = input_data["incident_id"]
 
     if not context.is_replaying:
         logger.info("Orchestrator started for incident %s", incident_id)
 
     # ── Step 1: Enrich context (equipment + batch from Cosmos) ─────────────
-    context_data: dict = yield context.call_activity(
+    context_data: dict = _coerce_dict((yield context.call_activity(
         "enrich_context",
         {"incident_id": incident_id, "equipment_id": input_data.get("equipment_id")},
-    )
+    )))
     context_data["operator_questions"] = []
     # Carry alert payload into context so run_foundry_agents can use it
     context_data["alert_payload"] = input_data
 
     # ── Step 2: Run Foundry agents (Research + Document via Connected Agents) ─
-    ai_result: dict = yield context.call_activity(
+    ai_result: dict = _coerce_dict((yield context.call_activity(
         "run_foundry_agents",
         {"incident_id": incident_id, "context": context_data},
-    )
+    )))
 
     # ── Step 3: Notify operator via SignalR ────────────────────────────────
     yield context.call_activity(
@@ -89,12 +122,12 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                     "role": "qa-manager",
                 },
             )
-            decision = yield context.wait_for_external_event("operator_decision")
+            decision = _coerce_decision((yield context.wait_for_external_event("operator_decision")))
         else:
             timeout_task.cancel()
-            decision = decision_task.result
+            decision = _coerce_decision(decision_task.result)
 
-        action: str = decision.get("action", "rejected") if decision else "rejected"
+        action: str = decision.get("action", "rejected")
 
         if action == "more_info" and more_info_rounds < MAX_MORE_INFO_ROUNDS:
             more_info_rounds += 1
@@ -106,14 +139,14 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 }
             )
             # Re-run Foundry agents with enriched context (new round)
-            ai_result = yield context.call_activity(
+            ai_result = _coerce_dict((yield context.call_activity(
                 "run_foundry_agents",
                 {
                     "incident_id": incident_id,
                     "context": context_data,
                     "more_info_round": more_info_rounds,
                 },
-            )
+            )))
             yield context.call_activity(
                 "notify_operator",
                 {"incident_id": incident_id, "ai_result": ai_result},
@@ -124,8 +157,9 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
         break
 
     # ── Step 5: Execute or close ───────────────────────────────────────────
+    exec_result: dict = {}
     if action == "approved":
-        yield context.call_activity(
+        exec_result = _coerce_dict((yield context.call_activity(
             "run_execution_agent",
             {
                 "incident_id": incident_id,
@@ -133,15 +167,15 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 "approver_id": decision.get("user_id"),
                 "approval_notes": decision.get("reason"),
             },
-        )
+        )))
     else:
-        yield context.call_activity(
+        exec_result = _coerce_dict((yield context.call_activity(
             "close_incident",
             {
                 "incident_id": incident_id,
-                "rejection_reason": decision.get("reason") if decision else "auto-rejected",
+                "rejection_reason": decision.get("reason", "auto-rejected"),
             },
-        )
+        )))
 
     # ── Step 6: Finalize audit record ──────────────────────────────────────
     yield context.call_activity(
@@ -151,5 +185,6 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
             "decision": decision,
             "more_info_rounds": more_info_rounds,
             "ai_result": ai_result,
+            "exec_result": exec_result,
         },
     )

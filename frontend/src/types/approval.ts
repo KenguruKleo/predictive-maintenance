@@ -1,7 +1,9 @@
-export type DecisionAction = "approve" | "reject" | "more_info";
+export type DecisionAction = "approved" | "rejected" | "more_info";
 
 export interface DecisionPayload {
   action: DecisionAction;
+  user_id?: string;
+  role?: "operator" | "qa-manager" | string;
   reason?: string;
   question?: string;
 }

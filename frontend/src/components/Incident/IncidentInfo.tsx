@@ -27,7 +27,7 @@ export default function IncidentInfo({ incident }: Props) {
           })()}
         </dd>
         <dt>Assigned</dt>
-        <dd>{incident.assigned_to ?? "Unassigned"}</dd>
+        <dd>{incident.assigned_to ?? incident.workflow_state?.assigned_to ?? "Unassigned"}</dd>
       </dl>
     </section>
   );

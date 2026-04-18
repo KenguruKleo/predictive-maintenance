@@ -6,11 +6,25 @@ export type IncidentStatus =
   | "analyzing"
   | "pending_approval"
   | "escalated"
+  | "awaiting_agents"
   | "approved"
+  | "in_progress"
+  | "executed"
+  | "completed"
   | "rejected"
   | "closed";
 
-export type RiskLevel = "HIGH" | "MEDIUM" | "LOW" | "LOW_CONFIDENCE";
+export type RiskLevel =
+  | "CRITICAL"
+  | "HIGH"
+  | "MEDIUM"
+  | "LOW"
+  | "LOW_CONFIDENCE"
+  | "critical"
+  | "high"
+  | "medium"
+  | "low"
+  | (string & {});
 
 export type BatchDispositionStatus =
   | "in_production"
@@ -27,18 +41,31 @@ export interface ParameterExcursion {
   parameter: string;
   measured_value: number;
   unit: string;
-  nor_min: number;
-  nor_max: number;
-  par_min: number;
-  par_max: number;
+  nor_min?: number;
+  nor_max?: number;
+  par_min?: number;
+  par_max?: number;
+  lower_limit?: number;
+  upper_limit?: number;
   duration_seconds: number;
 }
 
 export interface EvidenceCitation {
-  type: "sop" | "historical" | "gmp" | "bpr";
-  reference: string;
+  type?: "sop" | "historical" | "gmp" | "bpr" | "manual" | "incident" | (string & {});
+  source?: string;
+  reference?: string;
+  document_id?: string;
+  document_title?: string;
   section?: string;
-  relevance: string;
+  relevant_section?: string;
+  relevance?: string;
+  text_excerpt?: string;
+  source_blob?: string;
+  container?: string;
+  index_name?: string;
+  chunk_index?: number;
+  score?: number;
+  url?: string;
 }
 
 export interface CapaStep {
@@ -50,12 +77,28 @@ export interface CapaStep {
 export interface AiAnalysis {
   risk_level: RiskLevel;
   confidence: number;
-  deviation_classification: string;
-  root_cause_hypothesis: string;
-  capa_steps: CapaStep[];
+  deviation_classification?: string;
+  classification?: string;
+  root_cause_hypothesis?: string;
+  root_cause?: string;
+  analysis?: string;
+  recommendation?: string;
+  capa_suggestion?: string;
+  recommendations?: {
+    action: string;
+    priority?: string;
+    owner?: string;
+    deadline_days?: number;
+  }[];
+  capa_steps?: CapaStep[];
   evidence_citations: EvidenceCitation[];
+  regulatory_reference?: string;
+  regulatory_refs?: EvidenceCitation[] | string[];
+  sop_refs?: EvidenceCitation[] | string[];
   batch_disposition?: BatchDispositionStatus;
   disposition_conditions?: string[];
+  work_order_draft?: Record<string, unknown>;
+  audit_entry_draft?: Record<string, unknown>;
 }
 
 export interface DocumentDraft {
@@ -66,8 +109,12 @@ export interface DocumentDraft {
 
 export interface WorkflowState {
   current_step: string;
-  steps_completed: number;
-  total_steps: number;
+  steps_completed?: number;
+  total_steps?: number;
+  assigned_to?: string;
+  target_role?: string;
+  approval_task_id?: string;
+  escalation_deadline?: string;
 }
 
 export interface Incident {
@@ -84,6 +131,12 @@ export interface Incident {
   reported_at?: string;
   created_at?: string;
   updated_at?: string;
+  parameter?: string;
+  measured_value?: number;
+  lower_limit?: number;
+  upper_limit?: number;
+  unit?: string;
+  duration_seconds?: number;
   parameter_excursion?: ParameterExcursion;
   ai_analysis?: AiAnalysis;
   document_drafts?: DocumentDraft[];
@@ -126,7 +179,9 @@ export const ACTIVE_INCIDENT_STATUSES = [
   "open",
   "ingested",
   "analyzing",
+  "awaiting_agents",
   "pending_approval",
   "escalated",
   "approved",
+  "in_progress",
 ] as const satisfies IncidentStatus[];

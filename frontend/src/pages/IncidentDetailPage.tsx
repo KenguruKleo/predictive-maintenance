@@ -3,9 +3,7 @@ import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
 import IncidentInfo from "../components/Incident/IncidentInfo";
 import ParameterExcursion from "../components/Incident/ParameterExcursion";
-import AiAnalysis from "../components/Incident/AiAnalysis";
-import EvidenceCitations from "../components/Incident/EvidenceCitations";
-import DocumentPreviews from "../components/Incident/DocumentPreviews";
+import DecisionPackage from "../components/Incident/DecisionPackage";
 import BatchDisposition from "../components/Incident/BatchDisposition";
 import EventTimeline from "../components/Incident/EventTimeline";
 import ApprovalPanel from "../components/Approval/ApprovalPanel";
@@ -41,11 +39,11 @@ export default function IncidentDetailPage() {
         <Breadcrumb
           items={[
             { label: "Operations Dashboard", to: "/" },
-            { label: incident.incident_number ?? "Incident" },
+            { label: incident.incident_number ?? incident.id },
           ]}
         />
         <h1 className="incident-title">
-          {incident.incident_number}
+          {incident.incident_number ?? incident.id}
           {incident.title ? ` · ${incident.title}` : ""}
         </h1>
         <div className="incident-header-meta">
@@ -66,25 +64,9 @@ export default function IncidentDetailPage() {
             </ErrorBoundary>
           )}
 
-          {incident.ai_analysis && (
-            <ErrorBoundary inline section="AI Analysis">
-              <AiAnalysis analysis={incident.ai_analysis} />
-            </ErrorBoundary>
-          )}
-
-          {incident.ai_analysis?.evidence_citations && (
-            <ErrorBoundary inline section="Evidence Citations">
-              <EvidenceCitations
-                citations={incident.ai_analysis.evidence_citations}
-              />
-            </ErrorBoundary>
-          )}
-
-          {incident.document_drafts && incident.document_drafts.length > 0 && (
-            <ErrorBoundary inline section="Document Previews">
-              <DocumentPreviews drafts={incident.document_drafts} />
-            </ErrorBoundary>
-          )}
+          <ErrorBoundary inline section="Decision Package">
+            <DecisionPackage incident={incident} />
+          </ErrorBoundary>
 
           <ErrorBoundary inline section="Batch Disposition">
             <BatchDisposition

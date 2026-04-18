@@ -1,6 +1,15 @@
 import type { AiAnalysis as AnalysisData } from "../../types/incident";
+import {
+  getCapaActions,
+  getClassification,
+  getConfidencePct,
+  getRecommendation,
+  getRootCause,
+  labelize,
+} from "../../utils/analysis";
 
 const RISK_CONFIG: Record<string, { icon: string; className: string }> = {
+  CRITICAL: { icon: "●", className: "risk--high" },
   HIGH: { icon: "🔴", className: "risk--high" },
   MEDIUM: { icon: "🟠", className: "risk--medium" },
   LOW: { icon: "🟢", className: "risk--low" },
@@ -11,35 +20,14 @@ interface Props {
   analysis: AnalysisData;
 }
 
-type LegacyAnalysisData = AnalysisData & {
-  capa_suggestion?: string;
-  classification?: string;
-  recommendation?: string;
-};
-
 export default function AiAnalysis({ analysis }: Props) {
-  const legacyAnalysis = analysis as LegacyAnalysisData;
-  // risk_level may come uppercase or lowercase from different sources
   const normalizedRisk = (analysis.risk_level ?? "").toUpperCase() as keyof typeof RISK_CONFIG;
   const risk = RISK_CONFIG[normalizedRisk] ?? { icon: "ℹ️", className: "risk--low" };
-  const confidence = analysis.confidence ?? 0;
-  const confPct = Math.round(confidence * (confidence <= 1 ? 100 : 1));
-  const classification =
-    analysis.deviation_classification || legacyAnalysis.classification;
-  const rootCause =
-    analysis.root_cause_hypothesis || legacyAnalysis.recommendation;
-
-  // capa_steps may be missing; fall back to capa_suggestion string
-  const capaSteps: { step: number; description: string }[] =
-    Array.isArray(analysis.capa_steps) && analysis.capa_steps.length > 0
-      ? analysis.capa_steps
-      : legacyAnalysis.capa_suggestion
-        ? legacyAnalysis.capa_suggestion
-            .split(/\n|\d+\.\s/)
-            .map((s) => s.trim())
-            .filter(Boolean)
-            .map((description, i) => ({ step: i + 1, description }))
-        : [];
+  const confPct = getConfidencePct(analysis);
+  const classification = getClassification(analysis);
+  const rootCause = getRootCause(analysis);
+  const recommendation = getRecommendation(analysis);
+  const capaActions = getCapaActions(analysis);
 
   return (
     <section className="incident-section">
@@ -63,7 +51,7 @@ export default function AiAnalysis({ analysis }: Props) {
 
       {classification && (
         <div className="analysis-field">
-          <strong>Classification:</strong> {classification}
+          <strong>Classification:</strong> {labelize(classification)}
         </div>
       )}
       {rootCause && (
@@ -71,13 +59,18 @@ export default function AiAnalysis({ analysis }: Props) {
           <strong>Root Cause:</strong> {rootCause}
         </div>
       )}
+      {recommendation && (
+        <div className="analysis-field">
+          <strong>Recommendation:</strong> {recommendation}
+        </div>
+      )}
 
-      {capaSteps.length > 0 && (
+      {capaActions.length > 0 && (
         <div className="analysis-capa">
-          <strong>CAPA Steps:</strong>
+          <strong>CAPA Actions:</strong>
           <ol className="capa-list">
-            {capaSteps.map((step, i) => (
-              <li key={step.step ?? i}>{step.description}</li>
+            {capaActions.map((action, i) => (
+              <li key={i}>{action}</li>
             ))}
           </ol>
         </div>

@@ -5,13 +5,17 @@ interface Props {
 }
 
 export default function ParameterExcursion({ excursion }: Props) {
-  const { measured_value, nor_min, nor_max, par_min, par_max, unit, parameter, duration_seconds } = excursion;
-  const range = par_max - par_min;
-  const norStart = ((nor_min - par_min) / range) * 100;
-  const norWidth = ((nor_max - nor_min) / range) * 100;
-  const valuePos = Math.min(100, Math.max(0, ((measured_value - par_min) / range) * 100));
-  const inNor = measured_value >= nor_min && measured_value <= nor_max;
-  const inPar = measured_value >= par_min && measured_value <= par_max;
+  const { measured_value, unit, parameter, duration_seconds } = excursion;
+  const lower = excursion.par_min ?? excursion.lower_limit ?? excursion.nor_min ?? measured_value;
+  const upper = excursion.par_max ?? excursion.upper_limit ?? excursion.nor_max ?? measured_value;
+  const norMin = excursion.nor_min ?? excursion.lower_limit ?? lower;
+  const norMax = excursion.nor_max ?? excursion.upper_limit ?? upper;
+  const range = Math.max(upper - lower, 1);
+  const norStart = ((norMin - lower) / range) * 100;
+  const norWidth = ((norMax - norMin) / range) * 100;
+  const valuePos = Math.min(100, Math.max(0, ((measured_value - lower) / range) * 100));
+  const inNor = measured_value >= norMin && measured_value <= norMax;
+  const inPar = measured_value >= lower && measured_value <= upper;
 
   return (
     <section className="incident-section">
@@ -33,10 +37,10 @@ export default function ParameterExcursion({ excursion }: Props) {
 
       <div className="excursion-labels">
         <span>
-          PAR: {par_min}–{par_max} {unit}
+          PAR: {lower}–{upper} {unit}
         </span>
         <span>
-          NOR: {nor_min}–{nor_max} {unit}
+          NOR: {norMin}–{norMax} {unit}
         </span>
         <span className={inNor ? "in-nor" : inPar ? "in-par" : "out-par"}>
           Measured: {measured_value} {unit}

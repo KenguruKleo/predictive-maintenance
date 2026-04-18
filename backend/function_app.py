@@ -5,6 +5,7 @@ Blueprints registered here:
   - triggers.http_ingest_alert     (T-023) POST /api/alerts
   - triggers.service_bus_trigger   (T-024) SB alert-queue → start orchestrator
   - triggers.http_decision         (T-024) POST /api/incidents/{id}/decision
+  - triggers.http_documents        GET /api/documents/{container}/{path}
   - orchestrators.incident_orchestrator  (T-024) Durable workflow
   - activities.enrich_context      (T-024) Cosmos DB context enrichment
   - activities.run_foundry_agents  (T-024) Foundry Orchestrator Agent
@@ -32,6 +33,7 @@ from activities.run_foundry_agents import bp as run_foundry_agents_bp
 from orchestrators.incident_orchestrator import bp as orchestrator_bp
 from triggers.http_batches import bp as batches_bp
 from triggers.http_decision import bp as decision_bp
+from triggers.http_documents import bp as documents_bp
 from triggers.http_equipment import bp as equipment_bp
 from triggers.http_incident_events import bp as incident_events_bp
 from triggers.http_incidents import bp as incidents_bp
@@ -46,6 +48,7 @@ app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 # ── HTTP triggers ─────────────────────────────────────────────────────────
 app.register_functions(ingest_bp)
 app.register_functions(decision_bp)
+app.register_functions(documents_bp)
 app.register_functions(signalr_bp)
 
 # ── REST API (T-031) ──────────────────────────────────────────────────────
@@ -69,4 +72,3 @@ app.register_functions(notify_operator_bp)
 app.register_functions(close_incident_bp)
 app.register_functions(run_execution_agent_bp)
 app.register_functions(finalize_audit_bp)
-

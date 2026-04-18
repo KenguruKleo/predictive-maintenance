@@ -11,13 +11,15 @@ Execution Agent (T-027) in a future iteration.
 import json
 import logging
 import os
-from datetime import datetime, timezone
+import uuid
+from datetime import datetime, timedelta, timezone
 
 import azure.durable_functions as df
+from azure.cosmos.exceptions import CosmosResourceNotFoundError
 from openai import AzureOpenAI
 
 from shared.cosmos_client import get_cosmos_client
-from shared.incident_store import patch_incident_by_id
+from shared.incident_store import get_incident_by_id, patch_incident_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +46,16 @@ def run_execution_agent(input_data: dict) -> dict:
     # ── Persist to Cosmos DB ───────────────────────────────────────────────
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    equipment_id = incident.get("equipment_id") or incident.get("equipmentId") or ai_result.get("equipment_id", "unknown")
+    execution_result = _persist_execution_artifacts(
+        db=db,
+        incident=incident,
+        ai_result=ai_result,
+        capa_plan=capa_plan,
+        approver=approver,
+        now_iso=now_iso,
+    )
 
     # Update incident with CAPA plan
     patch_incident_by_id(
@@ -54,9 +66,21 @@ def run_execution_agent(input_data: dict) -> dict:
             {"op": "set", "path": "/capaPlans", "value": capa_plan.get("actions", [])},
             {"op": "set", "path": "/approvedBy", "value": approver},
             {"op": "set", "path": "/approvedAt", "value": now_iso},
+            {"op": "set", "path": "/executionResult", "value": execution_result},
+            {"op": "set", "path": "/workflow_state", "value": {
+                **incident.get("workflow_state", {}),
+                "current_step": "executing_approved_actions",
+                "assigned_to": approver,
+                "execution_started_at": now_iso,
+                "work_order_id": execution_result.get("work_order_id"),
+                "audit_entry_id": execution_result.get("audit_entry_id"),
+            }},
             {"op": "set", "path": "/updatedAt", "value": now_iso},
+            {"op": "set", "path": "/updated_at", "value": now_iso},
         ],
     )
+
+    _update_approval_task_execution(db, incident_id, execution_result, now_iso)
 
     # Log event
     events = db.get_container_client("incident_events")
@@ -67,6 +91,7 @@ def run_execution_agent(input_data: dict) -> dict:
             "eventType": "decision_approved",
             "approver": approver,
             "capaActions": capa_plan.get("actions", []),
+            "executionResult": execution_result,
             "timestamp": now_iso,
         }
     )
@@ -75,8 +100,10 @@ def run_execution_agent(input_data: dict) -> dict:
     return {
         "incident_id": incident_id,
         "status": "in_progress",
+        "equipment_id": equipment_id,
         "capa_action_count": len(capa_plan.get("actions", [])),
         "capa_plan": capa_plan,
+        **execution_result,
     }
 
 
@@ -125,3 +152,128 @@ def _generate_capa_plan(incident_id: str, ai_result: dict, approver: str) -> dic
             ],
             "summary": "CAPA plan could not be auto-generated.",
         }
+
+
+def _persist_execution_artifacts(
+    db,
+    incident: dict,
+    ai_result: dict,
+    capa_plan: dict,
+    approver: str,
+    now_iso: str,
+) -> dict:
+    """Write demo execution artifacts that stand in for CMMS/QMS MCP calls."""
+    incident_id = incident["id"]
+    equipment_id = incident.get("equipment_id") or incident.get("equipmentId") or "unknown"
+    actions = capa_plan.get("actions", [])
+    first_action = actions[0] if actions else {}
+    work_order_draft = ai_result.get("work_order_draft") if isinstance(ai_result.get("work_order_draft"), dict) else {}
+    audit_entry_draft = ai_result.get("audit_entry_draft") if isinstance(ai_result.get("audit_entry_draft"), dict) else {}
+
+    container = db.get_container_client("capa-plans")
+    year = datetime.now(timezone.utc).strftime("%Y")
+    work_order_id = f"WO-{year}-{uuid.uuid4().hex[:6].upper()}"
+    audit_entry_id = f"AE-{year}-{uuid.uuid4().hex[:6].upper()}"
+    capa_plan_id = f"CAPA-{incident_id}"
+    deadline_days = _as_int(first_action.get("deadline_days"), 1)
+    due_date = (datetime.now(timezone.utc) + timedelta(days=deadline_days)).date().isoformat()
+
+    capa_doc = {
+        "id": capa_plan_id,
+        "incidentId": incident_id,
+        "incident_id": incident_id,
+        "type": "capa_plan",
+        "status": "approved",
+        "actions": actions,
+        "summary": capa_plan.get("summary", ""),
+        "approved_by": approver,
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    work_order_doc = {
+        "id": work_order_id,
+        "incidentId": incident_id,
+        "incident_id": incident_id,
+        "equipment_id": equipment_id,
+        "type": "work_order",
+        "title": work_order_draft.get("title") or first_action.get("title") or f"Corrective maintenance for {equipment_id}",
+        "description": work_order_draft.get("description") or first_action.get("description") or ai_result.get("recommendation", ""),
+        "priority": work_order_draft.get("priority") or first_action.get("priority") or ai_result.get("risk_level", "high"),
+        "assigned_to": first_action.get("owner_role", "maintenance_team"),
+        "due_date": due_date,
+        "work_type": "corrective",
+        "status": "open",
+        "source_system": "sentinel-intelligence",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+    audit_entry_doc = {
+        "id": audit_entry_id,
+        "incidentId": incident_id,
+        "incident_id": incident_id,
+        "equipment_id": equipment_id,
+        "type": "audit_entry",
+        "deviation_type": audit_entry_draft.get("deviation_type") or ai_result.get("classification", "process_deviation"),
+        "description": audit_entry_draft.get("description") or ai_result.get("analysis", ""),
+        "root_cause": audit_entry_draft.get("root_cause") or ai_result.get("root_cause", ""),
+        "capa_actions": audit_entry_draft.get("capa_actions") or _format_actions(actions),
+        "batch_disposition": audit_entry_draft.get("batch_disposition") or ai_result.get("batch_disposition", "pending_quality_review"),
+        "prepared_by": approver,
+        "status": "draft",
+        "regulatory_framework": "EU GMP Annex 15; GMP Annex - Qualification and Validation",
+        "source_system": "sentinel-intelligence",
+        "created_at": now_iso,
+        "updated_at": now_iso,
+    }
+
+    for doc in (capa_doc, work_order_doc, audit_entry_doc):
+        container.upsert_item(doc)
+
+    return {
+        "capa_plan_id": capa_plan_id,
+        "work_order_id": work_order_id,
+        "audit_entry_id": audit_entry_id,
+        "work_order_url": f"https://cmms.sentinelpharma.local/work-orders/{work_order_id}",
+        "audit_entry_url": f"https://qms.sentinelpharma.local/deviations/{audit_entry_id}",
+        "created_at": now_iso,
+    }
+
+
+def _update_approval_task_execution(db, incident_id: str, execution_result: dict, now_iso: str) -> None:
+    approval_tasks = db.get_container_client("approval-tasks")
+    try:
+        approval_tasks.patch_item(
+            item=f"approval-{incident_id}",
+            partition_key=incident_id,
+            patch_operations=[
+                {"op": "set", "path": "/status", "value": "executed"},
+                {"op": "set", "path": "/executionResult", "value": execution_result},
+                {"op": "set", "path": "/executedAt", "value": now_iso},
+                {"op": "set", "path": "/updatedAt", "value": now_iso},
+            ],
+        )
+    except CosmosResourceNotFoundError:
+        approval_tasks.create_item(
+            {
+                "id": f"approval-{incident_id}",
+                "incidentId": incident_id,
+                "status": "executed",
+                "executionResult": execution_result,
+                "executedAt": now_iso,
+                "updatedAt": now_iso,
+            }
+        )
+
+
+def _format_actions(actions: list[dict]) -> str:
+    return "\n".join(
+        f"{idx}. {action.get('title') or action.get('action') or action.get('description', '')}"
+        for idx, action in enumerate(actions, start=1)
+    )
+
+
+def _as_int(value: object, default: int) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default

@@ -54,5 +54,9 @@ export async function submitDecision(
   id: string,
   payload: DecisionPayload,
 ): Promise<void> {
-  await client.post(`/incidents/${encodeURIComponent(id)}/decision`, payload);
+  await client.post(`/incidents/${encodeURIComponent(id)}/decision`, {
+    user_id: "ivan.petrenko",
+    role: "operator",
+    ...payload,
+  });
 }
