@@ -3,17 +3,17 @@ import { labelize } from "../../utils/analysis";
 
 const DISPOSITION_CONFIG: Record<
   string,
-  { icon: string; color: string; label: string }
+  { tone: string; label: string }
 > = {
-  in_production: { icon: "🟢", color: "var(--color-approved)", label: "In Production" },
-  hold: { icon: "🔴", color: "var(--color-rejected)", label: "Hold" },
-  conditional_release: { icon: "🟡", color: "var(--color-escalated)", label: "Conditional Release" },
-  conditional_release_pending_testing: { icon: "🟡", color: "var(--color-escalated)", label: "Conditional Release Pending Testing" },
-  released: { icon: "🟢", color: "var(--color-approved)", label: "Released" },
-  rejected: { icon: "⚫", color: "var(--color-closed)", label: "Rejected" },
-  pending: { icon: "🟡", color: "var(--color-pending)", label: "Pending" },
-  quarantine: { icon: "🔴", color: "var(--color-rejected)", label: "Quarantine" },
-  under_review: { icon: "🟡", color: "var(--color-escalated)", label: "Under Review" },
+  in_production: { tone: "approved", label: "In Production" },
+  hold: { tone: "rejected", label: "Hold" },
+  conditional_release: { tone: "warning", label: "Conditional Release" },
+  conditional_release_pending_testing: { tone: "warning", label: "Conditional Release Pending Testing" },
+  released: { tone: "approved", label: "Released" },
+  rejected: { tone: "neutral", label: "Rejected" },
+  pending: { tone: "warning", label: "Pending" },
+  quarantine: { tone: "rejected", label: "Quarantine" },
+  under_review: { tone: "warning", label: "Under Review" },
 };
 
 interface Props {
@@ -27,11 +27,11 @@ export default function BatchDisposition({ batchId, product, analysis }: Props) 
 
   const recommended =
     DISPOSITION_CONFIG[analysis.batch_disposition] ??
-    { icon: "⚪", color: "var(--color-closed)", label: labelize(analysis.batch_disposition) };
+    { tone: "neutral", label: labelize(analysis.batch_disposition) };
 
   return (
     <section className="incident-section">
-      <h3 className="section-title">📦 Batch Disposition</h3>
+      <h3 className="section-title">Batch Disposition</h3>
       <dl className="info-grid">
         <dt>Batch</dt>
         <dd>{batchId}</dd>
@@ -44,8 +44,8 @@ export default function BatchDisposition({ batchId, product, analysis }: Props) 
       </dl>
       <div className="disposition-recommendation">
         <strong>AI Recommendation:</strong>
-        <span style={{ color: recommended.color }}>
-          {recommended.icon} {recommended.label}
+        <span className={`disposition-indicator disposition-indicator--${recommended.tone}`}>
+          {recommended.label}
         </span>
       </div>
       {analysis.disposition_conditions &&

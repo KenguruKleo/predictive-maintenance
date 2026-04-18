@@ -1,5 +1,84 @@
 [
   {
+    "id": "INC-2026-0042",
+    "equipment_id": "GR-204",
+    "batch_id": "BPR-2026-0042",
+    "product": "Metformin HCl 500mg Tablets",
+    "production_stage": "Wet Granulation — Binder Addition",
+    "title": "Impeller Speed Deviation",
+    "description": "Impeller speed dropped to 580 RPM against the validated 600–800 RPM range during binder addition. Excursion lasted 4 minutes 7 seconds before self-correction.",
+    "deviation_type": "process_parameter_excursion",
+    "severity": "major",
+    "status": "pending_approval",
+    "reported_by": "ivan.petrenko",
+    "assigned_to": "ivan.petrenko",
+    "reported_at": "2026-04-17T08:42:11Z",
+    "detected_by": "scada_monitor",
+    "parameter_excursion": {
+      "parameter": "impeller_speed_rpm",
+      "measured_value": 580,
+      "lower_limit": 600,
+      "upper_limit": 800,
+      "duration_seconds": 247,
+      "unit": "RPM"
+    },
+    "ai_analysis": {
+      "risk_level": "MEDIUM",
+      "confidence": 0.84,
+      "classification": "equipment_deviation_level_II",
+      "root_cause_hypothesis": "Motor load fluctuation is the most likely cause. CMMS history shows no active equipment fault, and the brief excursion remained within proven acceptable range long enough to avoid immediate batch rejection.",
+      "recommendation": "Approve continued processing with conditional release controls. Review granule moisture and PSD at the next sampling point, then schedule a preventive impeller motor calibration work order within 24 hours.",
+      "capa_suggestion": "1. Perform immediate in-process moisture check. 2. Verify granule particle size distribution at the next sampling point. 3. Review motor current trend for the last 24 hours. 4. Create a preventive calibration work order for GR-204.",
+      "evidence_citations": [
+        {
+          "type": "sop",
+          "reference": "SOP-DEV-001 §4.2",
+          "document_title": "Deviation Management",
+          "relevance": "Short excursions inside proven acceptable range can proceed with enhanced sampling and documented operator approval."
+        },
+        {
+          "type": "historical",
+          "reference": "INC-2025-0311",
+          "document_title": "Similar GR-204 impeller drift incident",
+          "relevance": "Comparable 3-minute deviation was released after moisture and PSD checks passed."
+        },
+        {
+          "type": "gmp",
+          "reference": "EU GMP Annex 15 §6.3",
+          "document_title": "Process Parameter Deviations",
+          "relevance": "Requires documented rationale, operator approval, and traceable CAPA follow-up."
+        }
+      ],
+      "batch_disposition": "conditional_release_pending_testing",
+      "disposition_conditions": [
+        "Moisture result within 8–12% target band",
+        "Granule PSD verified at next in-process sample",
+        "Preventive motor calibration work order issued before batch close"
+      ],
+      "work_order_draft": {
+        "title": "GR-204 impeller motor calibration check",
+        "priority": "P2",
+        "owner": "Maintenance",
+        "due_in_hours": 24
+      },
+      "audit_entry_draft": {
+        "deviation_summary": "Short impeller speed excursion during binder addition",
+        "rationale": "Within PAR, self-corrected, enhanced testing required",
+        "batch_disposition": "Conditional release pending testing"
+      }
+    },
+    "workflow_state": {
+      "durable_instance_id": "durable-INC-2026-0042",
+      "current_step": "awaiting_operator_decision",
+      "assigned_to": "ivan.petrenko",
+      "target_role": "operator",
+      "approval_task_id": "approval-INC-2026-0042",
+      "escalation_deadline": "2026-04-18T08:42:11Z"
+    },
+    "created_at": "2026-04-17T08:42:15Z",
+    "updated_at": "2026-04-17T08:44:02Z"
+  },
+  {
     "id": "INC-2026-0001",
     "equipment_id": "GR-204",
     "batch_id": "BATCH-2026-0416-GR204",

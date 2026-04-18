@@ -1,3 +1,4 @@
+import type { RefObject } from "react";
 import type { IncidentEvent } from "../../types/incident";
 
 interface ChatMsg {
@@ -11,9 +12,21 @@ interface Props {
   events: IncidentEvent[];
   onSend?: (message: string) => void;
   readOnly?: boolean;
+  title?: string;
+  emptyState?: string;
+  inputId?: string;
+  inputRef?: RefObject<HTMLInputElement | null>;
 }
 
-export default function AgentChat({ events, onSend, readOnly }: Props) {
+export default function AgentChat({
+  events,
+  onSend,
+  readOnly,
+  title = "Agent Conversation",
+  emptyState = "Ask the AI agent for more details before deciding.",
+  inputId,
+  inputRef,
+}: Props) {
   const chatMessages: ChatMsg[] = events
     .filter(
       (e) =>
@@ -38,11 +51,11 @@ export default function AgentChat({ events, onSend, readOnly }: Props) {
 
   return (
     <div className="agent-chat">
-      <h4 className="chat-title">💬 Agent Conversation</h4>
+      <h4 className="chat-title">{title}</h4>
       <div className="chat-messages">
         {chatMessages.length === 0 && (
           <div className="chat-empty">
-            Ask the AI agent for more details before deciding.
+            {emptyState}
           </div>
         )}
         {chatMessages.map((msg, i) => (
@@ -51,7 +64,7 @@ export default function AgentChat({ events, onSend, readOnly }: Props) {
             className={`chat-bubble chat-bubble--${msg.actor_type}`}
           >
             <span className="chat-sender">
-              {msg.actor_type === "human" ? "👤 You" : "🤖 Agent"} (
+              {msg.actor_type === "human" ? "You" : "Agent"} (
               {new Date(msg.timestamp).toLocaleTimeString()})
             </span>
             <p className="chat-text">{msg.content}</p>
@@ -62,6 +75,8 @@ export default function AgentChat({ events, onSend, readOnly }: Props) {
       {!readOnly && onSend && (
         <form className="chat-input-form" onSubmit={handleSubmit}>
           <input
+            id={inputId}
+            ref={inputRef}
             name="chatInput"
             type="text"
             className="chat-input"
@@ -69,7 +84,7 @@ export default function AgentChat({ events, onSend, readOnly }: Props) {
             autoComplete="off"
           />
           <button type="submit" className="btn btn--primary chat-send">
-            ➤
+            Send
           </button>
         </form>
       )}

@@ -25,11 +25,18 @@ export default function DecisionPackage({ incident }: Props) {
     <section className="decision-package">
       <h2 className="decision-package-title">Decision Package</h2>
 
-      <div className="decision-section">
-        <h3 className="section-title">What Happened</h3>
+      <div className="decision-summary-strip">
+        <div className="decision-summary-strip-header">
+          <h3 className="section-title">Incident Summary</h3>
+          <span className="decision-summary-strip-text">
+            What happened and where it affects the batch.
+          </span>
+        </div>
         <div className="decision-metric-grid">
           <Metric label="Equipment" value={incident.equipment_id} />
           <Metric label="Batch" value={incident.batch_id} />
+          <Metric label="Product" value={incident.product} />
+          <Metric label="Stage" value={incident.production_stage} />
           <Metric label="Parameter" value={parameter.parameter} />
           <Metric
             label="Measured"
@@ -61,7 +68,7 @@ export default function DecisionPackage({ incident }: Props) {
       </div>
 
       {analysis && (
-        <div className="decision-section">
+        <div className="decision-section decision-section--primary">
           <h3 className="section-title">AI Recommendation</h3>
           <div className="decision-summary-grid">
             <Metric label="Risk" value={analysis.risk_level} />
@@ -69,25 +76,29 @@ export default function DecisionPackage({ incident }: Props) {
             <Metric label="Classification" value={getClassification(analysis)} />
             <Metric label="Batch disposition" value={analysis.batch_disposition} />
           </div>
+          {getRecommendation(analysis) && (
+            <div className="decision-text-block decision-text-block--highlight">
+              <strong>Recommended action</strong>
+              <p>{getRecommendation(analysis)}</p>
+            </div>
+          )}
           {getRootCause(analysis) && (
             <div className="decision-text-block">
               <strong>Root cause</strong>
               <p>{getRootCause(analysis)}</p>
             </div>
           )}
-          {getRecommendation(analysis) && (
-            <div className="decision-text-block">
-              <strong>Recommended action</strong>
-              <p>{getRecommendation(analysis)}</p>
-            </div>
-          )}
         </div>
       )}
 
-      {citations.length > 0 && <EvidenceCitations citations={citations} />}
+      {citations.length > 0 && (
+        <div className="decision-section decision-section--supporting">
+          <EvidenceCitations citations={citations} />
+        </div>
+      )}
 
       {analysis && (
-        <div className="decision-section">
+        <div className="decision-section decision-section--supporting">
           <h3 className="section-title">After Approval</h3>
           {capaActions.length > 0 && (
             <div className="approval-outcome-block">

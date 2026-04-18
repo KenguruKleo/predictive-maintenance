@@ -197,11 +197,17 @@ def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
         {
             "id": f"{incident_id}-decision-{int(datetime.now(timezone.utc).timestamp())}",
             "incidentId": incident_id,
+            "incident_id": incident_id,
             "eventType": "operator_decision",
             "action": action,
+            "actor": decision["user_id"],
+            "actor_type": "human",
             "userId": decision["user_id"],
             "role": decision.get("role", "operator"),
             "incidentStatus": incident_status,
+            "reason": decision.get("reason", ""),
+            "question": decision.get("question", ""),
+            "details": decision.get("question") or decision.get("reason") or f"Operator selected {action}.",
             "timestamp": now_iso,
         }
     )

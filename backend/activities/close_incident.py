@@ -46,8 +46,13 @@ def close_incident(input_data: dict) -> dict:
         {
             "id": f"{incident_id}-closed-rejected-{int(datetime.now(timezone.utc).timestamp())}",
             "incidentId": incident_id,
+            "incident_id": incident_id,
             "eventType": "incident_rejected",
+            "action": "incident_rejected",
+            "actor": "System",
+            "actor_type": "system",
             "rejectionReason": rejection_reason,
+            "details": rejection_reason,
             "timestamp": now_iso,
         }
     )

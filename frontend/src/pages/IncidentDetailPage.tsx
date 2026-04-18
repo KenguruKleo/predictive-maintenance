@@ -75,10 +75,6 @@ export default function IncidentDetailPage() {
               analysis={incident.ai_analysis}
             />
           </ErrorBoundary>
-
-          <ErrorBoundary inline section="Event Timeline">
-            <EventTimeline events={events} />
-          </ErrorBoundary>
         </div>
 
         <div className="incident-right">
@@ -100,6 +96,15 @@ export default function IncidentDetailPage() {
               </p>
             </div>
           )}
+
+          <ErrorBoundary inline section="Status History">
+            <EventTimeline
+              events={events}
+              title="Status History"
+              emptyMessage="No audit events have been recorded for this incident yet."
+              compact
+            />
+          </ErrorBoundary>
         </div>
       </div>
     </div>

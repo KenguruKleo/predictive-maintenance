@@ -40,6 +40,7 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
+from shared.cosmos_client import get_cosmos_client
 from shared.foundry_run import create_thread_and_process_run_with_approval
 from shared.search_utils import search_all_indexes
 
@@ -47,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
+DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
 
 INDEX_EVIDENCE_META = {
     "idx-sop-documents": {"type": "sop", "container": "blob-sop"},
@@ -117,6 +119,9 @@ def run_foundry_agents(input_data: dict) -> dict:
         )
         result["confidence_flag"] = "LOW_CONFIDENCE"
 
+    if more_info_round > 0:
+        _record_agent_follow_up(incident_id, result, more_info_round)
+
     return result
 
 
@@ -183,6 +188,29 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
             len(raw_text), raw_text[:500],
         )
         return _parse_response(raw_text)
+
+
+def _record_agent_follow_up(incident_id: str, result: dict, more_info_round: int) -> None:
+    client = get_cosmos_client()
+    db = client.get_database_client(DB_NAME)
+    events = db.get_container_client("incident_events")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    details = result.get("recommendation") or result.get("analysis") or "Agent provided additional context."
+
+    events.upsert_item(
+        {
+            "id": f"{incident_id}-agent-response-{more_info_round}-{int(datetime.now(timezone.utc).timestamp())}",
+            "incidentId": incident_id,
+            "incident_id": incident_id,
+            "eventType": "agent_response",
+            "action": "agent_response",
+            "actor": "AI Agent",
+            "actor_type": "agent",
+            "round": more_info_round,
+            "details": details[:600],
+            "timestamp": now_iso,
+        }
+    )
 
 
 def _build_prompt(

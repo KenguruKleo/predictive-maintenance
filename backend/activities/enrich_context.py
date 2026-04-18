@@ -14,6 +14,7 @@ import os
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
+from shared.incident_store import patch_incident_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -47,19 +48,46 @@ def enrich_context(input_data: dict) -> dict:
     try:
         batches = db.get_container_client("batches")
         query = (
-            "SELECT TOP 1 * FROM c "
-            "WHERE c.equipmentId = @eqId "
-            "AND c.status IN ('active', 'in-progress') "
-            "ORDER BY c.startDate DESC"
+            "SELECT * FROM c "
+            "WHERE (c.equipmentId = @eqId OR c.equipment_id = @eqId) "
+            "AND c.status IN ('active', 'in-progress', 'in_progress')"
         )
         params = [{"name": "@eqId", "value": equipment_id}]
-        results = list(
+        results = sorted(
             batches.query_items(query=query, parameters=params, enable_cross_partition_query=True)
+            ,
+            key=lambda item: item.get("startDate") or item.get("start_time") or "",
+            reverse=True,
         )
         context["batch"] = results[0] if results else None
     except Exception as exc:
         logger.warning("Could not fetch active batch: %s", exc)
         context["batch"] = None
+
+    batch = context.get("batch") or {}
+    product = batch.get("product") or batch.get("product_name") or batch.get("productName")
+    production_stage = (
+        batch.get("production_stage")
+        or batch.get("stage_step")
+        or batch.get("stage")
+    )
+    if product:
+        context["product"] = product
+    if production_stage:
+        context["production_stage"] = production_stage
+
+    if product or production_stage:
+        patch_operations = []
+        if product:
+            patch_operations.append({"op": "set", "path": "/product", "value": product})
+        if production_stage:
+            patch_operations.append(
+                {"op": "set", "path": "/production_stage", "value": production_stage}
+            )
+        try:
+            patch_incident_by_id(db, incident_id, patch_operations)
+        except Exception as exc:
+            logger.warning("Could not patch incident %s with batch context: %s", incident_id, exc)
 
     # ── Recent incidents ────────────────────────────────────────────────────
     try:

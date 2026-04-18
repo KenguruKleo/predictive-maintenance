@@ -118,10 +118,19 @@ def notify_operator(input_data: dict) -> dict:
             {
                 "id": f"{incident_id}-notified-{target_role}-{int(datetime.now(timezone.utc).timestamp())}",
                 "incidentId": incident_id,
+                "incident_id": incident_id,
                 "eventType": notification_type,
+                "action": "escalated" if is_escalation else "approval_requested",
+                "actor": "System",
+                "actor_type": "system",
                 "targetRole": target_role,
                 "approvalTaskId": approval_task["id"],
                 "incidentStatus": incident_status,
+                "details": (
+                    f"Incident escalated to {target_role}."
+                    if is_escalation
+                    else f"Approval requested from {target_role}."
+                ),
                 "timestamp": now_iso,
             }
         )

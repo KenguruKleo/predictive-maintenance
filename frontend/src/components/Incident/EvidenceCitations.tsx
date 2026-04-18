@@ -7,13 +7,13 @@ import {
   labelize,
 } from "../../utils/analysis";
 
-const ICON_MAP: Record<string, string> = {
-  sop: "📄",
-  historical: "📋",
-  gmp: "📖",
-  bpr: "📑",
-  manual: "🛠️",
-  incident: "●",
+const TYPE_LABELS: Record<string, string> = {
+  sop: "SOP",
+  historical: "History",
+  gmp: "GMP",
+  bpr: "BPR",
+  manual: "Manual",
+  incident: "Incident",
 };
 
 interface Props {
@@ -23,7 +23,7 @@ interface Props {
 export default function EvidenceCitations({ citations }: Props) {
   if (!Array.isArray(citations) || citations.length === 0) return null;
   return (
-    <section className="incident-section">
+    <section>
       <h3 className="section-title">Evidence From Documents</h3>
       <ul className="evidence-list">
         {citations.map((c, i) => {
@@ -33,7 +33,7 @@ export default function EvidenceCitations({ citations }: Props) {
           const href = getCitationHref(c);
           return (
             <li key={i} className="evidence-item evidence-card">
-              <span className="evidence-icon">{ICON_MAP[c.type ?? ""] ?? "📄"}</span>
+              <span className="evidence-icon">{TYPE_LABELS[c.type ?? ""] ?? "Doc"}</span>
               <div className="evidence-body">
                 <div className="evidence-ref">
                   {title}

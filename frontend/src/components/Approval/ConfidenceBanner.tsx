@@ -9,8 +9,8 @@ export default function ConfidenceBanner({ analysis }: Props) {
   const pct = Math.round(analysis.confidence * 100);
 
   return (
-    <div className="confidence-banner">
-      <span className="confidence-banner-icon">⚠️</span>
+    <div className="confidence-banner confidence-banner--warning">
+      <span className="confidence-banner-icon">Review</span>
       <div>
         <strong>LOW CONFIDENCE ({pct}%)</strong>
         <p>

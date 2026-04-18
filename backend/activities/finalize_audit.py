@@ -51,10 +51,15 @@ def finalize_audit(input_data: dict) -> dict:
     audit_doc = {
         "id": f"{incident_id}-audit-final",
         "incidentId": incident_id,
+        "incident_id": incident_id,
         "eventType": "audit_finalized",
+        "action": "audit_finalized",
+        "actor": "System",
+        "actor_type": "system",
         "finalStatus": final_status,
         "decision": decision,
         "executionResult": exec_result,
+        "details": f"Audit finalized. Incident status set to {final_status}.",
         "closedAt": now_iso,
         "timestamp": now_iso,
     }

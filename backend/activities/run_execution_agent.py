@@ -88,10 +88,18 @@ def run_execution_agent(input_data: dict) -> dict:
         {
             "id": f"{incident_id}-approved-{int(datetime.now(timezone.utc).timestamp())}",
             "incidentId": incident_id,
+            "incident_id": incident_id,
             "eventType": "decision_approved",
+            "action": "execution_started",
+            "actor": "Execution Agent",
+            "actor_type": "agent",
             "approver": approver,
             "capaActions": capa_plan.get("actions", []),
             "executionResult": execution_result,
+            "details": (
+                f"Execution started after approval by {approver}. "
+                f"Generated {len(capa_plan.get('actions', []))} CAPA actions."
+            ),
             "timestamp": now_iso,
         }
     )

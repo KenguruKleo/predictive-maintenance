@@ -28,14 +28,14 @@
 
   /* ── Severity (ISA-18.2 conventions) ── */
   --sev-critical-fg:  #de350b;  --sev-critical-bg:  #ffebe6;
-  --sev-major-fg:     #ff8b00;  --sev-major-bg:     #fffae6;
-  --sev-moderate-fg:  #ca7d01;  --sev-moderate-bg:  #fff8d6;
+  --sev-major-fg:     #8a4b00;  --sev-major-bg:     #fffae6;
+  --sev-moderate-fg:  #8a4b00;  --sev-moderate-bg:  #fff8d6;
   --sev-minor-fg:     #006644;  --sev-minor-bg:     #e3fcef;
 
   /* ── Status ── */
-  --status-pending-fg:   #ff8b00;  --status-pending-bg:   #fffae6;
+  --status-pending-fg:   #8a4b00;  --status-pending-bg:   #fffae6;
   --status-analyzing-fg: #0052cc;  --status-analyzing-bg: #deebff;
-  --status-escalated-fg: #ca7d01;  --status-escalated-bg: #fff8d6;
+  --status-escalated-fg: #8a4b00;  --status-escalated-bg: #fff8d6;
   --status-approved-fg:  #006644;  --status-approved-bg:  #e3fcef;
   --status-rejected-fg:  #de350b;  --status-rejected-bg:  #ffebe6;
   --status-executing-fg: #0052cc;  --status-executing-bg: #deebff;
@@ -43,7 +43,7 @@
 
   /* ── Confidence ── */
   --conf-high:   #006644;
-  --conf-medium: #ca7d01;
+  --conf-medium: #8a4b00;
   --conf-low:    #de350b;
 
   /* ── Semantic aliases ── */
