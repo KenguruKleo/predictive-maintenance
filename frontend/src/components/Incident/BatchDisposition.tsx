@@ -1,5 +1,4 @@
 import type { AiAnalysis } from "../../types/incident";
-import type { BatchDispositionStatus } from "../../types/incident";
 
 const DISPOSITION_CONFIG: Record<
   string,

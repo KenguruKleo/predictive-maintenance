@@ -3,6 +3,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  type ChangeEvent,
   type KeyboardEvent,
 } from "react";
 import { useNavigate } from "react-router-dom";
@@ -119,15 +120,15 @@ export default function CommandPalette({ open, onClose }: Props) {
 
   useEffect(() => {
     if (open) {
-      setQuery("");
-      setActiveIdx(0);
-      setTimeout(() => inputRef.current?.focus(), 10);
+      const timer = setTimeout(() => inputRef.current?.focus(), 10);
+      return () => clearTimeout(timer);
     }
   }, [open]);
 
-  useEffect(() => {
+  const handleQueryChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setQuery(e.target.value);
     setActiveIdx(0);
-  }, [query]);
+  };
 
   const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "ArrowDown") {
@@ -158,7 +159,7 @@ export default function CommandPalette({ open, onClose }: Props) {
             className="cp-input"
             placeholder="Search pages, incidents…"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={handleQueryChange}
             onKeyDown={handleKey}
             autoComplete="off"
             spellCheck={false}

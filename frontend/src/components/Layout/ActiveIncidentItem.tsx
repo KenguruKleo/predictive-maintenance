@@ -3,32 +3,24 @@ import { Link, useParams } from "react-router-dom";
 
 const STATUS_CONFIG: Record<
   IncidentStatus,
-  { icon: string; color: string; text: string }
+  { text: string }
 > = {
-  open: { icon: "🔵", color: "var(--color-analyzing)", text: "Open" },
-  ingested: { icon: "🔵", color: "var(--color-analyzing)", text: "Ingesting..." },
+  open: { text: "Open" },
+  ingested: { text: "Ingesting..." },
   analyzing: {
-    icon: "🔵",
-    color: "var(--color-analyzing)",
     text: "AI analyzing...",
   },
   pending_approval: {
-    icon: "🟠",
-    color: "var(--color-pending)",
     text: "Awaiting decision",
   },
   escalated: {
-    icon: "🟡",
-    color: "var(--color-escalated)",
     text: "Escalated to QA",
   },
   approved: {
-    icon: "🟢",
-    color: "var(--color-approved)",
     text: "Approved, executing...",
   },
-  rejected: { icon: "🔴", color: "var(--color-rejected)", text: "Rejected" },
-  closed: { icon: "⚪", color: "var(--color-closed)", text: "Closed" },
+  rejected: { text: "Rejected" },
+  closed: { text: "Closed" },
 };
 
 interface Props {
@@ -52,6 +44,10 @@ export default function ActiveIncidentItem({ incident }: Props) {
   const cfg = STATUS_CONFIG[incident.status];
   const step = incident.workflow_state;
   const dateLabel = formatSidebarDate(incident.created_at);
+  const statusText =
+    step && incident.status === "analyzing"
+      ? `Step ${step.steps_completed}/${step.total_steps}: ${step.current_step}`
+      : cfg.text;
 
   return (
     <Link
@@ -67,14 +63,14 @@ export default function ActiveIncidentItem({ incident }: Props) {
         )}
       </div>
       <div className="sidebar-incident-meta">
-        {incident.equipment_id}
-        {incident.title ? ` · ${incident.title}` : ""}
+        <span className="sidebar-incident-equipment">{incident.equipment_id}</span>
+        {incident.title && (
+          <span className="sidebar-incident-title">{incident.title}</span>
+        )}
       </div>
-      <div className="sidebar-incident-status" style={{ color: cfg.color }}>
-        {cfg.icon}{" "}
-        {step && incident.status === "analyzing"
-          ? `Step ${step.steps_completed}/${step.total_steps}: ${step.current_step}`
-          : cfg.text}
+      <div className={`sidebar-incident-status sidebar-incident-status--${incident.status}`}>
+        <span className="sidebar-incident-status-dot" aria-hidden="true" />
+        <span className="sidebar-incident-status-text">{statusText}</span>
       </div>
     </Link>
   );

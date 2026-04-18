@@ -47,7 +47,7 @@
 
 .app-main {
   flex: 1;
-  padding: 28px 32px;
+  padding: 28px 32px 48px;
   margin-left: var(--sidebar-width);
   min-height: calc(100vh - var(--header-height));
   max-width: calc(var(--content-max) + var(--sidebar-width));
@@ -146,6 +146,55 @@
   background: rgba(222, 53, 11, 0.15);
   color: #ff8f73;
   border: 1px solid rgba(222, 53, 11, 0.3);
+}
+
+/* ══════════════════════════════════════════════════════
+   APP FOOTER
+   ══════════════════════════════════════════════════════ */
+
+.app-footer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  height: 32px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-6);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.footer-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.footer-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.footer-status--online  { color: var(--conf-high); }
+.footer-status--online  .footer-status-dot { background: var(--conf-high); box-shadow: 0 0 0 2px rgba(0,135,68,0.2); }
+.footer-status--offline { color: var(--conf-low); }
+.footer-status--offline .footer-status-dot { background: var(--conf-low); }
+
+.footer-incidents {
+  font-size: 12px;
+}
+
+.footer-incidents-count {
+  font-weight: 700;
+  color: var(--text-heading);
 }
 
 .user-name {
@@ -289,13 +338,14 @@
 .sidebar-incident-item {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 7px 20px;
+  gap: 5px;
+  padding: 9px 18px 10px 20px;
   text-decoration: none;
   color: var(--text);
-  transition: background 0.1s;
+  transition: background 0.1s, border-color 0.1s;
   font-size: 12px;
   border-left: 3px solid transparent;
+  border-bottom: 1px solid rgba(223, 225, 230, 0.55);
   cursor: pointer;
 }
 .sidebar-incident-item:hover {
@@ -311,24 +361,32 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  gap: 4px;
+  gap: var(--space-2);
 }
 
 .sidebar-incident-number {
   font-weight: 700;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-heading);
-  flex-shrink: 0;
+  line-height: 1.2;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .sidebar-incident-date {
-  font-size: 10px;
-  color: var(--text-muted);
+  font-size: 11px;
+  color: var(--text-subtle);
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .sidebar-incident-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
   font-size: 12px;
   color: var(--text);
   white-space: nowrap;
@@ -336,10 +394,69 @@
   text-overflow: ellipsis;
 }
 
+.sidebar-incident-equipment {
+  color: var(--text-heading);
+  font-size: 13px;
+  font-weight: 650;
+  flex-shrink: 0;
+}
+
+.sidebar-incident-title {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .sidebar-incident-status {
-  font-size: 11px;
-  font-weight: 600;
-  /* color set via inline style */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.sidebar-incident-status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: currentColor;
+  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 16%, transparent);
+}
+
+.sidebar-incident-status-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-incident-status--open,
+.sidebar-incident-status--ingested,
+.sidebar-incident-status--analyzing {
+  color: var(--status-analyzing-fg);
+}
+
+.sidebar-incident-status--pending_approval {
+  color: var(--status-pending-fg);
+}
+
+.sidebar-incident-status--escalated {
+  color: var(--status-escalated-fg);
+}
+
+.sidebar-incident-status--approved {
+  color: var(--status-approved-fg);
+}
+
+.sidebar-incident-status--rejected {
+  color: var(--status-rejected-fg);
+}
+
+.sidebar-incident-status--closed {
+  color: var(--status-closed-fg);
 }
 
 /* ── Sidebar resize handle ── */

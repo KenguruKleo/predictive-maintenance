@@ -48,21 +48,30 @@ def notify_operator(input_data: dict) -> dict:
         "createdAt": now_iso,
     }
 
+
     # Write to notifications container (T-030 SignalR trigger reads this)
     notif_container = db.get_container_client("notifications")
-    notif_container.upsert_item(notification)
+    try:
+        notif_container.upsert_item(notification)
+    except Exception as e:
+        logger.error("Failed to upsert notification for incident %s: %s", incident_id, e, exc_info=True)
+        raise
 
     # Also log to incident_events
     events = db.get_container_client("incident_events")
-    events.upsert_item(
-        {
-            "id": f"{incident_id}-notified-{target_role}-{int(datetime.now(timezone.utc).timestamp())}",
-            "incidentId": incident_id,
-            "eventType": notification_type,
-            "targetRole": target_role,
-            "timestamp": now_iso,
-        }
-    )
+    try:
+        events.upsert_item(
+            {
+                "id": f"{incident_id}-notified-{target_role}-{int(datetime.now(timezone.utc).timestamp())}",
+                "incidentId": incident_id,
+                "eventType": notification_type,
+                "targetRole": target_role,
+                "timestamp": now_iso,
+            }
+        )
+    except Exception as e:
+        logger.error("Failed to upsert incident_event for incident %s: %s", incident_id, e, exc_info=True)
+        raise
 
     logger.info(
         "Notification created for incident %s — type=%s role=%s",

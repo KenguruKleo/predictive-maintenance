@@ -11,19 +11,30 @@ interface Props {
   analysis: AnalysisData;
 }
 
+type LegacyAnalysisData = AnalysisData & {
+  capa_suggestion?: string;
+  classification?: string;
+  recommendation?: string;
+};
+
 export default function AiAnalysis({ analysis }: Props) {
+  const legacyAnalysis = analysis as LegacyAnalysisData;
   // risk_level may come uppercase or lowercase from different sources
   const normalizedRisk = (analysis.risk_level ?? "").toUpperCase() as keyof typeof RISK_CONFIG;
   const risk = RISK_CONFIG[normalizedRisk] ?? { icon: "ℹ️", className: "risk--low" };
   const confidence = analysis.confidence ?? 0;
   const confPct = Math.round(confidence * (confidence <= 1 ? 100 : 1));
+  const classification =
+    analysis.deviation_classification || legacyAnalysis.classification;
+  const rootCause =
+    analysis.root_cause_hypothesis || legacyAnalysis.recommendation;
 
   // capa_steps may be missing; fall back to capa_suggestion string
   const capaSteps: { step: number; description: string }[] =
     Array.isArray(analysis.capa_steps) && analysis.capa_steps.length > 0
       ? analysis.capa_steps
-      : (analysis as any).capa_suggestion
-        ? String((analysis as any).capa_suggestion)
+      : legacyAnalysis.capa_suggestion
+        ? legacyAnalysis.capa_suggestion
             .split(/\n|\d+\.\s/)
             .map((s) => s.trim())
             .filter(Boolean)
@@ -50,16 +61,14 @@ export default function AiAnalysis({ analysis }: Props) {
         </span>
       </div>
 
-      {((analysis as any).classification || analysis.deviation_classification) && (
+      {classification && (
         <div className="analysis-field">
-          <strong>Classification:</strong>{" "}
-          {analysis.deviation_classification ?? (analysis as any).classification}
+          <strong>Classification:</strong> {classification}
         </div>
       )}
-      {((analysis as any).root_cause_hypothesis || (analysis as any).recommendation) && (
+      {rootCause && (
         <div className="analysis-field">
-          <strong>Root Cause:</strong>{" "}
-          {(analysis as any).root_cause_hypothesis ?? (analysis as any).recommendation}
+          <strong>Root Cause:</strong> {rootCause}
         </div>
       )}
 

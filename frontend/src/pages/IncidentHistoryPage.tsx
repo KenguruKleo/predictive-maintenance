@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getIncidents } from "../api/incidents";
 import Filters from "../components/IncidentList/Filters";
@@ -9,11 +10,16 @@ import type { IncidentStatus, Severity } from "../types/incident";
 const PAGE_SIZE = 20;
 
 export default function IncidentHistoryPage() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  function getQueryParam(name: string) {
+    return new URLSearchParams(location.search).get(name) || "";
+  }
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<IncidentStatus | "">("");
   const [severity, setSeverity] = useState<Severity | "">("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+  const [dateFrom, setDateFrom] = useState(() => getQueryParam("date_from"));
+  const [dateTo, setDateTo] = useState(() => getQueryParam("date_to"));
 
   const filters = {
     search: search || undefined,
@@ -78,6 +84,17 @@ export default function IncidentHistoryPage() {
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
+  // Sync filter state with URL if changed via UI
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (dateFrom) params.set("date_from", dateFrom); else params.delete("date_from");
+    if (dateTo) params.set("date_to", dateTo); else params.delete("date_to");
+    const url = location.pathname + (params.toString() ? `?${params}` : "");
+    if (url !== location.pathname + location.search) {
+      navigate(url, { replace: true });
+    }
+  }, [dateFrom, dateTo, location.pathname, location.search, navigate]);
+
   return (
     <div className="page-history">
       <Breadcrumb items={[{ label: "Operations Dashboard", to: "/" }, { label: "History & Audit" }]} />
@@ -118,4 +135,3 @@ export default function IncidentHistoryPage() {
     </div>
   );
 }
-

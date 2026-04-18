@@ -1,6 +1,5 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { useSignalR } from "../../hooks/useSignalR";
 
 interface Props {
   onOpenPalette?: () => void;
@@ -8,7 +7,6 @@ interface Props {
 
 export default function Header({ onOpenPalette }: Props) {
   const { displayName, roles, logout } = useAuth();
-  const { connected } = useSignalR();
 
   return (
     <header className="app-header">

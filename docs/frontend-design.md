@@ -149,17 +149,17 @@
 ```
 ──── Active Incidents (3) ────
 
-🟠 INC-2026-0042
+INC-2026-0042                     17 Apr, 15:56
    GR-204 · Impeller speed
-   ⏳ Awaiting your decision
+   ● Awaiting decision
 
-🔵 INC-2026-0043
+INC-2026-0043                     17 Apr, 15:55
    TB-102 · Coating thickness
-   🤖 AI preparing documents...
+   ● AI preparing documents...
 
-🟡 INC-2026-0044
+INC-2026-0044                     17 Apr, 15:55
    FBD-301 · Inlet temp
-   ⏫ Escalated to QA Manager
+   ● Escalated to QA Manager
 
 ──────────────────────────────
 ```
@@ -168,17 +168,26 @@
 - **Номер інциденту** (INC-YYYY-NNNN)
 - **Коротка назва** — генерується AI (Foundry Orchestrator Agent повинен генерувати `title` field)
 - **Обладнання** (equipment_id)
-- **Статус-індикатор** з іконкою та кольором:
+- **Дата/час** — праворуч у header рядку, `tabular-nums`, muted
+- **Статус-індикатор** — CSS-dot, не emoji, щоб не змішувати системні emoji fonts з UI typography:
 
-| Статус | Іконка | Колір | Текст |
-|---|---|---|---|
-| `ingested` | 🔵 | blue | AI preparing documents... |
-| `analyzing` | 🔵 | blue | AI analyzing... |
-| `pending_approval` | 🟠 | orange | Awaiting your decision |
-| `escalated` | 🟡 | yellow | Escalated to QA Manager |
-| `approved` | 🟢 | green | Approved, executing... |
-| `rejected` | 🔴 | red | Rejected |
-| `closed` | ⚪ | gray | Closed |
+| Статус | Dot color | Текст |
+|---|---|---|
+| `open` | blue | Open |
+| `ingested` | blue | Ingesting... |
+| `analyzing` | blue | AI analyzing... |
+| `pending_approval` | orange | Awaiting decision |
+| `escalated` | yellow | Escalated to QA Manager |
+| `approved` | green | Approved, executing... |
+| `rejected` | red | Rejected |
+| `closed` | gray | Closed |
+
+**Типографіка sidebar item:**
+- incident number: sans-serif, 12px, 700; не використовувати mono як основний шрифт у списку, бо він читається як debug ID
+- equipment: 13px, 650/700, `text-heading`
+- title: 12px, muted, ellipsis
+- status: 12px, 700, colored by status
+- уникати emoji у статусах; вони рендеряться іншим font stack і візуально “ламають” рядок
 
 Клік на інцидент → відкриває Incident Card у main area.
 
@@ -868,9 +877,9 @@ src/
 
 Поки AI обробляє інцидент, у sidebar показувати прогрес:
 ```
-🔵 INC-2026-0043
+INC-2026-0043                     17 Apr, 15:55
    TB-102 · Coating thickness
-   🤖 Step 2/4: Document Agent generating...
+   ● Step 2/4: Document Agent generating...
 ```
 
 Steps:
@@ -881,18 +890,29 @@ Steps:
 
 Отримуємо через SignalR `agent_step_completed` event.
 
-### 11.4 Notification bell + toast
+### 11.4 Sidebar typography cleanup
+
+Поточне дизайн-рішення: Active Incidents sidebar має виглядати як operational queue, не як список звичайних links.
+
+Findings:
+- Emoji status icons створюють неузгоджений font rendering і різну висоту рядків між OS/browser. Заміна на CSS-dot робить статуси рівними і контрольованими.
+- Mono-шрифт для `INC-YYYY-NNNN` у щільному списку перетягує увагу на ID. Для queue краще sans-serif bold, а mono лишати для таблиць/audit details, де ID є primary artifact.
+- Equipment і title треба стилістично розділяти: equipment як короткий сильний якір, title як допоміжний опис з ellipsis.
+- Status text має бути bold і colored, але без underline/link affordance. Клікабельність дає весь row hover/active state.
+- Date має бути muted і `tabular-nums`, щоб колонка часу не “танцювала” при скролі.
+
+### 11.5 Notification bell + toast
 
 Header → 🔔 badge з лічильником непрочитаних. Toast notifications для критичних подій:
 - New incident assigned → orange toast
 - Escalation → red toast
 - Agent finished analysis → blue toast ("INC-0042 ready for your review")
 
-### 11.5 Offline/degraded mode indicator
+### 11.6 Offline/degraded mode indicator
 
 Якщо SignalR disconnect — показувати banner: "⚠️ Live updates paused. Data may be stale. [Refresh]". З auto-reconnect.
 
-### 11.6 Keyboard shortcuts (для оператора під тиском)
+### 11.7 Keyboard shortcuts (для оператора під тиском)
 
 | Key | Action |
 |---|---|
@@ -902,14 +922,14 @@ Header → 🔔 badge з лічильником непрочитаних. Toast 
 | `↑/↓` | Navigate incidents in sidebar |
 | `Enter` | Open selected incident |
 
-### 11.7 Адаптивність для maintenance-tech
+### 11.8 Адаптивність для maintenance-tech
 
 Maintenance tech бачить **спрощену версію** Incident Card:
 - Тільки: Equipment info, Work Order (готовий, з деталями), Timeline
 - Не бачить: AI Analysis details, Evidence Citations, Approval Panel
 - Акцент на: "Що мені потрібно зробити" (Work Order content)
 
-### 11.8 CSV Export для Auditor
+### 11.9 CSV Export для Auditor
 
 `/history` page → кнопка "Export CSV" генерує файл з усіма відфільтрованими інцидентами. Включає:
 - Incident ID, equipment, severity, status, risk_level, confidence
@@ -919,7 +939,7 @@ Maintenance tech бачить **спрощену версію** Incident Card:
 
 Для GMP inspection readiness — auditor може показати цей файл інспектору.
 
-### 11.9 Batch Disposition Tracking
+### 11.10 Batch Disposition Tracking
 
 Batch disposition — критично важливий GMP артефакт. Після кожного рішення оператора batch змінює статус, і це відображається:
 
@@ -936,7 +956,7 @@ Batch disposition — критично важливий GMP артефакт. П
 
 **Чому це важливо для demo:** GMP інспектор запитає "що сталось з batch після девіації?" — і ми можемо показати повний trace: deviation → AI analysis → operator decision → batch hold/conditional release → conditions met → released.
 
-### 11.10 Dark/Light mode
+### 11.11 Dark/Light mode
 
 Оператори часто працюють в різних умовах освітлення. Підтримка темної теми через CSS variables. Default: light. Toggle в header.
 

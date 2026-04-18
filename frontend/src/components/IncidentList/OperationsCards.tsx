@@ -17,7 +17,9 @@ function cardLabel(incident: Incident) {
   return null;
 }
 
-function timeAgo(iso: string) {
+function timeAgo(iso?: string) {
+  if (!iso) return "unknown time";
+
   const diff = Date.now() - new Date(iso).getTime();
   const min = Math.floor(diff / 60000);
   if (min < 1) return "just now";
@@ -62,7 +64,9 @@ export default function OperationsCards({ incidents }: Props) {
               </div>
             )}
             <div className="ops-card-footer">
-              <span className="ops-card-time">{timeAgo(inc.created_at)}</span>
+              <span className="ops-card-time">
+                {timeAgo(inc.created_at ?? inc.reported_at)}
+              </span>
               {(inc.status === "pending_approval" ||
                 inc.status === "escalated") && (
                 <Link to={`/incidents/${inc.id}`} className="ops-card-action">

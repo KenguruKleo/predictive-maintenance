@@ -1,6 +1,5 @@
 import { useIncidents } from "../hooks/useIncidents";
-import { useAuth } from "../hooks/useAuth";
-import OperationsCards from "../components/IncidentList/OperationsCards";
+import IncidentAnalytics from "../components/IncidentAnalytics/IncidentAnalytics";
 import Breadcrumb from "../components/Layout/Breadcrumb";
 import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
 import type { Incident } from "../types/incident";
@@ -22,7 +21,6 @@ function sortIncidents(items: Incident[]) {
 }
 
 export default function OperationsDashboard() {
-  const { hasRole } = useAuth();
   const { data, isLoading, error } = useIncidents({
     status: [...ACTIVE_INCIDENT_STATUSES],
     page_size: 50,
@@ -30,9 +28,6 @@ export default function OperationsDashboard() {
 
   const incidents = data?.items ?? [];
   const sorted = sortIncidents(incidents);
-
-  const escalated = sorted.filter((i) => i.status === "escalated");
-  const rest = sorted.filter((i) => i.status !== "escalated");
 
   return (
     <div className="page-operations">
@@ -50,14 +45,7 @@ export default function OperationsDashboard() {
         </div>
       )}
 
-      {hasRole("qa-manager") && escalated.length > 0 && (
-        <>
-          <h2 className="section-heading">Escalated to You</h2>
-          <OperationsCards incidents={escalated} />
-        </>
-      )}
-
-      <OperationsCards incidents={hasRole("qa-manager") ? rest : sorted} />
+      <IncidentAnalytics incidents={sorted} />
     </div>
   );
 }
