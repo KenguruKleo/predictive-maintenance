@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useIncidents } from "../hooks/useIncidents";
 import Filters from "../components/IncidentList/Filters";
+import Breadcrumb from "../components/Layout/Breadcrumb";
 import IncidentTable from "../components/IncidentList/IncidentTable";
 import type { IncidentStatus, Severity } from "../types/incident";
 
@@ -30,6 +31,7 @@ export default function IncidentHistoryPage() {
 
   return (
     <div className="page-history">
+      <Breadcrumb items={[{ label: "Operations Dashboard", to: "/" }, { label: "History & Audit" }]} />
       <h1 className="page-title">Incident History & Audit</h1>
 
       <Filters

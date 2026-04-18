@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getStats } from "../api/stats";
 import { useIncidents } from "../hooks/useIncidents";
+import Breadcrumb from "../components/Layout/Breadcrumb";
 import StatsCards from "../components/Manager/StatsCards";
 import EscalationQueue from "../components/Manager/EscalationQueue";
 import RecentDecisions from "../components/Manager/RecentDecisions";
@@ -16,6 +17,7 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="page-manager">
+      <Breadcrumb items={[{ label: "Operations Dashboard", to: "/" }, { label: "Manager Dashboard" }]} />
       <h1 className="page-title">Manager Dashboard</h1>
       <StatsCards stats={stats} />
 

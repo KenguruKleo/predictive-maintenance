@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getTemplates, updateTemplate } from "../api/templates";
+import Breadcrumb from "../components/Layout/Breadcrumb";
 import TemplateList from "../components/Templates/TemplateList";
 import TemplateEditor from "../components/Templates/TemplateEditor";
 import type { Template } from "../types/template";
@@ -28,6 +29,7 @@ export default function TemplateManagementPage() {
 
   return (
     <div className="page-templates">
+      <Breadcrumb items={[{ label: "Operations Dashboard", to: "/" }, { label: "Document Templates" }]} />
       <h1 className="page-title">Document Templates</h1>
 
       {editingTemplate ? (

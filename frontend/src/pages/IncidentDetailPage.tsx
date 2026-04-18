@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
 import IncidentInfo from "../components/Incident/IncidentInfo";
@@ -11,6 +11,7 @@ import EventTimeline from "../components/Incident/EventTimeline";
 import ApprovalPanel from "../components/Approval/ApprovalPanel";
 import StatusBadge from "../components/IncidentList/StatusBadge";
 import ErrorBoundary from "../components/ErrorBoundary";
+import Breadcrumb from "../components/Layout/Breadcrumb";
 
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -37,9 +38,12 @@ export default function IncidentDetailPage() {
   return (
     <div className="page-incident-detail">
       <div className="incident-header">
-        <Link to="/" className="back-link">
-          ← Back
-        </Link>
+        <Breadcrumb
+          items={[
+            { label: "Operations Dashboard", to: "/" },
+            { label: incident.incident_number ?? "Incident" },
+          ]}
+        />
         <h1 className="incident-title">
           {incident.incident_number}
           {incident.title ? ` · ${incident.title}` : ""}

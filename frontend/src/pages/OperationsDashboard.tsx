@@ -1,6 +1,7 @@
 import { useIncidents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
 import OperationsCards from "../components/IncidentList/OperationsCards";
+import Breadcrumb from "../components/Layout/Breadcrumb";
 import type { Incident } from "../types/incident";
 
 const ACTIVE_STATUSES = [
@@ -41,6 +42,7 @@ export default function OperationsDashboard() {
 
   return (
     <div className="page-operations">
+      <Breadcrumb items={[{ label: "Operations Dashboard" }]} />
       <h1 className="page-title">Operations Dashboard</h1>
       <p className="page-subtitle">
         {incidents.length} incident{incidents.length !== 1 ? "s" : ""} require
