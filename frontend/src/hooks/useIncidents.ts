@@ -16,6 +16,7 @@ export function useIncidents(filters: IncidentFilters = {}) {
 }
 
 const ACTIVE_STATUSES: IncidentFilters["status"] = [
+  "open",
   "ingested",
   "analyzing",
   "pending_approval",

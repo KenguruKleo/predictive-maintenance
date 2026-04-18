@@ -5,6 +5,7 @@ import Breadcrumb from "../components/Layout/Breadcrumb";
 import type { Incident } from "../types/incident";
 
 const ACTIVE_STATUSES = [
+  "open",
   "ingested",
   "analyzing",
   "pending_approval",
@@ -17,7 +18,8 @@ const STATUS_ORDER: Record<string, number> = {
   escalated: 1,
   analyzing: 2,
   ingested: 3,
-  approved: 4,
+  open: 4,
+  approved: 5,
 };
 
 function sortIncidents(items: Incident[]) {

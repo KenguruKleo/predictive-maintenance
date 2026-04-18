@@ -5,6 +5,7 @@ const STATUS_CONFIG: Record<
   IncidentStatus,
   { icon: string; color: string; text: string }
 > = {
+  open: { icon: "🔵", color: "var(--color-analyzing)", text: "Open" },
   ingested: { icon: "🔵", color: "var(--color-analyzing)", text: "Ingesting..." },
   analyzing: {
     icon: "🔵",
