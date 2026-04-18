@@ -42,6 +42,61 @@
 
 ---
 
+## 🖥️ Frontend
+
+### Відкрити задеплоєний додаток
+
+> **Production URL:** [https://calm-flower-0a6d7f90f.7.azurestaticapps.net](https://calm-flower-0a6d7f90f.7.azurestaticapps.net)
+>
+> Azure Static Web Apps resource: `swa-sentinel-intel-dev` (RG: `ODL-GHAZ-2177134`)
+
+Увійдіть через Entra ID як `odl_user_2177134@sandboxailabs1009.onmicrosoft.com`.
+
+### Локальний запуск
+
+```bash
+cd frontend
+npm install
+npm run dev
+# Відкрити: http://localhost:5173
+```
+
+Фронтенд автоматично підключається до Azure Functions backend — жодних додаткових налаштувань не потрібно.  
+Якщо потрібна інша URL-адреса API — створіть `frontend/.env.local`:
+
+```env
+VITE_API_BASE_URL=http://localhost:7071/api   # локальний Azure Functions
+```
+
+### Деплой фронтенду
+
+**Автоматично:** будь-який push в `main` з файлами у `frontend/**` тригерить GitHub Actions workflow [`swa-deploy.yml`](.github/workflows/swa-deploy.yml).
+
+Необхідні GitHub Secrets (`Settings → Secrets → Actions`):
+
+| Secret | Значення |
+|---|---|
+| `SWA_DEPLOYMENT_TOKEN` | deployment token SWA `swa-sentinel-intel-dev`<br>`az staticwebapp secrets list --name swa-sentinel-intel-dev --resource-group ODL-GHAZ-2177134 --query "properties.apiKey" -o tsv` |
+| `VITE_ENTRA_TENANT_ID` | `baf5b083-4c53-493a-8af7-a6ae9812014c` |
+| `VITE_ENTRA_SPA_CLIENT_ID` | `1bdb80fb-950c-45b8-be9c-8f8a7fa26ca9` |
+| `VITE_ENTRA_API_CLIENT_ID` | `38843d08-f211-4445-bcef-a07d383f2ee6` |
+| `VITE_API_BASE_URL` | `https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api` |
+
+**Вручну** (без GitHub Actions):
+
+```bash
+cd frontend
+npm run build
+npx @azure/static-web-apps-cli deploy dist \
+  --deployment-token "$(az staticwebapp secrets list \
+    --name swa-sentinel-intel-dev \
+    --resource-group ODL-GHAZ-2177134 \
+    --query 'properties.apiKey' -o tsv)" \
+  --env production
+```
+
+---
+
 ## 🧪 Testing & Development
 
 ### Prerequisites
