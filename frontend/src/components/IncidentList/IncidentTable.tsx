@@ -44,7 +44,13 @@ export default function IncidentTable({ incidents }: Props) {
                   const raw = inc.created_at ?? inc.reported_at;
                   if (!raw) return "—";
                   const d = new Date(raw);
-                  return isNaN(d.getTime()) ? "—" : d.toLocaleDateString();
+                  if (isNaN(d.getTime())) return "—";
+                  return (
+                    <span className="table-datetime">
+                      <span>{d.toLocaleDateString()}</span>
+                      <span className="table-time">{d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                    </span>
+                  );
                 })()}
               </td>
             </tr>
