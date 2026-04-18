@@ -755,65 +755,22 @@
   font-family: var(--font-sans);
 }
 
-/* ── Parameter excursion ── */
-.excursion-param {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-heading);
-  margin-bottom: var(--space-3);
-}
-
-.excursion-bar-container {
-  margin-bottom: var(--space-2);
-}
-
-/* outer bar = PAR range */
-.excursion-bar.par-bar {
-  position: relative;
-  height: 22px;
-  background: rgba(202, 125, 1, 0.08);
-  border: 1px dashed rgba(202, 125, 1, 0.4);
+/* ── Parameter excursion (text card) ── */
+.excursion-badge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px 8px;
   border-radius: var(--radius-sm);
-  overflow: visible;
-}
-
-/* inner bar = NOR range (absolute within par-bar) */
-.excursion-bar.nor-bar {
-  position: absolute;
-  top: 0; bottom: 0;
-  background: rgba(0, 102, 68, 0.12);
-  border-left: 2px solid var(--conf-high);
-  border-right: 2px solid var(--conf-high);
-}
-
-.excursion-marker {
-  position: absolute;
-  top: 2px; bottom: 2px;
-  width: 4px;
-  border-radius: 2px;
-}
-.excursion-marker.in-nor  { background: var(--conf-high); }
-.excursion-marker.in-par  { background: var(--conf-medium); }
-.excursion-marker.out-par { background: var(--conf-low); }
-
-.excursion-labels {
-  display: flex;
-  justify-content: space-between;
-  margin-top: var(--space-2);
   font-size: 11px;
-  color: var(--text-muted);
-  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  vertical-align: middle;
 }
-.excursion-labels .in-nor  { color: var(--conf-high);   font-weight: 700; }
-.excursion-labels .in-par  { color: var(--conf-medium); font-weight: 700; }
-.excursion-labels .out-par { color: var(--conf-low);    font-weight: 700; }
-
-.excursion-duration {
-  font-size: 11px;
-  color: var(--text-subtle);
-  font-family: var(--font-mono);
-  margin-top: var(--space-1);
+.excursion-badge.out-par {
+  background: rgba(var(--conf-low-rgb, 200, 30, 30), 0.12);
+  color: var(--conf-low);
 }
+.out-par { color: var(--conf-low); font-weight: 700; }
 
 /* ── AI Analysis ── */
 .analysis-row {

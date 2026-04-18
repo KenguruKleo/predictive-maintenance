@@ -130,6 +130,11 @@ export interface Incident {
   incident_number?: string;
   title?: string;
   equipment_id: string;
+  equipment_name?: string;
+  equipment_type?: string;
+  equipment_criticality?: string;
+  location?: string | Record<string, string>;
+  deviation_type?: string;
   batch_id?: string;
   product?: string;
   production_stage?: string;

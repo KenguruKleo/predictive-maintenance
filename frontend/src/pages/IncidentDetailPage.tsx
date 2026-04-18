@@ -10,6 +10,7 @@ import ApprovalPanel from "../components/Approval/ApprovalPanel";
 import StatusBadge from "../components/IncidentList/StatusBadge";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Breadcrumb from "../components/Layout/Breadcrumb";
+import type { ParameterExcursion as ParamExcursion } from "../types/incident";
 
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -34,6 +35,32 @@ export default function IncidentDetailPage() {
         e.action === "operator_question" || e.action === "agent_response",
     );
 
+  // Synthesize parameter_excursion from root-level alert fields for incidents
+  // that were ingested before the nested object was added to the payload.
+  const excursionData: ParamExcursion | undefined =
+    incident.parameter_excursion ??
+    (incident.parameter !== undefined || incident.measured_value !== undefined
+      ? {
+          parameter: incident.parameter ?? "",
+          measured_value: incident.measured_value ?? 0,
+          unit: incident.unit ?? "",
+          duration_seconds: incident.duration_seconds ?? 0,
+          lower_limit: incident.lower_limit,
+          upper_limit: incident.upper_limit,
+        }
+      : undefined);
+
+  // Build a display title from alert fields when incident.title is absent
+  const displayTitle = incident.title ?? (() => {
+    if (!incident.parameter) return "";
+    const label = incident.parameter.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const { measured_value: m, upper_limit: hi, lower_limit: lo } = incident;
+    const dir = m !== undefined && hi !== undefined && m > hi ? "HIGH"
+      : m !== undefined && lo !== undefined && m < lo ? "LOW"
+      : "Excursion";
+    return `${label} ${dir}`;
+  })();
+
   return (
     <div className="page-incident-detail">
       <div className="incident-header">
@@ -45,7 +72,7 @@ export default function IncidentDetailPage() {
         />
         <h1 className="incident-title">
           {incident.incident_number ?? incident.id}
-          {incident.title ? ` · ${incident.title}` : ""}
+          {displayTitle ? ` · ${displayTitle}` : ""}
         </h1>
         <div className="incident-header-meta">
           <StatusBadge status={incident.status} />
@@ -59,9 +86,9 @@ export default function IncidentDetailPage() {
             <IncidentInfo incident={incident} />
           </ErrorBoundary>
 
-          {incident.parameter_excursion && (
+          {excursionData && (
             <ErrorBoundary inline section="Parameter Excursion">
-              <ParameterExcursion excursion={incident.parameter_excursion} />
+              <ParameterExcursion excursion={excursionData} />
             </ErrorBoundary>
           )}
 

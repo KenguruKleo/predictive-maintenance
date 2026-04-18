@@ -109,6 +109,8 @@ def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
         "equipment_criticality": equipment.get("criticality", "unknown"),
         "equipment_type": equipment.get("type", "unknown"),
         "location": equipment.get("location", "unknown"),
+        "title": _build_incident_title(body),
+        "parameter_excursion": _build_parameter_excursion(body),
     }
 
     # ------------------------------------------------------------------
@@ -146,6 +148,44 @@ def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+def _build_incident_title(body: dict) -> str:
+    """Generate a short human-readable title from raw alert fields."""
+    param = body.get("parameter", "")
+    measured = body.get("measured_value")
+    upper = body.get("upper_limit")
+    lower = body.get("lower_limit")
+    equip = body.get("equipment_id", "")
+
+    param_label = " ".join(w.capitalize() for w in param.replace("_", " ").split()) if param else ""
+
+    if measured is not None and upper is not None and measured > upper:
+        direction = "HIGH"
+    elif measured is not None and lower is not None and measured < lower:
+        direction = "LOW"
+    elif param:
+        direction = "Excursion"
+    else:
+        return f"{body.get('deviation_type', 'Alert')} — {equip}".strip(" —")
+
+    return f"{param_label} {direction} — {equip}"
+
+
+def _build_parameter_excursion(body: dict) -> dict | None:
+    """Build a nested parameter_excursion object from root-level alert fields."""
+    param = body.get("parameter")
+    measured = body.get("measured_value")
+    if param is None and measured is None:
+        return None
+    return {
+        "parameter": param or "",
+        "measured_value": measured if measured is not None else 0,
+        "unit": body.get("unit", ""),
+        "duration_seconds": body.get("duration_seconds", 0),
+        "lower_limit": body.get("lower_limit"),
+        "upper_limit": body.get("upper_limit"),
+    }
+
 
 def _write_incident_stub(payload: dict) -> None:
     """Persist a minimal incident document to Cosmos so the ID counter advances

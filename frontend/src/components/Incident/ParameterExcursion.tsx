@@ -4,51 +4,60 @@ interface Props {
   excursion: ParamData;
 }
 
+function formatDuration(seconds: number): string {
+  if (!seconds) return "—";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
+
+function deviationDirection(excursion: ParamData): { label: string; cls: string } | null {
+  const { measured_value, lower_limit, upper_limit, nor_min, nor_max, par_min, par_max } = excursion;
+  const hi = par_max ?? upper_limit ?? nor_max;
+  const lo = par_min ?? lower_limit ?? nor_min;
+  if (hi !== undefined && measured_value > hi) return { label: "HIGH", cls: "out-par" };
+  if (lo !== undefined && measured_value < lo) return { label: "LOW", cls: "out-par" };
+  return null;
+}
+
 export default function ParameterExcursion({ excursion }: Props) {
   const { measured_value, unit, parameter, duration_seconds } = excursion;
-  const lower = excursion.par_min ?? excursion.lower_limit ?? excursion.nor_min ?? measured_value;
-  const upper = excursion.par_max ?? excursion.upper_limit ?? excursion.nor_max ?? measured_value;
-  const norMin = excursion.nor_min ?? excursion.lower_limit ?? lower;
-  const norMax = excursion.nor_max ?? excursion.upper_limit ?? upper;
-  const range = Math.max(upper - lower, 1);
-  const norStart = ((norMin - lower) / range) * 100;
-  const norWidth = ((norMax - norMin) / range) * 100;
-  const valuePos = Math.min(100, Math.max(0, ((measured_value - lower) / range) * 100));
-  const inNor = measured_value >= norMin && measured_value <= norMax;
-  const inPar = measured_value >= lower && measured_value <= upper;
+  const hi = excursion.par_max ?? excursion.upper_limit ?? excursion.nor_max;
+  const lo = excursion.par_min ?? excursion.lower_limit ?? excursion.nor_min;
+  const dir = deviationDirection(excursion);
+
+  const paramLabel = parameter
+    ? parameter.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+    : "Process Parameter";
 
   return (
     <section className="incident-section">
-      <h3 className="section-title">Parameter Excursion</h3>
-      <div className="excursion-param">{parameter}</div>
-
-      <div className="excursion-bar-container">
-        <div className="excursion-bar par-bar">
-          <div
-            className="excursion-bar nor-bar"
-            style={{ left: `${norStart}%`, width: `${norWidth}%` }}
-          />
-          <div
-            className={`excursion-marker ${inNor ? "in-nor" : inPar ? "in-par" : "out-par"}`}
-            style={{ left: `${valuePos}%` }}
-          />
-        </div>
-      </div>
-
-      <div className="excursion-labels">
-        <span>
-          PAR: {lower}–{upper} {unit}
-        </span>
-        <span>
-          NOR: {norMin}–{norMax} {unit}
-        </span>
-        <span className={inNor ? "in-nor" : inPar ? "in-par" : "out-par"}>
-          Measured: {measured_value} {unit}
-        </span>
-      </div>
-      <div className="excursion-duration">
-        Duration: {Math.floor(duration_seconds / 60)}m {duration_seconds % 60}s
-      </div>
+      <h3 className="section-title">
+        Deviation detected
+        {dir && <span className={`excursion-badge ${dir.cls}`}>{dir.label}</span>}
+      </h3>
+      <dl className="info-grid">
+        <dt>Parameter</dt>
+        <dd>{paramLabel}</dd>
+        <dt>Measured</dt>
+        <dd className={dir ? dir.cls : ""}>
+          {measured_value} {unit}
+        </dd>
+        {(lo !== undefined || hi !== undefined) && (
+          <>
+            <dt>Limit range</dt>
+            <dd>
+              {lo ?? "—"} – {hi ?? "—"} {unit}
+            </dd>
+          </>
+        )}
+        {duration_seconds > 0 && (
+          <>
+            <dt>Duration</dt>
+            <dd>{formatDuration(duration_seconds)}</dd>
+          </>
+        )}
+      </dl>
     </section>
   );
 }

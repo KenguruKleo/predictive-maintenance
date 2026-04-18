@@ -7,6 +7,24 @@ interface Props {
   incidents: Incident[];
 }
 
+function getIncidentTitle(inc: Incident): string {
+  if (inc.title) return inc.title;
+  if (inc.parameter) {
+    const label = inc.parameter.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const measured = inc.measured_value;
+    const upper = inc.upper_limit;
+    const lower = inc.lower_limit;
+    const dir =
+      measured !== undefined && upper !== undefined && measured > upper
+        ? "HIGH"
+        : measured !== undefined && lower !== undefined && measured < lower
+          ? "LOW"
+          : "Excursion";
+    return `${label} ${dir}`;
+  }
+  return "—";
+}
+
 export default function IncidentTable({ incidents }: Props) {
   return (
     <div className="table-wrapper">
@@ -31,7 +49,7 @@ export default function IncidentTable({ incidents }: Props) {
                 </Link>
               </td>
               <td>{inc.equipment_id}</td>
-              <td className="table-cell-title">{inc.title ?? "—"}</td>
+              <td className="table-cell-title">{getIncidentTitle(inc)}</td>
               <td>
                 <SeverityBadge severity={inc.severity} />
               </td>
