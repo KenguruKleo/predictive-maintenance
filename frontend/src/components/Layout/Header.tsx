@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useSignalR } from "../../hooks/useSignalR";
 
@@ -7,10 +8,10 @@ export default function Header() {
 
   return (
     <header className="app-header">
-      <div className="app-header-brand">
+      <Link to="/" className="app-header-brand">
         <span className="app-header-icon">🛡️</span>
         <span className="app-header-title">Sentinel Intelligence</span>
-      </div>
+      </Link>
 
       <div className="app-header-right">
         {!connected && (

@@ -76,6 +76,12 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
+  text-decoration: none;
+  cursor: pointer;
+}
+.app-header-brand:hover .app-header-title {
+  color: var(--blue-primary);
+  text-decoration: none;
 }
 
 .app-header-icon { font-size: 18px; }
