@@ -22,7 +22,7 @@ ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
 @bp.route(
     route="equipment/{equipment_id}",
     methods=["GET"],
-    auth_level=func.AuthLevel.FUNCTION,
+    auth_level=func.AuthLevel.ANONYMOUS,
 )
 def get_equipment(req: func.HttpRequest) -> func.HttpResponse:
     """Return equipment master data by ID."""

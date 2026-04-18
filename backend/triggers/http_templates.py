@@ -28,7 +28,7 @@ ADMIN_ROLES = ["ITAdmin"]
 # GET /api/templates
 # ---------------------------------------------------------------------------
 
-@bp.route(route="templates", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="templates", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def list_templates(req: func.HttpRequest) -> func.HttpResponse:
     """List all document templates."""
     try:
@@ -54,7 +54,7 @@ def list_templates(req: func.HttpRequest) -> func.HttpResponse:
 # GET /api/templates/{id}
 # ---------------------------------------------------------------------------
 
-@bp.route(route="templates/{template_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="templates/{template_id}", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_template(req: func.HttpRequest) -> func.HttpResponse:
     """Get a single template by ID."""
     try:
@@ -89,7 +89,7 @@ def get_template(req: func.HttpRequest) -> func.HttpResponse:
 # PUT /api/templates/{id}
 # ---------------------------------------------------------------------------
 
-@bp.route(route="templates/{template_id}", methods=["PUT"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="templates/{template_id}", methods=["PUT"], auth_level=func.AuthLevel.ANONYMOUS)
 def update_template(req: func.HttpRequest) -> func.HttpResponse:
     """Update an existing template (ITAdmin only)."""
     try:

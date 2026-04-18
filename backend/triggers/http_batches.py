@@ -22,7 +22,7 @@ ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
 @bp.route(
     route="batches/current/{equipment_id}",
     methods=["GET"],
-    auth_level=func.AuthLevel.FUNCTION,
+    auth_level=func.AuthLevel.ANONYMOUS,
 )
 def get_current_batch(req: func.HttpRequest) -> func.HttpResponse:
     """Return the active (in_progress) batch for a piece of equipment."""

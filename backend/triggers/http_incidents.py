@@ -28,7 +28,7 @@ ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
 # GET /api/incidents
 # ---------------------------------------------------------------------------
 
-@bp.route(route="incidents", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="incidents", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
     """List incidents with optional role-based filtering and pagination."""
     try:
@@ -69,7 +69,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
 # GET /api/incidents/{id}
 # ---------------------------------------------------------------------------
 
-@bp.route(route="incidents/{incident_id}", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="incidents/{incident_id}", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_incident(req: func.HttpRequest) -> func.HttpResponse:
     """Get full incident detail including AI analysis."""
     try:

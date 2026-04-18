@@ -23,7 +23,7 @@ ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
 @bp.route(
     route="incidents/{incident_id}/events",
     methods=["GET"],
-    auth_level=func.AuthLevel.FUNCTION,
+    auth_level=func.AuthLevel.ANONYMOUS,
 )
 def get_incident_events(req: func.HttpRequest) -> func.HttpResponse:
     """Return chronological event timeline for an incident."""

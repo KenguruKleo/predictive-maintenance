@@ -19,7 +19,7 @@ bp = func.Blueprint()
 ALLOWED_ROLES = ["QAManager", "ITAdmin"]
 
 
-@bp.route(route="stats/summary", methods=["GET"], auth_level=func.AuthLevel.FUNCTION)
+@bp.route(route="stats/summary", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
 def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
     """Return aggregate incident statistics for the dashboard."""
     try:

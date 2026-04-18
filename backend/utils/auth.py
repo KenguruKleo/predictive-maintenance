@@ -40,6 +40,10 @@ _API_CLIENT_ID = os.getenv(
     "ENTRA_API_CLIENT_ID",
     "38843d08-f211-4445-bcef-a07d383f2ee6",
 )
+_API_AUDIENCE = os.getenv(
+    "ENTRA_API_AUDIENCE",
+    f"api://{_API_CLIENT_ID}",
+)
 _JWKS_URI = (
     f"https://login.microsoftonline.com/{_TENANT_ID}/discovery/v2.0/keys"
 )
@@ -56,7 +60,7 @@ USE_LOCAL_MOCK_AUTH = os.getenv("USE_LOCAL_MOCK_AUTH", "false").lower() == "true
 # JWKS in-process cache (survives across warm invocations)
 # ---------------------------------------------------------------------------
 _jwks_cache: dict = {}
-_jwks_fetched_at: float = 0.0
+_jwks_fetched_at: float = -(JWKS_CACHE_TTL_SECONDS + 1)
 
 
 def _get_jwks() -> dict:
@@ -165,7 +169,7 @@ def _verify_and_decode_roles(token: str) -> list[str]:
             token,
             public_key,
             algorithms=["RS256"],
-            audience=_API_CLIENT_ID,
+            audience=_API_AUDIENCE,
             issuer=_VALID_ISSUERS,
             options={"verify_iss": True, "require": ["exp", "aud"]},
         )

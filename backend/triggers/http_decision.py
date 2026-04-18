@@ -37,7 +37,7 @@ bp = df.Blueprint()
 @bp.route(
     route="incidents/{incident_id}/decision",
     methods=["POST"],
-    auth_level=func.AuthLevel.FUNCTION,
+    auth_level=func.AuthLevel.ANONYMOUS,
 )
 @bp.durable_client_input(client_name="client")
 async def http_decision(
