@@ -149,7 +149,8 @@ def _call_orchestrator_agent(prompt: str) -> dict:
         # list_messages returns newest-first; first ASSISTANT message is the answer
         raw_text = ""
         for msg in messages:
-            if msg.role == MessageRole.ASSISTANT:
+            role = str(getattr(msg, "role", "")).lower()
+            if role == "assistant" or role == str(MessageRole.ASSISTANT).lower():
                 for block in msg.content:
                     if hasattr(block, "text"):
                         raw_text += block.text.value
