@@ -44,7 +44,6 @@ from shared.search_utils import search_all_indexes
 
 logger = logging.getLogger(__name__)
 
-ORCHESTRATOR_AGENT_ID = os.environ.get("ORCHESTRATOR_AGENT_ID", "")
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
 
@@ -61,7 +60,8 @@ def run_foundry_agents(input_data: dict) -> dict:
         "run_foundry_agents: incident=%s round=%d", incident_id, more_info_round
     )
 
-    if not ORCHESTRATOR_AGENT_ID:
+    orchestrator_agent_id = os.environ.get("ORCHESTRATOR_AGENT_ID", "") or "asst_CNYK3TZIaOCH4OPKcP4N9B2r"
+    if not orchestrator_agent_id:
         raise EnvironmentError(
             "ORCHESTRATOR_AGENT_ID env var is not set. "
             "Run agents/create_agents.py first to provision Foundry agents."
@@ -93,7 +93,7 @@ def run_foundry_agents(input_data: dict) -> dict:
             logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
 
     prompt = _build_prompt(incident_id, context_data, more_info_round, rag_context)
-    result = _call_orchestrator_agent(prompt)
+    result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
 
     # Confidence gate (RAI Gap #4): log warning but still return result
     confidence = result.get("confidence", 0.0)
@@ -113,7 +113,7 @@ def run_foundry_agents(input_data: dict) -> dict:
 # ── Internal helpers ──────────────────────────────────────────────────────
 
 
-def _call_orchestrator_agent(prompt: str) -> dict:
+def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
     """Create a Foundry thread, run the Orchestrator Agent, return parsed result.
 
     Uses ``create_thread_and_process_run_with_approval`` to handle MCP tool
@@ -131,7 +131,7 @@ def _call_orchestrator_agent(prompt: str) -> dict:
     with client:
         run = create_thread_and_process_run_with_approval(
             client,
-            agent_id=ORCHESTRATOR_AGENT_ID,
+            agent_id=agent_id,
             thread=AgentThreadCreationOptions(
                 messages=[
                     ThreadMessageOptions(role=MessageRole.USER, content=prompt)
@@ -150,7 +150,7 @@ def _call_orchestrator_agent(prompt: str) -> dict:
         raw_text = ""
         for msg in messages:
             role = str(getattr(msg, "role", "")).lower()
-            if role == "assistant" or role == str(MessageRole.ASSISTANT).lower():
+            if "assistant" in role:
                 for block in msg.content:
                     if hasattr(block, "text"):
                         raw_text += block.text.value

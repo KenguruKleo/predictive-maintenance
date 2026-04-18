@@ -336,6 +336,14 @@
               {
                 "id": "templates",
                 "partitionKey": "/id"
+              },
+              {
+                "id": "notifications",
+                "partitionKey": "/incidentId"
+              },
+              {
+                "id": "incident_events",
+                "partitionKey": "/incidentId"
               }
             ]
           },

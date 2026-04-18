@@ -18,7 +18,14 @@ export default function IncidentInfo({ incident }: Props) {
         <dt>Stage</dt>
         <dd>{incident.production_stage ?? "—"}</dd>
         <dt>Reported</dt>
-        <dd>{new Date(incident.created_at).toLocaleTimeString()}</dd>
+        <dd>
+          {(() => {
+            const raw = incident.reported_at ?? incident.created_at;
+            if (!raw) return "—";
+            const d = new Date(raw);
+            return isNaN(d.getTime()) ? "—" : d.toLocaleString();
+          })()}
+        </dd>
         <dt>Assigned</dt>
         <dd>{incident.assigned_to ?? "Unassigned"}</dd>
       </dl>

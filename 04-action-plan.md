@@ -94,7 +94,7 @@
 
 | ID | Задача | Gap / Вимога | Пріоритет | Статус |
 |---|---|---|---|---|
-| T-038 | **[Security layer](./tasks/T-038-security.md)** — Key Vault, VNet, Private Endpoints, Managed Identities | Gap #2 | 🟡 MEDIUM | 🔜 TODO |
+| T-038 | **[Security layer](./tasks/T-038-security.md)** — Key Vault, VNet, Private Endpoints, Managed Identities, retention policy (21 CFR Part 11), data classification | Gap #2 | 🟡 MEDIUM | 🔜 TODO |
 | T-039 | **[Reliability layer](./tasks/T-039-reliability.md)** — retry policies, fallback mode, circuit breaker, latency SLOs | Gap #3 | 🟡 MEDIUM | 🔜 TODO |
 | T-040 | **[RAI layer](./tasks/T-040-rai.md)** — confidence gate impl, Content Safety API, prompt injection guard, eval metrics | Gap #4 | 🟡 MEDIUM | 🔜 TODO |
 

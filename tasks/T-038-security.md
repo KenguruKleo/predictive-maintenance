@@ -41,6 +41,18 @@
 - [ ] Cosmos DB: encryption at rest (default Azure-managed)
 - [ ] Blob Storage: private endpoint, no public access
 - [ ] HTTPS-only enforced on Static Web App + Functions
+- [ ] TLS-only enforced: Cosmos DB (`minimalTlsVersion: 'Tls12'`), Service Bus (transport security), AI Search (HTTPS only)
+
+### Audit Log Retention (21 CFR Part 11)
+- [ ] Cosmos DB `audit-log` container: `defaultTtl = -1` (no expiry = immutable retention)
+- [ ] Cosmos DB `audit-log` container: analytical store enabled (read-only historical queries)
+- [ ] Log Analytics workspace: retention policy ≥ 90 days (regulatory minimum)
+- [ ] App Insights: data retention set to 90 days
+
+### Data Classification
+- [ ] SOP/BPR documents in Blob Storage: access restricted to `SentinelResearcher` Managed Identity only (no public access, no SAS tokens)
+- [ ] Cosmos DB `incidents` container: RBAC — operators see own incidents only (server-side filter on `assigned_to`); already implemented in T-035 but document here
+- [ ] Cosmos DB `audit-log` container: read-only for `Auditor` role; no write/delete via API
 
 ---
 
@@ -55,6 +67,17 @@ infra/
     managed-identity.bicep   # role assignments
 ```
 
+---
+
+## Definition of Done
+
+- [ ] Key Vault provisioned; Functions читають secrets через Key Vault references (не env vars)
+- [ ] Managed Identity має мінімально необхідні ролі на всіх сервісах
+- [ ] `az network private-endpoint list` показує 3 endpoints (Cosmos, Service Bus, AI Search)
+- [ ] `curl http://cosmos-...documents.azure.com` з публічного IP → connection refused
+- [ ] Cosmos `audit-log` container має `defaultTtl = -1` (перевірити в portal)
+- [ ] Log Analytics retention = 90 days
+
 ## Note for hackathon
 
-Para demo purposes: VNet + Private Endpoints can be simplified or skipped if causing connectivity issues. Key Vault + Managed Identities are the **minimum required** for Gap #2.
+For demo purposes: VNet + Private Endpoints can be simplified or skipped if causing connectivity issues. Key Vault + Managed Identities + Retention Policy are the **minimum required** for Gap #2 and 21 CFR Part 11 compliance story.

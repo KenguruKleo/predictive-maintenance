@@ -20,7 +20,10 @@ export default function EventTimeline({ events }: Props) {
             <div className="timeline-dot" />
             <div className="timeline-content">
               <span className="timeline-time">
-                {new Date(ev.timestamp).toLocaleTimeString()}
+                {(() => {
+                  const d = new Date(ev.timestamp);
+                  return isNaN(d.getTime()) ? ev.timestamp : d.toLocaleTimeString();
+                })()}
               </span>
               <span className="timeline-actor">
                 {ACTOR_ICON[ev.actor_type] ?? "●"} {ev.actor}

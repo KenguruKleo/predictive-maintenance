@@ -12,7 +12,7 @@ interface Props {
 }
 
 export default function EvidenceCitations({ citations }: Props) {
-  if (citations.length === 0) return null;
+  if (!Array.isArray(citations) || citations.length === 0) return null;
   return (
     <section className="incident-section">
       <h3 className="section-title">Evidence Citations</h3>

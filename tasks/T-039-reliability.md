@@ -52,6 +52,8 @@
 - [ ] AI Search: Basic tier (no redundancy needed for demo)
 - [ ] Azure Functions: Consumption plan (pay per execution)
 - [ ] Foundry Agents: monitor token usage via App Insights custom metrics
+- [ ] Custom metric: `incident_total_tokens` per incident (input + output tokens, all agent calls)
+- [ ] Custom metric: `incident_cost_usd` estimated (tokens × model rate) — для presentation "cost per incident" slide
 
 ---
 
