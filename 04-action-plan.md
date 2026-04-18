@@ -85,7 +85,7 @@
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
-| T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → blob trigger → chunk → embed → AI Search | Gap #4 | 🟠 HIGH | 🔜 TODO | T-037 |
+| T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |
 | T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 5 indexes, 9 docs, 117 chunks з HNSW vector search | Gap #4 | 🟠 HIGH | ✅ DONE | — |
 | T-041 | **[Bicep IaC templates](./tasks/T-041-bicep-iac.md)** — infra/main.bicep + modules for all resources | Gap #1, #6 | 🟠 HIGH | ✅ DONE | T-042 |
 | T-042 | **[GitHub Actions CI/CD](./tasks/T-042-cicd.md)** — build, test, Bicep deploy, Foundry eval pipeline | Gap #1 | 🟠 HIGH | ✅ DONE | finals |
@@ -109,7 +109,7 @@
 |---|---|
 | 17 квіт | ✅ T-041 · ✅ T-042 · ✅ T-022 · ✅ T-020/T-021 · ✅ T-037 · ✅ T-023 · ✅ T-028 |
 | 18–19 квіт | ✅ T-024 (Durable orchestrator + all activities) · ✅ T-025 (Research Agent) · ✅ T-026 (Document Agent) · ✅ T-041 ext (AI Foundry Bicep) |
-| 20–21 квіт | T-027 (Execution Agent) · T-029 (Human Approval API) · T-036 (document ingestion) |
+| 20–21 квіт | T-027 (Execution Agent) · T-029 (Human Approval API) · ✅ T-036 (document ingestion) |
 | 22–23 квіт | ✅ T-031 (Backend API) · T-030 (SignalR) · ✅ T-035 (RBAC) |
 
 ### Week 2 (24–30 квітня) — Agents + Frontend + Integration

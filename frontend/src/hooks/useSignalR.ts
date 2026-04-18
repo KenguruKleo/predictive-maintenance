@@ -45,9 +45,7 @@ export function useSignalR() {
 
     async function connect() {
       try {
-        const res = await fetch(`${API_BASE_URL}/negotiate`, {
-          credentials: "include",
-        });
+        const res = await fetch(`${API_BASE_URL}/negotiate`);
         if (!res.ok) return;
         const { url, accessToken } = await res.json();
 
