@@ -120,3 +120,13 @@ export interface IncidentFilters {
   sort_by?: string;
   sort_order?: "asc" | "desc";
 }
+
+/** All statuses that represent an in-progress (non-terminal) incident. */
+export const ACTIVE_INCIDENT_STATUSES = [
+  "open",
+  "ingested",
+  "analyzing",
+  "pending_approval",
+  "escalated",
+  "approved",
+] as const satisfies IncidentStatus[];

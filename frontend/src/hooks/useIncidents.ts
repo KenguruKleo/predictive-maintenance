@@ -5,6 +5,7 @@ import {
   getIncidentEvents,
   submitDecision,
 } from "../api/incidents";
+import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
 import type { IncidentFilters } from "../types/incident";
 import type { DecisionPayload } from "../types/approval";
 
@@ -15,21 +16,12 @@ export function useIncidents(filters: IncidentFilters = {}) {
   });
 }
 
-const ACTIVE_STATUSES: IncidentFilters["status"] = [
-  "open",
-  "ingested",
-  "analyzing",
-  "pending_approval",
-  "escalated",
-  "approved",
-];
-
 export function useInfiniteActiveIncidents(pageSize = 20) {
   return useInfiniteQuery({
     queryKey: ["incidents-active-infinite", pageSize],
     queryFn: ({ pageParam = 1 }) =>
       getIncidents({
-        status: ACTIVE_STATUSES,
+        status: ACTIVE_INCIDENT_STATUSES,
         page: pageParam as number,
         page_size: pageSize,
         sort_by: "created_at",

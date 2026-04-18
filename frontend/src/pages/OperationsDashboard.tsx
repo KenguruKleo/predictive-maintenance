@@ -2,16 +2,8 @@ import { useIncidents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
 import OperationsCards from "../components/IncidentList/OperationsCards";
 import Breadcrumb from "../components/Layout/Breadcrumb";
+import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
 import type { Incident } from "../types/incident";
-
-const ACTIVE_STATUSES = [
-  "open",
-  "ingested",
-  "analyzing",
-  "pending_approval",
-  "escalated",
-  "approved",
-] as const;
 
 const STATUS_ORDER: Record<string, number> = {
   pending_approval: 0,
@@ -32,7 +24,7 @@ function sortIncidents(items: Incident[]) {
 export default function OperationsDashboard() {
   const { hasRole } = useAuth();
   const { data, isLoading, error } = useIncidents({
-    status: [...ACTIVE_STATUSES],
+    status: [...ACTIVE_INCIDENT_STATUSES],
     page_size: 50,
   });
 
