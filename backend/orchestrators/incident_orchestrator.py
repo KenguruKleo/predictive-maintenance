@@ -76,7 +76,11 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
     # ── Step 1: Enrich context (equipment + batch from Cosmos) ─────────────
     context_data: dict = _coerce_dict((yield context.call_activity(
         "enrich_context",
-        {"incident_id": incident_id, "equipment_id": input_data.get("equipment_id")},
+        {
+            "incident_id": incident_id,
+            "equipment_id": input_data.get("equipment_id"),
+            "batch_id": input_data.get("batch_id"),
+        },
     )))
     context_data["operator_questions"] = []
     # Carry alert payload into context so run_foundry_agents can use it
@@ -95,6 +99,9 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
             "incident_id": incident_id,
             "ai_result": ai_result,
             "equipment_id": input_data.get("equipment_id", ""),
+            "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
+            "product": context_data.get("product", ""),
+            "production_stage": context_data.get("production_stage", ""),
         },
     )
 
@@ -149,7 +156,13 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
             )))
             yield context.call_activity(
                 "notify_operator",
-                {"incident_id": incident_id, "ai_result": ai_result},
+                {
+                    "incident_id": incident_id,
+                    "ai_result": ai_result,
+                    "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
+                    "product": context_data.get("product", ""),
+                    "production_stage": context_data.get("production_stage", ""),
+                },
             )
             continue  # loop back to wait for next decision
 

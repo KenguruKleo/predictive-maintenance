@@ -32,6 +32,9 @@ def notify_operator(input_data: dict) -> dict:
     is_escalation: bool = input_data.get("escalation", False)
     target_role: str = input_data.get("role", "operator")
     equipment_id: str = input_data.get("equipment_id", "")
+    batch_id: str = input_data.get("batch_id", "")
+    product: str = input_data.get("product", "")
+    production_stage: str = input_data.get("production_stage", "")
     assigned_to: str = input_data.get("assigned_to", "ivan.petrenko")
     now_iso = datetime.now(timezone.utc).isoformat()
     due_at_iso = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
@@ -81,23 +84,32 @@ def notify_operator(input_data: dict) -> dict:
 
     # Move incident from open/queued into the human decision state.
     try:
+        patch_operations = [
+            {"op": "set", "path": "/status", "value": incident_status},
+            {"op": "set", "path": "/ai_analysis", "value": ai_result},
+            {"op": "set", "path": "/title", "value": ai_result.get("title") or _fallback_title(ai_result)},
+            {"op": "set", "path": "/workflow_state", "value": {
+                "durable_instance_id": f"durable-{incident_id}",
+                "current_step": current_step,
+                "assigned_to": assigned_to,
+                "target_role": target_role,
+                "approval_task_id": approval_task["id"],
+                "escalation_deadline": due_at_iso,
+            }},
+            {"op": "set", "path": "/updatedAt", "value": now_iso},
+            {"op": "set", "path": "/updated_at", "value": now_iso},
+        ]
+        if batch_id:
+            patch_operations.append({"op": "set", "path": "/batch_id", "value": batch_id})
+        if product:
+            patch_operations.append({"op": "set", "path": "/product", "value": product})
+        if production_stage:
+            patch_operations.append({"op": "set", "path": "/production_stage", "value": production_stage})
+
         patch_incident_by_id(
             db,
             incident_id,
-            [
-                {"op": "set", "path": "/status", "value": incident_status},
-                {"op": "set", "path": "/ai_analysis", "value": ai_result},
-                {"op": "set", "path": "/workflow_state", "value": {
-                    "durable_instance_id": f"durable-{incident_id}",
-                    "current_step": current_step,
-                    "assigned_to": assigned_to,
-                    "target_role": target_role,
-                    "approval_task_id": approval_task["id"],
-                    "escalation_deadline": due_at_iso,
-                }},
-                {"op": "set", "path": "/updatedAt", "value": now_iso},
-                {"op": "set", "path": "/updated_at", "value": now_iso},
-            ],
+            patch_operations,
         )
     except Exception as e:
         logger.error("Failed to update incident %s to %s: %s", incident_id, incident_status, e, exc_info=True)
@@ -171,9 +183,16 @@ def notify_operator(input_data: dict) -> dict:
 
 
 def _build_message(incident_id: str, ai_result: dict, is_escalation: bool) -> str:
-    prefix = "⚠️ ESCALATION" if is_escalation else "🔔 Action Required"
+    prefix = "Escalation" if is_escalation else "Action required"
     analysis = ai_result.get("analysis", "AI analysis pending.")
     return (
         f"{prefix} — Incident {incident_id} requires your decision.\n"
         f"Analysis summary: {analysis[:300]}"
     )
+
+
+def _fallback_title(ai_result: dict) -> str:
+    classification = str(ai_result.get("classification") or ai_result.get("deviation_classification") or "").strip()
+    if classification:
+        return classification.replace("_", " ").title()
+    return "Deviation Review Required"

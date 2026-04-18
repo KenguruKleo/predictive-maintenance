@@ -8,6 +8,7 @@ structured JSON analysis.
 
 Returns:
     {
+        "title": str,
         "analysis": str,
         "root_cause": str,
         "recommendations": list[dict],
@@ -305,6 +306,7 @@ def _build_prompt(
         json.dumps(
             {
                 "incident_id": incident_id,
+                "title": "Short operator-facing incident title in under 8 words",
                 "classification": "process_parameter_excursion | equipment_malfunction | ...",
                 "risk_level": "low | medium | high | critical",
                 "confidence": 0.85,
@@ -398,6 +400,7 @@ def _parse_response(raw_text: str) -> dict:
     # Fallback — unstructured response (shouldn't happen in production)
     logger.warning("Could not parse structured JSON from Foundry agent response")
     return {
+        "title": "Deviation Review Required",
         "analysis": raw_text[:2000] if raw_text else "Analysis not available.",
         "root_cause": "Could not determine root cause automatically.",
         "classification": "unknown",
@@ -417,8 +420,27 @@ def _parse_response(raw_text: str) -> dict:
 
 def _normalize_agent_result(result: dict, rag_context: dict | None) -> dict:
     """Make citation output stable for the operator UI."""
+    result["title"] = _normalize_incident_title(result)
     result["evidence_citations"] = _normalize_evidence_citations(result, rag_context or {})
     return result
+
+
+def _normalize_incident_title(result: dict) -> str:
+    explicit_title = str(result.get("title") or "").strip()
+    if explicit_title:
+        return explicit_title
+
+    classification = str(result.get("classification") or result.get("deviation_classification") or "").strip()
+    recommendation = str(result.get("recommendation") or result.get("analysis") or "").strip()
+
+    if classification:
+        return classification.replace("_", " ").title()
+
+    if recommendation:
+        short = recommendation.split(".", 1)[0].strip()
+        return short[:80] if short else "Deviation Review Required"
+
+    return "Deviation Review Required"
 
 
 def _normalize_evidence_citations(result: dict, rag_context: dict) -> list[dict]:
@@ -508,6 +530,12 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         not document_title or document_title in {"equipment_manual_notes", "incident", "details"}
     ):
         document_title = known_doc["document_title"]
+    if not document_title:
+        section_fallback = item.get("section") or item.get("relevant_section") or ""
+        if citation_type and section_fallback:
+            document_title = f"{citation_type.upper()} reference"
+        elif citation_type:
+            document_title = f"{citation_type.upper()} evidence"
     section = item.get("section") or item.get("relevant_section") or ""
     text_excerpt = item.get("text_excerpt") or item.get("quote") or item.get("relevance") or ""
 

@@ -24,7 +24,8 @@ export default function IncidentDetailPage() {
   const showApproval =
     hasAnyRole("operator", "qa-manager") &&
     (incident.status === "pending_approval" ||
-      incident.status === "escalated");
+      incident.status === "escalated" ||
+      incident.status === "awaiting_agents");
 
   const showReadonlyChat =
     !showApproval &&
@@ -87,6 +88,9 @@ export default function IncidentDetailPage() {
           {!showApproval && !showReadonlyChat && (
             <div className="incident-section">
               <h3 className="section-title">Status</h3>
+              <div className="incident-status-block">
+                <StatusBadge status={incident.status} />
+              </div>
               <p className="muted-text">
                 {incident.status === "closed"
                   ? "This incident has been closed."

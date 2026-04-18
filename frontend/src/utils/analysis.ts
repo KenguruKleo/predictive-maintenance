@@ -6,6 +6,13 @@ export function labelize(value?: string | number | null): string {
   return String(value).replace(/_/g, " ");
 }
 
+export function getDisplayLabel(value?: string | number | null): string {
+  const text = labelize(value);
+  return text === "Not provided"
+    ? text
+    : text.replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export function getClassification(analysis?: AiAnalysis): string {
   return analysis?.classification || analysis?.deviation_classification || "";
 }
@@ -80,12 +87,13 @@ export function getAllCitations(analysis?: AiAnalysis): EvidenceCitation[] {
 
 export function getCitationTitle(citation: EvidenceCitation): string {
   const known = inferKnownDocument(citation);
-  if (known?.title && (citation.source === "equipment_manual_notes" || citation.source === "incident")) {
+  if (known?.title) {
     return known.title;
   }
   return (
     citation.document_title ||
     citation.reference ||
+    (citation.type && citation.section ? `${citation.type.toUpperCase()} reference` : "") ||
     citation.source ||
     citation.document_id ||
     "Evidence source"

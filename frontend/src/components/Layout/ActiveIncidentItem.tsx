@@ -1,5 +1,6 @@
 import type { Incident, IncidentStatus } from "../../types/incident";
 import { Link, useParams } from "react-router-dom";
+import StatusBadge from "../IncidentList/StatusBadge";
 
 const STATUS_CONFIG: Record<
   IncidentStatus,
@@ -81,7 +82,7 @@ export default function ActiveIncidentItem({ incident }: Props) {
         )}
       </div>
       <div className={`sidebar-incident-status sidebar-incident-status--${incident.status}`}>
-        <span className="sidebar-incident-status-dot" aria-hidden="true" />
+        <StatusBadge status={incident.status} />
         <span className="sidebar-incident-status-text">{statusText}</span>
       </div>
     </Link>

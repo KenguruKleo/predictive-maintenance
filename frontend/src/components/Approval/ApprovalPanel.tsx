@@ -10,7 +10,7 @@ import {
   getRecommendation,
   getRootCause,
   getClassification,
-  labelize,
+  getDisplayLabel,
 } from "../../utils/analysis";
 
 interface Props {
@@ -26,13 +26,18 @@ export default function ApprovalPanel({ incident, events }: Props) {
   const isPending =
     incident.status === "pending_approval" ||
     incident.status === "escalated";
+  const isAwaitingAgents = incident.status === "awaiting_agents";
+  const showDecisionContext = isPending || isAwaitingAgents;
   const dueAt = formatDueAt(incident.workflow_state?.escalation_deadline);
   const confidence = incident.ai_analysis ? getConfidencePct(incident.ai_analysis) : null;
   const recommendation = incident.ai_analysis ? getRecommendation(incident.ai_analysis) : "";
   const rootCause = incident.ai_analysis ? getRootCause(incident.ai_analysis) : "";
   const classification = incident.ai_analysis ? getClassification(incident.ai_analysis) : "";
   const batchImpact = incident.ai_analysis?.batch_disposition
-    ? labelize(incident.ai_analysis.batch_disposition)
+    ? getDisplayLabel(incident.ai_analysis.batch_disposition)
+    : "Pending assessment";
+  const riskLevel = incident.ai_analysis
+    ? getDisplayLabel(incident.ai_analysis.risk_level)
     : "Pending assessment";
 
   const handleApprove = () => {
@@ -52,19 +57,29 @@ export default function ApprovalPanel({ incident, events }: Props) {
     chatInputRef.current?.focus();
   };
 
+  const lastQuestion = incident.lastDecision?.question || "";
+  const lastQuestionBy = incident.lastDecision?.user_id || "Operator";
+  const panelTitle = isPending
+    ? "Decision required"
+    : isAwaitingAgents
+      ? "Awaiting agent response"
+      : "Operator review complete";
+  const panelEyebrow = isPending
+    ? "Decision required"
+    : isAwaitingAgents
+      ? "Question submitted"
+      : "Decision summary";
+  const panelSubtitle = isAwaitingAgents
+    ? "The previous recommendation stays visible while the agent prepares an answer."
+    : "Keep the operator decision, confidence, and batch impact in one place.";
+
   return (
-    <div className="approval-panel">
+    <div className="approval-panel approval-panel--sticky">
       <div className="approval-cockpit-header">
         <div>
-          <p className="approval-eyebrow">
-            {isPending ? "Decision required" : "Decision summary"}
-          </p>
-          <h2 className="approval-cockpit-title">
-            {isPending ? "Decision required" : "Operator review complete"}
-          </h2>
-          <p className="approval-cockpit-subtitle">
-            Keep the operator decision, confidence, and batch impact in one place.
-          </p>
+          <p className="approval-eyebrow">{panelEyebrow}</p>
+          <h2 className="approval-cockpit-title">{panelTitle}</h2>
+          <p className="approval-cockpit-subtitle">{panelSubtitle}</p>
         </div>
         <StatusBadge status={incident.status} />
       </div>
@@ -73,15 +88,12 @@ export default function ApprovalPanel({ incident, events }: Props) {
         <Metric label="Due by" value={dueAt} />
         <Metric label="Confidence" value={confidence !== null ? `${confidence}%` : "Not available"} />
         <Metric label="Batch impact" value={batchImpact} />
-        <Metric
-          label="Risk"
-          value={incident.ai_analysis ? labelize(incident.ai_analysis.risk_level) : "Pending assessment"}
-        />
+        <Metric label="Risk" value={riskLevel} />
       </div>
 
       {incident.ai_analysis && <ConfidenceBanner analysis={incident.ai_analysis} />}
 
-      {isPending && (
+      {showDecisionContext && (
         <>
           <div className="approval-summary approval-summary--primary">
             <div className="approval-summary-block">
@@ -105,38 +117,51 @@ export default function ApprovalPanel({ incident, events }: Props) {
               </div>
 
               <div className="approval-summary-block approval-summary-block--compact">
-                <span className="approval-summary-label">Batch disposition</span>
+                <span className="approval-summary-label">Batch release recommendation</span>
                 <p className="approval-summary-value">{batchImpact}</p>
               </div>
             </div>
           </div>
 
-          <div className="decision-buttons decision-buttons--triple">
-            <button
-              className="btn btn--approve"
-              onClick={handleApprove}
-              disabled={decision.isPending}
-            >
-              Approve
-            </button>
-            <button
-              className="btn btn--reject"
-              onClick={() => setShowRejectModal(true)}
-              disabled={decision.isPending}
-            >
-              Reject
-            </button>
-            <button
-              className="btn btn--secondary"
-              onClick={handleNeedMoreInfo}
-              disabled={decision.isPending}
-              aria-controls={chatInputId}
-            >
-              Need More Info
-            </button>
-          </div>
+          {lastQuestion && (
+            <div className="approval-question-note">
+              <span className="approval-summary-label">Latest operator question</span>
+              <p className="approval-summary-value">
+                <strong>{lastQuestionBy}:</strong> {lastQuestion}
+              </p>
+            </div>
+          )}
 
-          <div className="approval-divider">Ask the agent before deciding</div>
+          {isPending && (
+            <>
+              <div className="decision-buttons decision-buttons--triple">
+                <button
+                  className="btn btn--approve"
+                  onClick={handleApprove}
+                  disabled={decision.isPending}
+                >
+                  Approve
+                </button>
+                <button
+                  className="btn btn--reject"
+                  onClick={() => setShowRejectModal(true)}
+                  disabled={decision.isPending}
+                >
+                  Reject
+                </button>
+                <button
+                  className="btn btn--secondary"
+                  onClick={handleNeedMoreInfo}
+                  disabled={decision.isPending}
+                  aria-controls={chatInputId}
+                >
+                  Need More Info
+                </button>
+              </div>
+
+              <div className="approval-divider">Ask the agent before deciding</div>
+            </>
+          )}
         </>
       )}
 
@@ -144,10 +169,12 @@ export default function ApprovalPanel({ incident, events }: Props) {
         events={events}
         onSend={isPending ? handleAskAgent : undefined}
         readOnly={!isPending}
-        title={isPending ? "Agent conversation" : "Decision conversation"}
+        title={showDecisionContext ? "Agent conversation" : "Decision conversation"}
         emptyState={
           isPending
             ? "Ask the AI agent for more details before deciding."
+            : isAwaitingAgents
+              ? "Waiting for the AI agent response to the latest operator question."
             : "No operator questions were recorded for this incident."
         }
         inputId={chatInputId}

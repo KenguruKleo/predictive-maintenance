@@ -4,16 +4,16 @@ import SeverityBadge from "./SeverityBadge";
 
 function cardLabel(incident: Incident) {
   if (incident.status === "pending_approval")
-    return { text: "⚠️ ACTION REQUIRED", className: "card-label card-label--action" };
+    return { text: "ACTION REQUIRED", className: "card-label card-label--action" };
   if (incident.status === "escalated")
     return {
-      text: "🔴 LOW CONFIDENCE — QA MANAGER NOTIFIED",
+      text: "LOW CONFIDENCE · QA MANAGER NOTIFIED",
       className: "card-label card-label--escalated",
     };
   if (incident.status === "analyzing" || incident.status === "ingested")
-    return { text: "🤖 AI PROCESSING", className: "card-label card-label--processing" };
+    return { text: "AI PROCESSING", className: "card-label card-label--processing" };
   if (incident.status === "approved")
-    return { text: "✅ APPROVED — EXECUTING", className: "card-label card-label--approved" };
+    return { text: "APPROVED · EXECUTING", className: "card-label card-label--approved" };
   return null;
 }
 

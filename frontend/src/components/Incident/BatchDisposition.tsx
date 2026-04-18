@@ -31,7 +31,10 @@ export default function BatchDisposition({ batchId, product, analysis }: Props) 
 
   return (
     <section className="incident-section">
-      <h3 className="section-title">Batch Disposition</h3>
+      <h3 className="section-title">Batch Release Recommendation</h3>
+      <p className="muted-text disposition-summary-text">
+        This is the AI recommendation for how the batch should proceed once the deviation is reviewed.
+      </p>
       <dl className="info-grid">
         <dt>Batch</dt>
         <dd>{batchId}</dd>
@@ -43,7 +46,7 @@ export default function BatchDisposition({ batchId, product, analysis }: Props) 
         )}
       </dl>
       <div className="disposition-recommendation">
-        <strong>AI Recommendation:</strong>
+        <strong>Recommended outcome:</strong>
         <span className={`disposition-indicator disposition-indicator--${recommended.tone}`}>
           {recommended.label}
         </span>

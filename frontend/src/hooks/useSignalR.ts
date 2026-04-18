@@ -40,6 +40,15 @@ export function useSignalR() {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const invalidateLiveIncidentViews = useCallback((incidentId?: string) => {
+    queryClient.invalidateQueries({ queryKey: ["incidents"] });
+    queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
+    if (incidentId) {
+      queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
+      queryClient.invalidateQueries({ queryKey: ["incident-events", incidentId] });
+    }
+  }, [queryClient]);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -56,7 +65,7 @@ export function useSignalR() {
           .build();
 
         connection.on("incident_created", (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["incidents"] });
+          invalidateLiveIncidentViews(payload.incident_id);
           addToast(
             `New incident: ${payload.equipment_id} — ${payload.severity}`,
             "warning",
@@ -64,31 +73,20 @@ export function useSignalR() {
         });
 
         connection.on("incident_pending_approval", (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["incidents"] });
-          queryClient.invalidateQueries({
-            queryKey: ["incident", payload.incident_id],
-          });
+          invalidateLiveIncidentViews(payload.incident_id);
           addToast(`Incident ready for review: ${payload.equipment_id}`, "info");
         });
 
         connection.on("incident_status_changed", (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["incidents"] });
-          queryClient.invalidateQueries({
-            queryKey: ["incident", payload.incident_id],
-          });
+          invalidateLiveIncidentViews(payload.incident_id);
         });
 
         connection.on("agent_step_completed", (payload) => {
-          queryClient.invalidateQueries({
-            queryKey: ["incident", payload.incident_id],
-          });
+          invalidateLiveIncidentViews(payload.incident_id);
         });
 
         connection.on("incident_escalated", (payload) => {
-          queryClient.invalidateQueries({ queryKey: ["incidents"] });
-          queryClient.invalidateQueries({
-            queryKey: ["incident", payload.incident_id],
-          });
+          invalidateLiveIncidentViews(payload.incident_id);
           addToast(
             `Incident escalated: ${payload.incident_id}`,
             "error",
@@ -96,17 +94,13 @@ export function useSignalR() {
         });
 
         connection.on("chat_response", (payload) => {
-          queryClient.invalidateQueries({
-            queryKey: ["incident", payload.incident_id],
-          });
-          queryClient.invalidateQueries({
-            queryKey: ["incident-events", payload.incident_id],
-          });
+          invalidateLiveIncidentViews(payload.incident_id);
         });
 
         connection.onreconnected(() => {
           setConnected(true);
           queryClient.invalidateQueries({ queryKey: ["incidents"] });
+          queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
         });
 
         connection.onreconnecting(() => setConnected(false));
@@ -131,7 +125,7 @@ export function useSignalR() {
       cancelled = true;
       connectionRef.current?.stop();
     };
-  }, [queryClient, addToast]);
+  }, [queryClient, addToast, invalidateLiveIncidentViews]);
 
   return { connected, toasts, dismissToast };
 }

@@ -369,6 +369,7 @@
   font-size: 12px;
   color: var(--text-heading);
   line-height: 1.2;
+  font-family: var(--font-sans);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -415,15 +416,6 @@
   font-size: 12px;
   font-weight: 700;
   line-height: 1.25;
-}
-
-.sidebar-incident-status-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: currentColor;
-  box-shadow: 0 0 0 2px color-mix(in srgb, currentColor 16%, transparent);
 }
 
 .sidebar-incident-status-text {
@@ -726,9 +718,6 @@
 }
 
 .incident-right {
-  position: sticky;
-  top: calc(var(--header-height) + 28px);
-  align-self: start;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
@@ -763,7 +752,7 @@
 .info-grid dd {
   font-size: 13px;
   color: var(--text-heading);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
 }
 
 /* ── Parameter excursion ── */
@@ -1082,10 +1071,10 @@
 }
 
 .evidence-ref {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-heading);
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
 }
 
 .evidence-meta {
@@ -1148,6 +1137,10 @@
   margin-bottom: var(--space-3);
 }
 .disposition-recommendation strong { color: var(--text-heading); font-weight: 600; }
+
+.disposition-summary-text {
+  margin-bottom: var(--space-3);
+}
 
 .disposition-indicator {
   display: inline-flex;
@@ -1281,6 +1274,13 @@
   border-radius: var(--radius-md);
   padding: 22px 24px;
   box-shadow: var(--shadow-sm);
+}
+
+.approval-panel--sticky {
+  position: sticky;
+  top: calc(var(--header-height) + 28px);
+  max-height: calc(100vh - var(--header-height) - 40px);
+  overflow-y: auto;
 }
 
 .approval-cockpit-header {
@@ -1422,6 +1422,13 @@
   color: var(--text-heading);
 }
 
+.approval-question-note {
+  padding: 14px 16px;
+  background: var(--gray-50);
+  border: var(--border);
+  border-radius: var(--radius-md);
+}
+
 .decision-buttons {
   display: flex;
   gap: var(--space-3);
@@ -1549,6 +1556,10 @@
 
 .incident-section--compact {
   padding: 16px 18px;
+}
+
+.incident-status-block {
+  margin-bottom: var(--space-3);
 }
 
 /* ── Status info (read-only view) ── */

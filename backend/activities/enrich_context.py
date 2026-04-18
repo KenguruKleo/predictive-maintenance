@@ -30,8 +30,13 @@ def enrich_context(input_data: dict) -> dict:
 
     incident_id: str = input_data["incident_id"]
     equipment_id: str = input_data.get("equipment_id", "")
+    batch_id: str = input_data.get("batch_id", "")
 
-    context: dict = {"incident_id": incident_id, "equipment_id": equipment_id}
+    context: dict = {
+        "incident_id": incident_id,
+        "equipment_id": equipment_id,
+        "batch_id": batch_id,
+    }
 
     # ── Equipment ───────────────────────────────────────────────────────────
     try:
@@ -47,18 +52,32 @@ def enrich_context(input_data: dict) -> dict:
     # ── Active batch ────────────────────────────────────────────────────────
     try:
         batches = db.get_container_client("batches")
-        query = (
-            "SELECT * FROM c "
-            "WHERE (c.equipmentId = @eqId OR c.equipment_id = @eqId) "
-            "AND c.status IN ('active', 'in-progress', 'in_progress')"
-        )
-        params = [{"name": "@eqId", "value": equipment_id}]
-        results = sorted(
-            batches.query_items(query=query, parameters=params, enable_cross_partition_query=True)
-            ,
-            key=lambda item: item.get("startDate") or item.get("start_time") or "",
-            reverse=True,
-        )
+        results = []
+        if batch_id:
+            batch_query = (
+                "SELECT * FROM c WHERE "
+                "c.id = @batchId OR c.batch_id = @batchId OR c.batch_number = @batchId"
+            )
+            results = list(
+                batches.query_items(
+                    query=batch_query,
+                    parameters=[{"name": "@batchId", "value": batch_id}],
+                    enable_cross_partition_query=True,
+                )
+            )
+
+        if not results:
+            query = (
+                "SELECT * FROM c "
+                "WHERE (c.equipmentId = @eqId OR c.equipment_id = @eqId) "
+                "AND c.status IN ('active', 'in-progress', 'in_progress')"
+            )
+            params = [{"name": "@eqId", "value": equipment_id}]
+            results = sorted(
+                batches.query_items(query=query, parameters=params, enable_cross_partition_query=True),
+                key=lambda item: item.get("startDate") or item.get("start_time") or "",
+                reverse=True,
+            )
         context["batch"] = results[0] if results else None
     except Exception as exc:
         logger.warning("Could not fetch active batch: %s", exc)
@@ -78,6 +97,8 @@ def enrich_context(input_data: dict) -> dict:
 
     if product or production_stage:
         patch_operations = []
+        if batch_id:
+            patch_operations.append({"op": "set", "path": "/batch_id", "value": batch_id})
         if product:
             patch_operations.append({"op": "set", "path": "/product", "value": product})
         if production_stage:

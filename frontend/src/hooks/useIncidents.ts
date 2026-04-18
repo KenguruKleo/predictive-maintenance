@@ -62,6 +62,7 @@ export function useSubmitDecision(incidentId: string) {
         queryKey: ["incident-events", incidentId],
       });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
     },
   });
 }

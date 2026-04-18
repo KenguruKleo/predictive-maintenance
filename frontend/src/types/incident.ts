@@ -117,6 +117,14 @@ export interface WorkflowState {
   escalation_deadline?: string;
 }
 
+export interface LastDecision {
+  action: "approved" | "rejected" | "more_info" | string;
+  user_id?: string;
+  role?: string;
+  reason?: string;
+  question?: string;
+}
+
 export interface Incident {
   id: string;
   incident_number?: string;
@@ -141,6 +149,7 @@ export interface Incident {
   ai_analysis?: AiAnalysis;
   document_drafts?: DocumentDraft[];
   workflow_state?: WorkflowState;
+  lastDecision?: LastDecision;
 }
 
 export interface IncidentEvent {
