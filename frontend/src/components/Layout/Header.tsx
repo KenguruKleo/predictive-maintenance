@@ -24,11 +24,6 @@ export default function Header({ onOpenPalette }: Props) {
       </button>
 
       <div className="app-header-right">
-        {!connected && (
-          <span className="connection-badge disconnected" title="Live updates paused">
-            ⚠️ Offline
-          </span>
-        )}
         <span className="user-name">{displayName}</span>
         {roles.map((role) => (
           <span key={role} className="role-badge">

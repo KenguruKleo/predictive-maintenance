@@ -140,7 +140,7 @@ if __name__ == "__main__":
             result = create_work_order(**body)
             return JSONResponse(result, status_code=201)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=400)
+            return JSONResponse({"error": str(e), "success": False})
 
     rest_routes = [
         Route("/api/work-orders", rest_create_work_order, methods=["POST"]),

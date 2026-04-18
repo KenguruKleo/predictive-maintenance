@@ -193,21 +193,21 @@ if __name__ == "__main__":
             data = get_equipment(request.path_params["equipment_id"])
             return JSONResponse(data)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=404)
+            return JSONResponse({"error": str(e), "found": False})
 
     async def rest_get_batch(request: Request) -> JSONResponse:
         try:
             data = get_batch(request.path_params["batch_id"])
             return JSONResponse(data)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=404)
+            return JSONResponse({"error": str(e), "found": False})
 
     async def rest_get_incident(request: Request) -> JSONResponse:
         try:
             data = get_incident(request.path_params["incident_id"])
             return JSONResponse(data)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=404)
+            return JSONResponse({"error": str(e), "found": False})
 
     async def rest_search_incidents(request: Request) -> JSONResponse:
         try:
@@ -215,14 +215,14 @@ if __name__ == "__main__":
             data = search_incidents(request.path_params["equipment_id"], limit=limit)
             return JSONResponse(data)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=404)
+            return JSONResponse({"error": str(e), "found": False})
 
     async def rest_get_template(request: Request) -> JSONResponse:
         try:
             data = get_template(request.path_params["template_type"])
             return JSONResponse(data)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=404)
+            return JSONResponse({"error": str(e), "found": False})
 
     rest_routes = [
         Route("/api/equipment/{equipment_id}", rest_get_equipment),

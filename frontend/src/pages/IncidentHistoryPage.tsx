@@ -46,6 +46,21 @@ export default function IncidentHistoryPage() {
   const incidents = data?.pages.flatMap((p) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
 
+  // Measure sticky bar height → CSS variable for th positioning
+  const stickyBarRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = stickyBarRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      document.documentElement.style.setProperty(
+        "--filter-bar-height",
+        `${el.offsetHeight}px`
+      );
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   // Infinite scroll sentinel
   const sentinelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -68,21 +83,22 @@ export default function IncidentHistoryPage() {
       <Breadcrumb items={[{ label: "Operations Dashboard", to: "/" }, { label: "History & Audit" }]} />
       <h1 className="page-title">Incident History & Audit</h1>
 
-      <Filters
-        search={search}
-        onSearchChange={setSearch}
-        status={status}
-        onStatusChange={setStatus}
-        severity={severity}
-        onSeverityChange={setSeverity}
-        dateFrom={dateFrom}
-        onDateFromChange={setDateFrom}
-        dateTo={dateTo}
-        onDateToChange={setDateTo}
-      />
-
-      <div className="history-meta">
-        Showing {incidents.length} of {total} incidents
+      <div className="history-sticky-bar" ref={stickyBarRef}>
+        <Filters
+          search={search}
+          onSearchChange={setSearch}
+          status={status}
+          onStatusChange={setStatus}
+          severity={severity}
+          onSeverityChange={setSeverity}
+          dateFrom={dateFrom}
+          onDateFromChange={setDateFrom}
+          dateTo={dateTo}
+          onDateToChange={setDateTo}
+        />
+        <div className="history-meta">
+          Showing {incidents.length} of {total} incidents
+        </div>
       </div>
 
       {isLoading ? (

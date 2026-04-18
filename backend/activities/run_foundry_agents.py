@@ -144,20 +144,33 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
                 f"Foundry Orchestrator run failed: {getattr(run, 'last_error', run.status)}"
             )
 
+        logger.info(
+            "Foundry run completed: status=%s thread=%s run=%s",
+            run.status, run.thread_id, run.id,
+        )
+
         messages = client.messages.list(thread_id=run.thread_id)
 
-        # list_messages returns newest-first; first ASSISTANT message is the answer
+        # list_messages returns newest-first; first AGENT message is the answer.
+        # NOTE: azure-ai-agents SDK uses MessageRole.AGENT (value="assistant"),
+        # but str(MessageRole.AGENT) == "MessageRole.AGENT", NOT "assistant".
         raw_text = ""
         for msg in messages:
-            role = str(getattr(msg, "role", "")).lower()
-            if "assistant" in role:
+            role = getattr(msg, "role", None)
+            is_agent = (
+                role == MessageRole.AGENT
+                if hasattr(MessageRole, "AGENT")
+                else "assistant" in str(getattr(role, "value", role)).lower()
+            )
+            if is_agent:
                 for block in msg.content:
                     if hasattr(block, "text"):
                         raw_text += block.text.value
                 break
 
-        logger.debug(
-            "Foundry raw response (first 500 chars): %s", raw_text[:500]
+        logger.info(
+            "Foundry raw response length=%d first 500 chars: %s",
+            len(raw_text), raw_text[:500],
         )
         return _parse_response(raw_text)
 

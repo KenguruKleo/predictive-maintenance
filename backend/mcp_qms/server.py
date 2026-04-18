@@ -141,7 +141,7 @@ if __name__ == "__main__":
             result = create_audit_entry(**body)
             return JSONResponse(result, status_code=201)
         except Exception as e:
-            return JSONResponse({"error": str(e)}, status_code=400)
+            return JSONResponse({"error": str(e), "success": False})
 
     rest_routes = [
         Route("/api/audit-entries", rest_create_audit_entry, methods=["POST"]),

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
+import AppFooter from "./AppFooter";
 import CommandPalette from "./CommandPalette";
 
 export default function AppShell() {
@@ -27,6 +28,7 @@ export default function AppShell() {
           <Outlet />
         </main>
       </div>
+      <AppFooter />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
