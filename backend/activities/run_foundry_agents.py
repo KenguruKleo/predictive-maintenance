@@ -29,6 +29,7 @@ import json
 import logging
 import os
 import re
+import time
 from datetime import datetime, timezone
 from urllib.parse import quote
 
@@ -37,6 +38,7 @@ from azure.ai.agents import AgentsClient
 from azure.ai.agents.models import (
     AgentThreadCreationOptions,
     MessageRole,
+    RunStatus,
     ThreadMessageOptions,
 )
 from azure.identity import DefaultAzureCredential
@@ -129,6 +131,31 @@ def run_foundry_agents(input_data: dict) -> dict:
 # ── Internal helpers ──────────────────────────────────────────────────────
 
 
+_RATE_LIMIT_MAX_RETRIES = 5
+_RATE_LIMIT_BACKOFF_SECS = [15, 30, 60, 90, 120]
+
+
+def _is_rate_limit_error(err: object) -> bool:
+    """Return True if the error is a transient rate-limit / throttle error.
+
+    Handles both plain exceptions/strings and Azure SDK RunError objects
+    that expose ``.code`` / ``.message`` attributes.
+    """
+    # Collect all text representations
+    parts = [str(err)]
+    if hasattr(err, "code"):
+        parts.append(str(getattr(err, "code", "") or ""))
+    if hasattr(err, "message"):
+        parts.append(str(getattr(err, "message", "") or ""))
+    combined = " ".join(parts).lower()
+    return (
+        "rate_limit" in combined
+        or "rate limit" in combined
+        or "429" in combined
+        or "throttl" in combined
+    )
+
+
 def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
     """Create a Foundry thread, run the Orchestrator Agent, return parsed result.
 
@@ -136,59 +163,90 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
     approval automatically — the Foundry API (2025-05-15-preview) does not
     persist ``require_approval="never"`` for MCP tools, so every MCP call
     triggers a ``submit_tool_approval`` action that must be approved client-side.
+
+    Rate-limit errors are retried up to _RATE_LIMIT_MAX_RETRIES times with
+    exponential back-off.
     """
     endpoint = os.environ.get(
         "AZURE_AI_FOUNDRY_AGENTS_ENDPOINT",
         os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
     )
     os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
-    client = AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
-    with client:
-        run = create_thread_and_process_run_with_approval(
-            client,
-            agent_id=agent_id,
-            thread=AgentThreadCreationOptions(
-                messages=[
-                    ThreadMessageOptions(role=MessageRole.USER, content=prompt)
-                ]
-            ),
-        )
-
-        if run.status == "failed":
-            raise RuntimeError(
-                f"Foundry Orchestrator run failed: {getattr(run, 'last_error', run.status)}"
+    last_exc: Exception | None = None
+    for attempt in range(_RATE_LIMIT_MAX_RETRIES + 1):
+        if attempt > 0:
+            wait = _RATE_LIMIT_BACKOFF_SECS[min(attempt - 1, len(_RATE_LIMIT_BACKOFF_SECS) - 1)]
+            logger.warning(
+                "Rate limit hit for incident agent (attempt %d/%d) — waiting %ds",
+                attempt, _RATE_LIMIT_MAX_RETRIES, wait,
             )
+            time.sleep(wait)
 
-        logger.info(
-            "Foundry run completed: status=%s thread=%s run=%s",
-            run.status, run.thread_id, run.id,
-        )
+        try:
+            client = AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
+            with client:
+                run = create_thread_and_process_run_with_approval(
+                    client,
+                    agent_id=agent_id,
+                    thread=AgentThreadCreationOptions(
+                        messages=[
+                            ThreadMessageOptions(role=MessageRole.USER, content=prompt)
+                        ]
+                    ),
+                )
 
-        messages = client.messages.list(thread_id=run.thread_id)
+                if run.status in (RunStatus.FAILED, "failed") or str(run.status).lower() == "failed":
+                    err = getattr(run, "last_error", run.status)
+                    logger.warning(
+                        "Foundry run failed (attempt %d/%d): code=%s message=%s",
+                        attempt + 1, _RATE_LIMIT_MAX_RETRIES + 1,
+                        getattr(err, "code", ""),
+                        getattr(err, "message", str(err))[:200],
+                    )
+                    if _is_rate_limit_error(err):
+                        last_exc = RuntimeError(f"Foundry Orchestrator run failed: {err}")
+                        continue  # retry
+                    raise RuntimeError(f"Foundry Orchestrator run failed: {err}")
 
-        # list_messages returns newest-first; first AGENT message is the answer.
-        # NOTE: azure-ai-agents SDK uses MessageRole.AGENT (value="assistant"),
-        # but str(MessageRole.AGENT) == "MessageRole.AGENT", NOT "assistant".
-        raw_text = ""
-        for msg in messages:
-            role = getattr(msg, "role", None)
-            is_agent = (
-                role == MessageRole.AGENT
-                if hasattr(MessageRole, "AGENT")
-                else "assistant" in str(getattr(role, "value", role)).lower()
-            )
-            if is_agent:
-                for block in msg.content:
-                    if hasattr(block, "text"):
-                        raw_text += block.text.value
-                break
+                logger.info(
+                    "Foundry run completed: status=%s thread=%s run=%s",
+                    run.status, run.thread_id, run.id,
+                )
 
-        logger.info(
-            "Foundry raw response length=%d first 500 chars: %s",
-            len(raw_text), raw_text[:500],
-        )
-        return _parse_response(raw_text)
+                messages = client.messages.list(thread_id=run.thread_id)
+
+                # list_messages returns newest-first; first AGENT message is the answer.
+                # NOTE: azure-ai-agents SDK uses MessageRole.AGENT (value="assistant"),
+                # but str(MessageRole.AGENT) == "MessageRole.AGENT", NOT "assistant".
+                raw_text = ""
+                for msg in messages:
+                    role = getattr(msg, "role", None)
+                    is_agent = (
+                        role == MessageRole.AGENT
+                        if hasattr(MessageRole, "AGENT")
+                        else "assistant" in str(getattr(role, "value", role)).lower()
+                    )
+                    if is_agent:
+                        for block in msg.content:
+                            if hasattr(block, "text"):
+                                raw_text += block.text.value
+                        break
+
+                logger.info(
+                    "Foundry raw response length=%d first 500 chars: %s",
+                    len(raw_text), raw_text[:500],
+                )
+                return _parse_response(raw_text)
+
+        except Exception as exc:  # noqa: BLE001
+            if _is_rate_limit_error(exc):
+                last_exc = exc
+                continue  # retry on rate limit
+            raise  # re-raise non-rate-limit errors immediately
+
+    # All retries exhausted
+    raise last_exc or RuntimeError("run_foundry_agents: all retries exhausted")
 
 
 def _build_prompt(

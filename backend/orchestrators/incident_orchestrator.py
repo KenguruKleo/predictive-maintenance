@@ -28,6 +28,13 @@ logger = logging.getLogger(__name__)
 
 MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
 
+# Retry policy for run_foundry_agents: up to 5 attempts, 30s first interval.
+# Python SDK RetryOptions only supports first_retry_interval + max_number_of_attempts.
+_AGENT_RETRY = df.RetryOptions(
+    first_retry_interval_in_milliseconds=30_000,
+    max_number_of_attempts=5,
+)
+
 bp = df.Blueprint()
 
 
@@ -87,8 +94,9 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
     context_data["alert_payload"] = input_data
 
     # ── Step 2: Run Foundry agents (Research + Document via Connected Agents) ─
-    ai_result: dict = _coerce_dict((yield context.call_activity(
+    ai_result: dict = _coerce_dict((yield context.call_activity_with_retry(
         "run_foundry_agents",
+        _AGENT_RETRY,
         {"incident_id": incident_id, "context": context_data},
     )))
 
@@ -147,8 +155,9 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 }
             )
             # Re-run Foundry agents with enriched context (new round)
-            ai_result = _coerce_dict((yield context.call_activity(
+            ai_result = _coerce_dict((yield context.call_activity_with_retry(
                 "run_foundry_agents",
+                _AGENT_RETRY,
                 {
                     "incident_id": incident_id,
                     "context": context_data,
