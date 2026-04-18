@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — SignalR + RBAC on /decision) · T-032 (React frontend core)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -36,6 +36,9 @@
 - ✅ Foundry Orchestrator Agent (`asst_CNYK3TZIaOCH4OPKcP4N9B2r`) зі вдвоєними sub-agents створено в Azure AI Foundry (`create_agents.py`)
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
+**Останнє оновлення (18 квітня 2026):**
+- T-029/T-032/T-033 — incident detail approval UX спрощено: прибрано sticky/self-scroll у правій колонці, `Ask question` переведено в multiline textarea, transcript тепер зберігає initial + follow-up agent replies через `incident_events`, а recommendation card лишається latest state окремо від діалогу
+
 **Завершено (17 квітня 2026):****
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)
 - ✅ T-042 — GitHub Actions CI/CD: `ci.yml` + `deploy.yml` живі та зелені
@@ -48,7 +51,7 @@
 - ✅ T-031 — Backend API: 9 REST endpoints (incidents, equipment, batches, templates, stats); role-based filtering; all 11 HTTP triggers deployed
 - ✅ T-035 — RBAC: App Registrations (API + SPA), 5 Entra ID roles, JWKS JWT signature verification (`auth.py`), security tests passed
 
-**Наступний крок:** T-027 Execution Agent → T-029 Human Approval (SignalR + RBAC) → T-032 React Frontend core
+**Наступний крок:** T-027 Execution Agent → finish T-029/T-032/T-033 end-to-end validation on live incidents → T-034 other frontend roles
 
 ---
 
@@ -71,10 +74,10 @@
 | T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry sub-agent (Connected Agents) + template fill; confidence gate в `run_foundry_agents.py` | Gap #4, #5 | 🔴 CRITICAL | ✅ DONE | T-024 |
 | T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS | — | 🔴 CRITICAL | 🔜 TODO | T-028 |
 | T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-sentinel-db, mcp-qms, mcp-cmms (stdio) | — | 🔴 CRITICAL | ✅ DONE | T-025–T-027 |
-| T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-030, T-033 |
+| T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-030, T-033 |
 | T-031 | **[Backend API Functions](./tasks/T-031-backend-api.md)** — incidents CRUD, templates, equipment, batches endpoints | Gap #5 | 🔴 CRITICAL | ✅ DONE | T-032 |
-| T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | 🔜 TODO | T-033 |
-| T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | 🔜 TODO | finals |
+| T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-033 |
+| T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | finals |
 
 ### Важливі (Should-have)
 

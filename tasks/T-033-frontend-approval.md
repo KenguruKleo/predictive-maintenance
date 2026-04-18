@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Блокує:** finals demo  
 **Залежить від:** T-032 (core frontend), T-029 (decision API), T-030 (SignalR)
 
@@ -28,7 +28,7 @@ src/components/
     EvidenceList.tsx           # Citations (SOP refs + historical case links)
     DecisionButtons.tsx        # [✅ Approve] [❌ Reject] [❓ Need More Info]
     RejectModal.tsx            # Modal: requires rejection reason (text input)
-    MoreInfoModal.tsx          # Modal: operator types question for re-analysis
+    AgentChat.tsx              # Inline transcript + multiline question composer
     ApprovalSuccess.tsx        # Post-approval confirmation with WO/AE IDs
 ```
 
@@ -100,6 +100,13 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 };
 ```
 
+## Progress (18 квітня 2026)
+
+- [x] Approval panel no longer uses sticky positioning or its own internal scroll; the whole incident page scrolls as one document
+- [x] `Ask question` is now an inline multiline textarea instead of a single-line field
+- [x] Latest recommendation card stays separate from the transcript, while operator questions and agent replies remain visible as chronological dialog bubbles
+- [x] `npm run lint` and `npm run build` pass in `frontend/`
+
 ---
 
 ## Definition of Done
@@ -107,7 +114,7 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 - [ ] ApprovalPanel renders correctly for INC-2026-0001 (GR-204 pending incident)
 - [ ] Clicking [✅ Approve] → POST /decision, incident status → "executing", success message
 - [ ] Clicking [❌ Reject] → modal opens, requires reason text, then POST /decision
-- [ ] Clicking [❓ Need More Info] → modal opens, question input, re-analysis starts
+- [ ] Clicking [❓ Need More Info] → inline multiline composer focuses, question submits, re-analysis starts
 - [ ] LOW_CONFIDENCE banner shown when confidence < 0.7
 - [ ] Panel hidden for closed/rejected incidents
 - [ ] Non-operator roles see read-only decision package (no action buttons)

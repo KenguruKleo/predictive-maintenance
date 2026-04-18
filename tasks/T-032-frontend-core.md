@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Блокує:** T-033 (approval UX)  
 **Залежить від:** T-031 (backend API), T-035 (RBAC)
 
@@ -114,6 +114,12 @@ frontend/
 // Shows toast: "New deviation: GR-204 — Pending your approval"
 ```
 
+## Progress (18 квітня 2026)
+
+- [x] Incident detail right rail now scrolls with the page instead of using a sticky/self-scrolling approval panel
+- [x] Event-driven conversation metadata (`round`, `message_kind`) is available to the incident detail transcript UI
+- [x] `npm run lint` and `npm run build` pass in `frontend/`
+
 ---
 
 ## Definition of Done
@@ -124,4 +130,5 @@ frontend/
 - [ ] Event timeline показує chronological audit log
 - [ ] SignalR connection встановлюється, real-time оновлення працюють
 - [ ] Azure Static Web App provisioned via `infra/modules/static-web-app.bicep` (додати до `infra/main.bicep`)
-- [ ] `npm run build` успішно, deploy на Azure Static Web Apps
+- [x] `npm run build` успішно
+- [ ] Deploy на Azure Static Web Apps

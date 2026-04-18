@@ -2,10 +2,13 @@ import type { RefObject } from "react";
 import type { IncidentEvent } from "../../types/incident";
 
 interface ChatMsg {
+  id: string;
   timestamp: string;
   actor: string;
   actor_type: "human" | "agent";
   content: string;
+  round?: number | null;
+  message_kind?: string;
 }
 
 interface Props {
@@ -15,7 +18,7 @@ interface Props {
   title?: string;
   emptyState?: string;
   inputId?: string;
-  inputRef?: RefObject<HTMLInputElement | null>;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
 export default function AgentChat({
@@ -33,16 +36,19 @@ export default function AgentChat({
         e.action === "operator_question" || e.action === "agent_response",
     )
     .map((e) => ({
+      id: e.id,
       timestamp: e.timestamp,
       actor: e.actor,
       actor_type: e.actor_type as "human" | "agent",
       content: e.details,
+      round: e.round,
+      message_kind: e.message_kind,
     }));
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const input = form.elements.namedItem("chatInput") as HTMLInputElement;
+    const input = form.elements.namedItem("chatInput") as HTMLTextAreaElement;
     const val = input.value.trim();
     if (!val || !onSend) return;
     onSend(val);
@@ -58,14 +64,15 @@ export default function AgentChat({
             {emptyState}
           </div>
         )}
-        {chatMessages.map((msg, i) => (
+        {chatMessages.map((msg) => (
           <div
-            key={i}
+            key={msg.id}
             className={`chat-bubble chat-bubble--${msg.actor_type}`}
           >
             <span className="chat-sender">
-              {msg.actor_type === "human" ? "You" : "Agent"} (
-              {new Date(msg.timestamp).toLocaleTimeString()})
+              {msg.actor_type === "human" ? "You" : "Agent"}
+              {getMessageLabel(msg) ? ` · ${getMessageLabel(msg)}` : ""} (
+              {formatChatTime(msg.timestamp)})
             </span>
             <p className="chat-text">{msg.content}</p>
           </div>
@@ -74,20 +81,43 @@ export default function AgentChat({
 
       {!readOnly && onSend && (
         <form className="chat-input-form" onSubmit={handleSubmit}>
-          <input
+          <textarea
             id={inputId}
             ref={inputRef}
             name="chatInput"
-            type="text"
             className="chat-input"
-            placeholder="Ask a question..."
+            placeholder="Ask a detailed question..."
             autoComplete="off"
+            rows={4}
           />
           <button type="submit" className="btn btn--primary chat-send">
-            Send
+            Send question
           </button>
         </form>
       )}
     </div>
   );
+}
+
+function formatChatTime(timestamp: string) {
+  const value = new Date(timestamp);
+  return Number.isNaN(value.getTime())
+    ? timestamp
+    : value.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function getMessageLabel(message: ChatMsg) {
+  if (message.actor_type === "human") {
+    return "Question";
+  }
+
+  if (message.message_kind === "initial_recommendation") {
+    return "Recommendation";
+  }
+
+  if (message.message_kind === "follow_up_response") {
+    return message.round ? `Follow-up ${message.round}` : "Follow-up";
+  }
+
+  return "Response";
 }

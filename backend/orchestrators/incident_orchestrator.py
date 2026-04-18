@@ -98,6 +98,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
         {
             "incident_id": incident_id,
             "ai_result": ai_result,
+            "response_round": 0,
             "equipment_id": input_data.get("equipment_id", ""),
             "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
             "product": context_data.get("product", ""),
@@ -159,6 +160,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 {
                     "incident_id": incident_id,
                     "ai_result": ai_result,
+                    "response_round": more_info_rounds,
                     "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
                     "product": context_data.get("product", ""),
                     "production_stage": context_data.get("production_stage", ""),

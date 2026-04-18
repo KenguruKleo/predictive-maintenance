@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Блокує:** T-033 (approval UX), demo flow  
 **Залежить від:** T-024 (Durable orchestrator), T-030 (SignalR), T-031 (backend API)
 
@@ -106,6 +106,12 @@ backend/
   utils/
     auth.py          # get_current_user(), require_role()
 ```
+
+## Progress (18 квітня 2026)
+
+- [x] Visible AI replies are now persisted into `incident_events` for both the initial recommendation and `more_info` follow-ups via `backend/activities/notify_operator.py`
+- [x] `/api/incidents/{id}/events` now preserves transcript metadata (`round`, `message_kind`) needed by the approval chat UI
+- [x] Backend slice passes `python -m py_compile` for the touched files and `python -m pytest tests/test_smoke.py`
 
 ## Definition of Done
 

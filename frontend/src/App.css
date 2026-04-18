@@ -1277,10 +1277,10 @@
 }
 
 .approval-panel--sticky {
-  position: sticky;
-  top: calc(var(--header-height) + 28px);
-  max-height: calc(100vh - var(--header-height) - 40px);
-  overflow-y: auto;
+  position: static;
+  top: auto;
+  max-height: none;
+  overflow: visible;
 }
 
 .approval-cockpit-header {
@@ -1475,8 +1475,6 @@
 }
 
 .chat-messages {
-  max-height: 260px;
-  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
@@ -1527,22 +1525,29 @@
 }
 .chat-bubble--human .chat-sender { color: rgba(255,255,255,0.85); }
 
-.chat-text { margin: 0; }
+.chat-text {
+  margin: 0;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
 
 .chat-input-form {
-  display: flex;
+  display: grid;
   gap: var(--space-2);
 }
 
 .chat-input {
-  flex: 1;
   font-size: 13px;
   font-family: var(--font-sans);
-  padding: 7px 12px;
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
   border: 1px solid var(--gray-300);
   border-radius: var(--radius-md);
   background: #fff;
   color: var(--text-heading);
+  line-height: 1.45;
+  resize: vertical;
 }
 .chat-input:focus {
   outline: none;
@@ -1551,6 +1556,7 @@
 }
 
 .chat-send {
+  align-self: flex-end;
   padding: 7px 14px;
 }
 

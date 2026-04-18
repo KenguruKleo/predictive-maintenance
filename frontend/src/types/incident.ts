@@ -160,6 +160,9 @@ export interface IncidentEvent {
   actor_type: "system" | "agent" | "human";
   action: string;
   details: string;
+  round?: number | null;
+  message_kind?: string;
+  status?: string;
   updated_fields?: string[];
 }
 

@@ -36,6 +36,7 @@ def notify_operator(input_data: dict) -> dict:
     product: str = input_data.get("product", "")
     production_stage: str = input_data.get("production_stage", "")
     assigned_to: str = input_data.get("assigned_to", "ivan.petrenko")
+    response_round: int = int(input_data.get("response_round", 0) or 0)
     now_iso = datetime.now(timezone.utc).isoformat()
     due_at_iso = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
 
@@ -126,6 +127,27 @@ def notify_operator(input_data: dict) -> dict:
     # Also log to incident_events
     events = db.get_container_client("incident_events")
     try:
+        if ai_result and not is_escalation:
+            events.upsert_item(
+                {
+                    "id": f"{incident_id}-agent-response-{response_round}-{int(datetime.now(timezone.utc).timestamp())}",
+                    "incidentId": incident_id,
+                    "incident_id": incident_id,
+                    "eventType": "agent_response",
+                    "action": "agent_response",
+                    "actor": "AI Agent",
+                    "actor_type": "agent",
+                    "round": response_round,
+                    "messageKind": (
+                        "initial_recommendation"
+                        if response_round == 0
+                        else "follow_up_response"
+                    ),
+                    "details": _build_transcript_message(ai_result),
+                    "timestamp": now_iso,
+                }
+            )
+
         events.upsert_item(
             {
                 "id": f"{incident_id}-notified-{target_role}-{int(datetime.now(timezone.utc).timestamp())}",
@@ -196,3 +218,14 @@ def _fallback_title(ai_result: dict) -> str:
     if classification:
         return classification.replace("_", " ").title()
     return "Deviation Review Required"
+
+
+def _build_transcript_message(ai_result: dict) -> str:
+    recommendation = str(ai_result.get("recommendation") or "").strip()
+    analysis = str(ai_result.get("analysis") or "").strip()
+
+    if recommendation and analysis and analysis != recommendation:
+        return f"{recommendation}\n\n{analysis[:500]}".strip()
+
+    message = recommendation or analysis or "AI agent updated the recommendation."
+    return message[:800]

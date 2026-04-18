@@ -22,12 +22,12 @@ export default function ApprovalPanel({ incident, events }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
-  const chatInputRef = useRef<HTMLInputElement>(null);
+  const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const isPending =
     incident.status === "pending_approval" ||
     incident.status === "escalated";
   const isAwaitingAgents = incident.status === "awaiting_agents";
-  const showDecisionContext = isPending || isAwaitingAgents;
+  const showRecommendationSummary = Boolean(incident.ai_analysis);
   const dueAt = formatDueAt(incident.workflow_state?.escalation_deadline);
   const confidence = incident.ai_analysis ? getConfidencePct(incident.ai_analysis) : null;
   const recommendation = incident.ai_analysis ? getRecommendation(incident.ai_analysis) : "";
@@ -57,8 +57,6 @@ export default function ApprovalPanel({ incident, events }: Props) {
     chatInputRef.current?.focus();
   };
 
-  const lastQuestion = incident.lastDecision?.question || "";
-  const lastQuestionBy = incident.lastDecision?.user_id || "Operator";
   const panelTitle = isPending
     ? "Decision required"
     : isAwaitingAgents
@@ -70,8 +68,8 @@ export default function ApprovalPanel({ incident, events }: Props) {
       ? "Question submitted"
       : "Decision summary";
   const panelSubtitle = isAwaitingAgents
-    ? "The previous recommendation stays visible while the agent prepares an answer."
-    : "Keep the operator decision, confidence, and batch impact in one place.";
+    ? "The current recommendation stays visible while the agent prepares the next reply."
+    : "Keep the latest recommendation at the top and the conversation below.";
 
   return (
     <div className="approval-panel approval-panel--sticky">
@@ -93,7 +91,7 @@ export default function ApprovalPanel({ incident, events }: Props) {
 
       {incident.ai_analysis && <ConfidenceBanner analysis={incident.ai_analysis} />}
 
-      {showDecisionContext && (
+      {showRecommendationSummary && (
         <>
           <div className="approval-summary approval-summary--primary">
             <div className="approval-summary-block">
@@ -122,46 +120,37 @@ export default function ApprovalPanel({ incident, events }: Props) {
               </div>
             </div>
           </div>
+        </>
+      )}
 
-          {lastQuestion && (
-            <div className="approval-question-note">
-              <span className="approval-summary-label">Latest operator question</span>
-              <p className="approval-summary-value">
-                <strong>{lastQuestionBy}:</strong> {lastQuestion}
-              </p>
-            </div>
-          )}
+      {isPending && (
+        <>
+          <div className="decision-buttons decision-buttons--triple">
+            <button
+              className="btn btn--approve"
+              onClick={handleApprove}
+              disabled={decision.isPending}
+            >
+              Approve
+            </button>
+            <button
+              className="btn btn--reject"
+              onClick={() => setShowRejectModal(true)}
+              disabled={decision.isPending}
+            >
+              Reject
+            </button>
+            <button
+              className="btn btn--secondary"
+              onClick={handleNeedMoreInfo}
+              disabled={decision.isPending}
+              aria-controls={chatInputId}
+            >
+              Need More Info
+            </button>
+          </div>
 
-          {isPending && (
-            <>
-              <div className="decision-buttons decision-buttons--triple">
-                <button
-                  className="btn btn--approve"
-                  onClick={handleApprove}
-                  disabled={decision.isPending}
-                >
-                  Approve
-                </button>
-                <button
-                  className="btn btn--reject"
-                  onClick={() => setShowRejectModal(true)}
-                  disabled={decision.isPending}
-                >
-                  Reject
-                </button>
-                <button
-                  className="btn btn--secondary"
-                  onClick={handleNeedMoreInfo}
-                  disabled={decision.isPending}
-                  aria-controls={chatInputId}
-                >
-                  Need More Info
-                </button>
-              </div>
-
-              <div className="approval-divider">Ask the agent before deciding</div>
-            </>
-          )}
+          <div className="approval-divider">Ask the agent before deciding</div>
         </>
       )}
 
@@ -169,13 +158,13 @@ export default function ApprovalPanel({ incident, events }: Props) {
         events={events}
         onSend={isPending ? handleAskAgent : undefined}
         readOnly={!isPending}
-        title={showDecisionContext ? "Agent conversation" : "Decision conversation"}
+        title="Conversation transcript"
         emptyState={
           isPending
             ? "Ask the AI agent for more details before deciding."
             : isAwaitingAgents
               ? "Waiting for the AI agent response to the latest operator question."
-            : "No operator questions were recorded for this incident."
+              : "No conversation has been recorded for this incident."
         }
         inputId={chatInputId}
         inputRef={chatInputRef}

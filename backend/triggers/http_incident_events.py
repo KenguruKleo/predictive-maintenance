@@ -81,6 +81,8 @@ def _normalize_event(item: dict, incident_id: str) -> dict:
         "actor_type": actor_type,
         "action": action,
         "details": details,
+        "round": item.get("round"),
+        "message_kind": item.get("message_kind") or item.get("messageKind"),
         "updated_fields": item.get("updated_fields") or item.get("updatedFields") or [],
         "status": item.get("incidentStatus") or item.get("finalStatus") or item.get("status"),
     }
