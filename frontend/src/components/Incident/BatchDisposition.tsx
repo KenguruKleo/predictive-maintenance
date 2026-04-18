@@ -2,7 +2,7 @@ import type { AiAnalysis } from "../../types/incident";
 import type { BatchDispositionStatus } from "../../types/incident";
 
 const DISPOSITION_CONFIG: Record<
-  BatchDispositionStatus,
+  string,
   { icon: string; color: string; label: string }
 > = {
   in_production: { icon: "🟢", color: "var(--color-approved)", label: "In Production" },
@@ -10,6 +10,9 @@ const DISPOSITION_CONFIG: Record<
   conditional_release: { icon: "🟡", color: "var(--color-escalated)", label: "Conditional Release" },
   released: { icon: "🟢", color: "var(--color-approved)", label: "Released" },
   rejected: { icon: "⚫", color: "var(--color-closed)", label: "Rejected" },
+  pending: { icon: "🟡", color: "var(--color-pending)", label: "Pending" },
+  quarantine: { icon: "🔴", color: "var(--color-rejected)", label: "Quarantine" },
+  under_review: { icon: "🟡", color: "var(--color-escalated)", label: "Under Review" },
 };
 
 interface Props {
@@ -21,7 +24,9 @@ interface Props {
 export default function BatchDisposition({ batchId, product, analysis }: Props) {
   if (!batchId || !analysis?.batch_disposition) return null;
 
-  const recommended = DISPOSITION_CONFIG[analysis.batch_disposition];
+  const recommended =
+    DISPOSITION_CONFIG[analysis.batch_disposition] ??
+    { icon: "⚪", color: "var(--color-closed)", label: analysis.batch_disposition };
 
   return (
     <section className="incident-section">

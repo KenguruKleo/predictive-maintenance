@@ -17,7 +17,11 @@ export type BatchDispositionStatus =
   | "hold"
   | "conditional_release"
   | "released"
-  | "rejected";
+  | "rejected"
+  | "pending"
+  | "quarantine"
+  | "under_review"
+  | (string & {});
 
 export interface ParameterExcursion {
   parameter: string;
