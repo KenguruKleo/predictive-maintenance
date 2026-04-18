@@ -2,7 +2,11 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useSignalR } from "../../hooks/useSignalR";
 
-export default function Header() {
+interface Props {
+  onOpenPalette?: () => void;
+}
+
+export default function Header({ onOpenPalette }: Props) {
   const { displayName, roles, logout } = useAuth();
   const { connected } = useSignalR();
 
@@ -12,6 +16,12 @@ export default function Header() {
         <span className="app-header-icon">🛡️</span>
         <span className="app-header-title">Sentinel Intelligence</span>
       </Link>
+
+      <button className="cp-trigger" onClick={onOpenPalette} title="Quick navigation (⌘K)">
+        <span className="cp-trigger-icon">🔍</span>
+        <span className="cp-trigger-label">Quick Jump…</span>
+        <kbd className="cp-trigger-kbd">⌘K</kbd>
+      </button>
 
       <div className="app-header-right">
         {!connected && (

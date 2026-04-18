@@ -70,6 +70,40 @@
   justify-content: space-between;
   padding: 0 var(--space-6);
   border-bottom: 1px solid var(--chrome-border);
+  gap: var(--space-4);
+}
+
+/* ── Command Palette trigger button in header ── */
+.cp-trigger {
+  flex: 1;
+  max-width: 300px;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 12px;
+  background: var(--gray-100);
+  border: 1px solid var(--gray-300);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: background 0.12s, border-color 0.12s;
+}
+.cp-trigger:hover {
+  background: var(--gray-200);
+  border-color: var(--gray-400);
+  color: var(--text);
+}
+.cp-trigger-icon { font-size: 13px; }
+.cp-trigger-label { flex: 1; text-align: left; }
+.cp-trigger-kbd {
+  font-size: 11px;
+  background: var(--bg-card);
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--text-muted);
+  font-family: inherit;
 }
 
 .app-header-brand {
