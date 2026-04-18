@@ -1,40 +1,6 @@
-import type { Incident, IncidentStatus } from "../../types/incident";
+import type { Incident } from "../../types/incident";
 import { Link, useParams } from "react-router-dom";
 import StatusBadge from "../IncidentList/StatusBadge";
-
-const STATUS_CONFIG: Record<
-  IncidentStatus,
-  { text: string }
-> = {
-  open: { text: "Open" },
-  ingested: { text: "Ingesting..." },
-  analyzing: {
-    text: "AI analyzing...",
-  },
-  awaiting_agents: {
-    text: "Awaiting agent response",
-  },
-  pending_approval: {
-    text: "Awaiting decision",
-  },
-  escalated: {
-    text: "Escalated to QA",
-  },
-  approved: {
-    text: "Approved, executing...",
-  },
-  in_progress: {
-    text: "Execution in progress",
-  },
-  executed: {
-    text: "Executed",
-  },
-  completed: {
-    text: "Completed",
-  },
-  rejected: { text: "Rejected" },
-  closed: { text: "Closed" },
-};
 
 interface Props {
   incident: Incident;
@@ -54,13 +20,9 @@ function formatSidebarDate(dateStr?: string): string {
 export default function ActiveIncidentItem({ incident }: Props) {
   const { id } = useParams();
   const isActive = id === incident.id;
-  const cfg = STATUS_CONFIG[incident.status];
-  const step = incident.workflow_state;
+  // Removed unused cfg and step variables after UI deduplication
   const dateLabel = formatSidebarDate(incident.created_at);
-  const statusText =
-    step && incident.status === "analyzing"
-      ? `Step ${step.steps_completed}/${step.total_steps}: ${step.current_step}`
-      : cfg.text;
+  // statusText removed: no longer needed after UI deduplication
 
   return (
     <Link
@@ -83,7 +45,6 @@ export default function ActiveIncidentItem({ incident }: Props) {
       </div>
       <div className={`sidebar-incident-status sidebar-incident-status--${incident.status}`}>
         <StatusBadge status={incident.status} />
-        <span className="sidebar-incident-status-text">{statusText}</span>
       </div>
     </Link>
   );
