@@ -8,6 +8,7 @@ The Document Agent is NOT called directly from Durable Functions —
 Foundry Orchestrator Agent calls it as a connected sub-agent via AgentTool.
 """
 
+import os
 from pathlib import Path
 
 # System prompt loaded from prompts/document_system.md
@@ -16,4 +17,8 @@ SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "document_system.md").read_
 )
 
 AGENT_NAME = "sentinel-document-agent"
-MODEL = "gpt-4o"
+MODEL = (
+    os.getenv("FOUNDRY_DOCUMENT_AGENT_MODEL")
+    or os.getenv("FOUNDRY_AGENT_MODEL")
+    or "gpt-4o"
+).strip()

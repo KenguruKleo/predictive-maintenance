@@ -22,7 +22,7 @@
 Check if the cause could be in the sensor or flowmeter calibration, rather than the tubing. If so, review the root cause and recommendation with this hypothesis in mind.
 
 ### Запит 2 (перевірка вимог BPR)
-Перевір, чи є в BPR для Metformin HCl 500mg пряма вимога зупинити лінію при spray rate 138 g/min протягом 35 хв. Якщо немає прямої вимоги, скоригуй рекомендацію на менш жорстку і поясни чому.
+Check if the BPR for Metformin HCl 500mg has a direct requirement to stop the line at a spray rate of 138 g/min for 35 minutes. If there is no direct requirement, adjust the recommendation to be less stringent and explain why.
 
 ### Запит 3 (історичні інциденти)
 Порівняй поточний кейс з історичними інцидентами для GR-204: скільки разів подібне відхилення закривалось без заміни tubing. Якщо більшість кейсів без заміни, онови рекомендацію і обґрунтуй.

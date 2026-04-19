@@ -8,6 +8,7 @@ The Research Agent is NOT called directly from Durable Functions —
 Foundry Orchestrator Agent calls it as a connected sub-agent (AgentTool).
 """
 
+import os
 from pathlib import Path
 
 # System prompt loaded from prompts/research_system.md
@@ -16,7 +17,11 @@ SYSTEM_PROMPT = (Path(__file__).parent / "prompts" / "research_system.md").read_
 )
 
 AGENT_NAME = "sentinel-research-agent"
-MODEL = "gpt-4o"
+MODEL = (
+    os.getenv("FOUNDRY_RESEARCH_AGENT_MODEL")
+    or os.getenv("FOUNDRY_AGENT_MODEL")
+    or "gpt-4o-mini"
+).strip()
 
 # AI Search index names (created by T-037)
 SEARCH_INDEXES = [

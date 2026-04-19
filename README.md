@@ -150,7 +150,13 @@ export MCP_CMMS_URL="https://$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
 python agents/create_agents.py --update
 ```
 
-Notes:
+Operational notes:
+- `agents/create_agents.py` now uses split defaults: `Document Agent` defaults to `gpt-4o` for better answer quality, while `Research` and `Orchestrator` stay on `gpt-4o-mini` to reduce throttling pressure.
+- Override all agents at once when needed: `FOUNDRY_AGENT_MODEL=gpt-4o python agents/create_agents.py --update`
+- Override agents individually when needed: `FOUNDRY_DOCUMENT_AGENT_MODEL=gpt-4o FOUNDRY_RESEARCH_AGENT_MODEL=gpt-4o-mini FOUNDRY_ORCHESTRATOR_AGENT_MODEL=gpt-4o-mini python agents/create_agents.py --update`
+- Local runs use Azure CLI auth by default; set `FOUNDRY_AGENT_CREDENTIAL=default` only if you specifically want `DefaultAzureCredential`.
+
+Additional notes:
 - `create_agents.py --update` is idempotent; it updates existing agents in place.
 - If `AZURE_AI_FOUNDRY_AGENTS_ENDPOINT` is missing, the script cannot find the target Foundry project.
 - If `MCP_*_URL` variables are missing, the script will run with OpenAPI tools disabled, which is not suitable for normal agent operation.

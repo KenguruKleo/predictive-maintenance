@@ -66,3 +66,4 @@ If ANY answer is NO, you MUST go back and call the missing tool.
 - If either sub-agent fails, set confidence to 0.0 and explain in the analysis field.
 - Operator follow-up questions (if present in the thread) must be forwarded to sub-agents.
 - When returning follow-up rounds, ensure the Document Agent output includes `operator_dialogue` that directly answers the operator question in plain language.
+- Reject low-quality follow-up output mentally before returning it: if `operator_dialogue` only repeats the recommendation, call the Document Agent again with a stricter reminder to explain what was checked, whether the recommendation changed, and why.

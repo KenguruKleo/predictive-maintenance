@@ -33,6 +33,7 @@ import random
 import re
 import time
 from datetime import datetime, timezone
+from difflib import SequenceMatcher
 from urllib.parse import quote
 
 import azure.durable_functions as df
@@ -161,7 +162,13 @@ def run_foundry_agents(input_data: dict) -> dict:
             error=exc,
         )
 
-    result = _normalize_agent_result(result, rag_context, more_info_round)
+    result = _normalize_agent_result(
+        result,
+        rag_context,
+        more_info_round,
+        previous_ai_result=previous_ai_result,
+        operator_questions=context_data.get("operator_questions", []),
+    )
 
     # Confidence gate (RAI Gap #4): log warning but still return result
     confidence = result.get("confidence", 0.0)
@@ -517,8 +524,9 @@ def _build_prompt(
                 "recommendation": "Recommended immediate action.",
                 "operator_dialogue": (
                     "Round 0: concise summary for operator. "
-                    "Round >0: explain what you checked for the operator question and "
-                    "whether recommendation changed or stayed the same, with reason."
+                    "Round >0: start by saying what follow-up question you reviewed, "
+                    "then state clearly whether recommendation/root cause changed or stayed the same, and why. "
+                    "Do not simply repeat the recommendation text."
                 ),
                 "capa_suggestion": "1. ...\n2. ...",
                 "regulatory_reference": "SOP-DEV-001 §4.2; GMP Annex 15 §6.3",
@@ -580,7 +588,8 @@ def _build_prompt(
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",
         "Always include operator_dialogue: plain language, under 120 words. "
-        "For follow-up rounds, explicitly say what changed or why no change was needed.",
+        "For follow-up rounds, explicitly say what question you checked, what changed or why no change was needed, "
+        "and never just repeat the recommendation or analysis verbatim.",
     ]
 
     return "\n".join(lines)
@@ -628,17 +637,42 @@ def _parse_response(raw_text: str) -> dict:
     }
 
 
-def _normalize_agent_result(result: dict, rag_context: dict | None, more_info_round: int) -> dict:
+def _normalize_agent_result(
+    result: dict,
+    rag_context: dict | None,
+    more_info_round: int,
+    previous_ai_result: dict | None = None,
+    operator_questions: list[dict] | None = None,
+) -> dict:
     """Make citation output stable for the operator UI."""
     result["title"] = _normalize_incident_title(result)
     result["evidence_citations"] = _normalize_evidence_citations(result, rag_context or {})
-    result["operator_dialogue"] = _normalize_operator_dialogue(result, more_info_round)
+    result["operator_dialogue"] = _normalize_operator_dialogue(
+        result,
+        more_info_round,
+        previous_ai_result=previous_ai_result or {},
+        operator_questions=operator_questions or [],
+    )
     return result
 
 
-def _normalize_operator_dialogue(result: dict, more_info_round: int) -> str:
+def _normalize_operator_dialogue(
+    result: dict,
+    more_info_round: int,
+    previous_ai_result: dict | None = None,
+    operator_questions: list[dict] | None = None,
+) -> str:
     explicit = str(result.get("operator_dialogue") or "").strip()
-    if explicit:
+    previous_ai_result = previous_ai_result or {}
+    operator_questions = operator_questions or []
+
+    if explicit and not _should_rewrite_followup_dialogue(
+        explicit,
+        result,
+        previous_ai_result,
+        operator_questions,
+        more_info_round,
+    ):
         return explicit[:800]
 
     recommendation = str(result.get("recommendation") or "").strip()
@@ -648,14 +682,145 @@ def _normalize_operator_dialogue(result: dict, more_info_round: int) -> str:
         return (recommendation or analysis or "AI agent provided an initial recommendation.")[:800]
 
     if recommendation:
-        return (
-            "I reviewed your follow-up question and re-checked the available evidence. "
-            f"Current recommendation: {recommendation}"
+        return _build_followup_operator_dialogue(
+            result,
+            previous_ai_result,
+            operator_questions,
         )[:800]
 
     return (
         "I reviewed your follow-up question and updated the analysis using available data."
     )[:800]
+
+
+def _should_rewrite_followup_dialogue(
+    explicit: str,
+    result: dict,
+    previous_ai_result: dict,
+    operator_questions: list[dict],
+    more_info_round: int,
+) -> bool:
+    if more_info_round <= 0:
+        return not explicit
+
+    normalized_explicit = _normalize_text(explicit)
+    if not normalized_explicit:
+        return True
+
+    recommendation = _normalize_text(str(result.get("recommendation") or ""))
+    previous_dialogue = _normalize_text(str(previous_ai_result.get("operator_dialogue") or ""))
+
+    if len(normalized_explicit.split()) < 12:
+        return True
+
+    if recommendation and SequenceMatcher(None, normalized_explicit, recommendation).ratio() >= 0.88:
+        return True
+
+    if previous_dialogue and SequenceMatcher(None, normalized_explicit, previous_dialogue).ratio() >= 0.88:
+        return True
+
+    latest_question = _get_latest_operator_question(operator_questions)
+    if latest_question and not _mentions_change_or_reason(normalized_explicit):
+        return True
+
+    return False
+
+
+def _build_followup_operator_dialogue(
+    result: dict,
+    previous_ai_result: dict,
+    operator_questions: list[dict],
+) -> str:
+    latest_question = _get_latest_operator_question(operator_questions)
+    recommendation = str(result.get("recommendation") or "").strip()
+    root_cause = str(result.get("root_cause") or "").strip()
+    changed_fields = _get_changed_followup_fields(result, previous_ai_result)
+
+    if latest_question:
+        intro = f'I reviewed your follow-up question: "{_shorten_text(latest_question, 180)}".'
+    else:
+        intro = "I reviewed your follow-up question and re-checked the available evidence."
+
+    if changed_fields:
+        field_summary = _human_join(changed_fields)
+        details: list[str] = [
+            f"I updated {field_summary} based on the available evidence."
+        ]
+        if root_cause:
+            details.append(f"Updated root cause hypothesis: {root_cause}")
+        if recommendation:
+            details.append(f"Updated recommendation: {recommendation}")
+        return " ".join([intro, *details]).strip()
+
+    no_change_parts = [
+        intro,
+        "I did not find enough new evidence to change the current recommendation or root-cause hypothesis.",
+    ]
+    if recommendation:
+        no_change_parts.append(f"Recommendation remains: {recommendation}")
+    return " ".join(no_change_parts).strip()
+
+
+def _get_changed_followup_fields(result: dict, previous_ai_result: dict) -> list[str]:
+    labels = {
+        "recommendation": "the recommendation",
+        "root_cause": "the root cause hypothesis",
+        "risk_level": "the risk level",
+        "batch_disposition": "the batch disposition",
+    }
+    changed: list[str] = []
+    for field, label in labels.items():
+        current_value = _normalize_text(str(result.get(field) or ""))
+        previous_value = _normalize_text(str(previous_ai_result.get(field) or ""))
+        if current_value and current_value != previous_value:
+            changed.append(label)
+    return changed
+
+
+def _get_latest_operator_question(operator_questions: list[dict]) -> str:
+    if not operator_questions:
+        return ""
+    latest = operator_questions[-1]
+    return str(latest.get("question") or "").strip()
+
+
+def _mentions_change_or_reason(normalized_text: str) -> bool:
+    markers = (
+        "reviewed",
+        "checked",
+        "question",
+        "changed",
+        "change",
+        "same",
+        "remains",
+        "because",
+        "evidence",
+        "updated",
+        "no change",
+    )
+    return any(marker in normalized_text for marker in markers)
+
+
+def _normalize_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip().lower()
+
+
+def _shorten_text(text: str, limit: int) -> str:
+    compact = re.sub(r"\s+", " ", text).strip()
+    if len(compact) <= limit:
+        return compact
+    shortened = compact[: limit - 3].rsplit(" ", 1)[0].strip()
+    return f"{shortened}..." if shortened else compact[: limit - 3] + "..."
+
+
+def _human_join(items: list[str]) -> str:
+    if not items:
+        return "the analysis"
+    if len(items) == 1:
+        return items[0]
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 
 def _normalize_incident_title(result: dict) -> str:

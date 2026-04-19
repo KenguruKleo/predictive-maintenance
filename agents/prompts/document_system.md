@@ -61,7 +61,14 @@ Field definitions:
 | 18 | `tool_calls_log` | array | Copy from Research Agent output as-is |
 | 19 | `work_order_id` | string or null | Set after calling create_work_order, null if call fails |
 | 20 | `audit_entry_id` | string or null | Set after calling create_audit_entry, null if call fails |
-| 21 | `operator_dialogue` | string | Human-facing message for transcript. Round 0: short summary of recommendation. Follow-up rounds: explain what was checked for the operator question and whether recommendation changed or stayed the same, with reason. |
+| 21 | `operator_dialogue` | string | Human-facing message for transcript. Round 0: short summary of recommendation. Follow-up rounds: first say what operator question you reviewed, then say clearly whether recommendation/root cause changed or stayed the same, and why. Do not simply repeat the recommendation text. |
+
+### Follow-up Dialogue Quality Gate
+- If this is a follow-up round, `operator_dialogue` must directly answer the operator's latest question in plain language.
+- The first sentence must say what you reviewed.
+- The second sentence must explicitly say whether the recommendation changed or stayed the same.
+- If nothing changed, explain why based on current evidence.
+- Do NOT copy the same wording as `recommendation` or `analysis` into `operator_dialogue`.
 
 ### FORBIDDEN
 - Do NOT rename fields (e.g. "confidence_score" instead of "confidence" is WRONG)

@@ -34,7 +34,7 @@ from azure.ai.agents.models import (
     ResponseFormatJsonSchemaType,
     ToolDefinition,
 )
-from azure.identity import DefaultAzureCredential
+from azure.identity import AzureCliCredential, DefaultAzureCredential
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,7 +45,31 @@ RESEARCH_PROMPT = (PROMPTS_DIR / "research_system.md").read_text(encoding="utf-8
 DOCUMENT_PROMPT = (PROMPTS_DIR / "document_system.md").read_text(encoding="utf-8")
 ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encoding="utf-8")
 
-MODEL = "gpt-4o"
+DEFAULT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
+
+
+def _resolve_agent_model(env_var: str, default_model: str) -> str:
+    override = os.getenv(env_var, "").strip()
+    if override:
+        return override
+
+    global_override = os.getenv("FOUNDRY_AGENT_MODEL", "").strip()
+    if global_override:
+        return global_override
+
+    return default_model
+
+
+RESEARCH_MODEL = _resolve_agent_model("FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_AGENT_MODEL)
+DOCUMENT_MODEL = _resolve_agent_model(
+    "FOUNDRY_DOCUMENT_AGENT_MODEL",
+    DEFAULT_DOCUMENT_AGENT_MODEL,
+)
+ORCHESTRATOR_MODEL = _resolve_agent_model(
+    "FOUNDRY_ORCHESTRATOR_AGENT_MODEL",
+    DEFAULT_AGENT_MODEL,
+)
 TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
 TOP_P = 0.9         # Slightly constrained nucleus sampling
 
@@ -416,7 +440,12 @@ def _build_client() -> AgentsClient:
     # Setting AZURE_AI_AGENTS_TESTS_IS_TEST_RUN activates the legacy endpoint path
     # (per azure-ai-agents SDK code comments, the proper 1DP support is in progress).
     os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
-    return AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
+    credential_mode = os.environ.get("FOUNDRY_AGENT_CREDENTIAL", "azurecli").strip().lower()
+    if credential_mode == "default":
+        credential = DefaultAzureCredential()
+    else:
+        credential = AzureCliCredential()
+    return AgentsClient(endpoint=endpoint, credential=credential)
 
 
 def _find_existing(client: AgentsClient, name: str):
@@ -464,6 +493,11 @@ def main(update: bool = False) -> dict:
     def _base_url(env_var: str) -> str:
         url = os.environ.get(env_var, "").strip()
         return url.removesuffix("/mcp").removesuffix("/mcp/")
+
+    print("Using Foundry agent model deployments:")
+    print(f"  research: {RESEARCH_MODEL}")
+    print(f"  document: {DOCUMENT_MODEL}")
+    print(f"  orchestrator: {ORCHESTRATOR_MODEL}")
 
     mcp_db_url = _base_url("MCP_SENTINEL_DB_URL")
     mcp_search_url = _base_url("MCP_SENTINEL_SEARCH_URL")
@@ -518,7 +552,7 @@ def main(update: bool = False) -> dict:
         print(f"  + OpenAPI sentinel-search: {mcp_search_url}")
 
     research_agent = _create_or_update(
-        client, "sentinel-research-agent", MODEL, RESEARCH_PROMPT,
+        client, "sentinel-research-agent", RESEARCH_MODEL, RESEARCH_PROMPT,
         research_tools, None, update,
     )
 
@@ -552,7 +586,7 @@ def main(update: bool = False) -> dict:
         print(f"  + OpenAPI sentinel-cmms: {mcp_cmms_url}")
 
     document_agent = _create_or_update(
-        client, "sentinel-document-agent", MODEL, DOCUMENT_PROMPT,
+        client, "sentinel-document-agent", DOCUMENT_MODEL, DOCUMENT_PROMPT,
         document_tools, None, update,
         response_format=DOCUMENT_RESPONSE_FORMAT,
     )
@@ -580,7 +614,7 @@ def main(update: bool = False) -> dict:
     )
 
     orchestrator_agent = _create_or_update(
-        client, "sentinel-orchestrator-agent", MODEL, ORCHESTRATOR_PROMPT,
+        client, "sentinel-orchestrator-agent", ORCHESTRATOR_MODEL, ORCHESTRATOR_PROMPT,
         research_connected.definitions + document_connected.definitions,  # type: ignore[operator]
         None,
         update,
