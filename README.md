@@ -93,8 +93,67 @@ See [02-architecture.md](./02-architecture.md) for the full component diagram an
 
 ```bash
 pip install -r backend/requirements.txt
+pip install -r agents/requirements.txt
 pip install -r requirements-dev.txt
 ```
+
+### Foundry Agent Updates
+
+Pushes to `main` already redeploy Azure resources and update Foundry agents automatically.
+The GitHub Actions workflow `.github/workflows/deploy.yml` has a dedicated `agents` job that:
+- discovers the AI Foundry project in the Azure resource group;
+- discovers MCP Container App URLs;
+- runs `python agents/create_agents.py --update`.
+
+If the `Deploy` workflow on `main` passes, prompt/schema changes for Research / Document / Orchestrator agents should be applied automatically.
+
+### Update Foundry Agents From Local Machine
+
+This script does **not** require local Azure Functions to be running.
+It talks directly to the deployed Azure AI Foundry project and deployed MCP Container Apps.
+
+Prerequisites:
+- `az login` completed
+- access to the target subscription/resource group
+- deployed MCP Container Apps
+
+If MCP Container Apps are not deployed yet:
+
+```bash
+bash backend/scripts/deploy-mcp.sh --acr-build
+```
+
+Then export the required environment variables and run the update:
+
+```bash
+export AZURE_RESOURCE_GROUP="ODL-GHAZ-2177134"
+export AZURE_SUBSCRIPTION_ID="$(az account show --query id -o tsv)"
+
+export AI_PROJECT_NAME="$(az resource list -g "$AZURE_RESOURCE_GROUP" \
+  --resource-type "Microsoft.MachineLearningServices/workspaces" \
+  --query "[?starts_with(name,'aip-')].name | [0]" -o tsv)"
+
+export AZURE_AI_FOUNDRY_AGENTS_ENDPOINT="swedencentral.api.azureml.ms;${AZURE_SUBSCRIPTION_ID};${AZURE_RESOURCE_GROUP};${AI_PROJECT_NAME}"
+
+export MCP_SENTINEL_DB_URL="https://$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+  --query "[?starts_with(name,'mcp-db')].properties.configuration.ingress.fqdn | [0]" -o tsv)/mcp"
+
+export MCP_SENTINEL_SEARCH_URL="https://$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+  --query "[?starts_with(name,'mcp-search')].properties.configuration.ingress.fqdn | [0]" -o tsv)/mcp"
+
+export MCP_QMS_URL="https://$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+  --query "[?starts_with(name,'mcp-qms')].properties.configuration.ingress.fqdn | [0]" -o tsv)/mcp"
+
+export MCP_CMMS_URL="https://$(az containerapp list -g "$AZURE_RESOURCE_GROUP" \
+  --query "[?starts_with(name,'mcp-cmms')].properties.configuration.ingress.fqdn | [0]" -o tsv)/mcp"
+
+python agents/create_agents.py --update
+```
+
+Notes:
+- `create_agents.py --update` is idempotent; it updates existing agents in place.
+- If `AZURE_AI_FOUNDRY_AGENTS_ENDPOINT` is missing, the script cannot find the target Foundry project.
+- If `MCP_*_URL` variables are missing, the script will run with OpenAPI tools disabled, which is not suitable for normal agent operation.
 
 ### Run Backend Locally
 

@@ -55,14 +55,26 @@ jobs:
       - name: Check if Functions app exists
         id: check
         run: |
-          APP_NAME="${{ steps.bicep.outputs.functionsAppName || env.FUNCTIONS_APP_NAME }}"
+          APP_NAME="${{ steps.bicep.outputs.functionsAppName }}"
+          if [ -z "$APP_NAME" ]; then
+            APP_NAME="${FUNCTIONS_APP_NAME}"
+          fi
+
           EXISTS=$(az functionapp show \
             --name "$APP_NAME" \
             --resource-group "$AZURE_RESOURCE_GROUP" \
             --query name -o tsv 2>/dev/null || echo "")
+
+          if [ -z "$EXISTS" ]; then
+            EXISTS=$(az functionapp list \
+              --resource-group "$AZURE_RESOURCE_GROUP" \
+              --query "[?starts_with(name,'${FUNCTIONS_APP_NAME}')].name | [0]" \
+              -o tsv 2>/dev/null || echo "")
+          fi
+
           if [ -n "$EXISTS" ]; then
             echo "functionsExists=true" >> "$GITHUB_OUTPUT"
-            echo "resolvedAppName=$APP_NAME" >> "$GITHUB_OUTPUT"
+            echo "resolvedAppName=$EXISTS" >> "$GITHUB_OUTPUT"
             echo "Azure Functions app '$EXISTS' found — will deploy backend"
           else
             echo "functionsExists=false" >> "$GITHUB_OUTPUT"
