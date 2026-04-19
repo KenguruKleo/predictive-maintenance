@@ -8,7 +8,7 @@
 
 > **Що працює:** `ci.yml` (ruff lint + pytest + az bicep build) запускається на PR; `deploy.yml` (Bicep deploy + Functions deploy) запускається на push в `main`. CI/CD зелений.  
 > **Що не додано:** frontend build step (коментар — чекає T-032), Foundry eval pipeline (чекає T-025/T-026).
-> **Операційне оновлення (19 квітня 2026):** backend deploy hardened після regression, де Azure Functions host стартував, але індексував `0 functions`; workflow тепер виконує Oryx remote build (`scm-do-build-during-deployment: true` + `enable-oryx-build: true`) замість plain package deploy.
+> **Операційне оновлення (19 квітня 2026):** backend deploy hardened після regression, де Azure Functions host стартував, але індексував `0 functions`; workflow тепер деплоїть через Azure Functions Core Tools (`func azure functionapp publish --python`), тобто тим самим remote-build path, який був підтверджений як робочий вручну.
 
 ---
 

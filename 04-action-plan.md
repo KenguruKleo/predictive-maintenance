@@ -37,7 +37,7 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (19 квітня 2026):**
-- T-042 — backend deploy hardened: GitHub Actions backend deploy переведено на Oryx remote build для Linux Consumption; це виправляє regression, де host стартував, але індексував `0 functions` і повертав 404 на `/api/*`
+- T-042 — backend deploy hardened: GitHub Actions backend deploy переведено на Azure Functions Core Tools publish (`func azure functionapp publish --python`), тобто той самий remote-build path, який реально відновлює Linux Consumption runtime після regression з `0 functions` і 404 на `/api/*`
 - T-041 — для parity додано `AzureWebJobsFeatureFlags=EnableWorkerIndexing` у Function App app settings
 - T-029/T-032/T-033 — incident detail approval UX спрощено: прибрано sticky/self-scroll у правій колонці, `Ask question` переведено в multiline textarea, transcript тепер зберігає initial + follow-up agent replies через `incident_events`, а recommendation card лишається latest state окремо від діалогу
 
