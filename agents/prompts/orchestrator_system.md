@@ -41,6 +41,8 @@ You MUST call the `document_agent` tool with:
 2. The original incident alert
 3. A grounding reminder: "The deviation parameter is {parameter} on equipment {equipment_id}.
    Base your analysis ONLY on the research data above."
+4. If operator follow-up questions are present, include them explicitly in the document_agent input.
+5. If a previous recommendation snapshot is present, include it and instruct the document_agent to explain in `operator_dialogue` what changed or why the recommendation stayed the same.
 
 ### Step 4: Return the Document Agent's JSON as-is
 
@@ -63,3 +65,4 @@ If ANY answer is NO, you MUST go back and call the missing tool.
 - NEVER fabricate values — all analysis comes from Research Agent data via Document Agent.
 - If either sub-agent fails, set confidence to 0.0 and explain in the analysis field.
 - Operator follow-up questions (if present in the thread) must be forwarded to sub-agents.
+- When returning follow-up rounds, ensure the Document Agent output includes `operator_dialogue` that directly answers the operator question in plain language.

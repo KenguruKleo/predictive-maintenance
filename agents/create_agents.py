@@ -74,6 +74,7 @@ DOCUMENT_RESPONSE_SCHEMA = {
         "root_cause": {"type": "string"},
         "analysis": {"type": "string"},
         "recommendation": {"type": "string"},
+        "operator_dialogue": {"type": "string"},
         "capa_suggestion": {"type": "string"},
         "regulatory_reference": {"type": "string"},
         "batch_disposition": {
@@ -186,6 +187,7 @@ DOCUMENT_RESPONSE_SCHEMA = {
         "root_cause",
         "analysis",
         "recommendation",
+        "operator_dialogue",
         "capa_suggestion",
         "regulatory_reference",
         "batch_disposition",
