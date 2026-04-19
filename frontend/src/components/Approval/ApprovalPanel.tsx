@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { Incident, IncidentEvent } from "../../types/incident";
 import { useSubmitDecision } from "../../hooks/useIncidents";
 import ConfidenceBanner from "./ConfidenceBanner";
@@ -13,6 +13,7 @@ interface Props {
 
 export default function ApprovalPanel({ incident, events }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showQuestionComposer, setShowQuestionComposer] = useState(false);
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -20,6 +21,19 @@ export default function ApprovalPanel({ incident, events }: Props) {
     incident.status === "pending_approval" ||
     incident.status === "escalated";
   const isAwaitingAgents = incident.status === "awaiting_agents";
+
+  useEffect(() => {
+    if (!isPending) {
+      setShowQuestionComposer(false);
+      return;
+    }
+
+    if (showQuestionComposer) {
+      requestAnimationFrame(() => {
+        chatInputRef.current?.focus();
+      });
+    }
+  }, [isPending, showQuestionComposer]);
 
 
   const handleApprove = () => {
@@ -32,11 +46,18 @@ export default function ApprovalPanel({ incident, events }: Props) {
   };
 
   const handleAskAgent = (question: string) => {
-    decision.mutate({ action: "more_info", question });
+    decision.mutate(
+      { action: "more_info", question },
+      {
+        onSuccess: () => {
+          setShowQuestionComposer(false);
+        },
+      },
+    );
   };
 
   const handleNeedMoreInfo = () => {
-    chatInputRef.current?.focus();
+    setShowQuestionComposer(true);
   };
 
   const panelTitle = isPending
@@ -98,6 +119,7 @@ export default function ApprovalPanel({ incident, events }: Props) {
         events={events}
         onSend={isPending ? handleAskAgent : undefined}
         readOnly={!isPending}
+        showComposer={isPending && showQuestionComposer}
         title="Conversation transcript"
         emptyState={
           isPending

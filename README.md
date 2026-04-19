@@ -261,23 +261,36 @@ curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incid
 
 ---
 
-## Clean Test Data
+## Reset Dev Data
 
 ```bash
-# Dry-run — show what would be deleted
-python scripts/clean_test_data.py --dry-run --all
+# Dry-run — show what would be reset without changing Azure data
+python scripts/reset_dev_data.py --dry-run
 
-# Delete all test incidents
-python scripts/clean_test_data.py --all
+# Safe one-command reset with interactive confirmation
+python scripts/reset_dev_data.py
 
-# Delete specific incidents
-python scripts/clean_test_data.py --ids INC-2026-0011 INC-2026-0012
-
-# Delete incidents from the last 30 minutes
-python scripts/clean_test_data.py --last-minutes 30
+# Non-interactive reset
+python scripts/reset_dev_data.py --yes
 ```
 
-Deletes from `incidents`, `incident_events`, `notifications`, `capa_actions`. Never touches seed data (`equipment`, `batches`, `sop_library`).
+The reset script does all of the following in one run:
+
+- Recreates only the incident-related Cosmos containers: `incidents`, `incident_events`, `notifications`, `approval-tasks`, `capa-plans`
+- Clears Azure AI Search historical RAG documents from `idx-incident-history`
+- Terminates active Durable orchestrations, then purges Durable Functions instance history
+- Preserves reference/seed data in `equipment`, `batches`, and `templates`
+
+Requirements:
+
+- Azure CLI installed and already signed in with access to `ODL-GHAZ-2177134`
+- Local `backend/local.settings.json` or equivalent env vars for service endpoints/keys
+
+Legacy alias still works:
+
+```bash
+python scripts/clean_test_data.py --dry-run
+```
 
 ---
 

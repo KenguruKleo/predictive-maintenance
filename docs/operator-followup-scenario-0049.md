@@ -19,7 +19,7 @@
 ## Готові тексти запитів (копіпаст)
 
 ### Запит 1 (альтернативна причина)
-Перевір, чи може причина бути у калібруванні датчика або витратоміра, а не в tubing. Якщо так, переглянь root cause і recommendation з урахуванням цієї гіпотези.
+Check if the cause could be in the sensor or flowmeter calibration, rather than the tubing. If so, review the root cause and recommendation with this hypothesis in mind.
 
 ### Запит 2 (перевірка вимог BPR)
 Перевір, чи є в BPR для Metformin HCl 500mg пряма вимога зупинити лінію при spray rate 138 g/min протягом 35 хв. Якщо немає прямої вимоги, скоригуй рекомендацію на менш жорстку і поясни чому.

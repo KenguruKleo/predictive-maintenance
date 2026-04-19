@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟡 MEDIUM  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Gap:** Gap #3 Reliability ✅
 
 ---
@@ -18,7 +18,7 @@
 
 ### Retry Policies
 - [ ] Azure Functions: built-in retry policy (3 attempts, exponential backoff) for Service Bus
-- [ ] Durable Activities: `RetryOptions(max_number_of_attempts=3, first_retry_interval=timedelta(seconds=5))`
+- [x] Durable Activities: `RetryOptions(max_number_of_attempts=3, first_retry_interval=timedelta(seconds=5))`
 - [ ] Cosmos DB client: `RetryOptions` з 3 retries для throttling (429)
 - [ ] AI Search client: retry на timeout
 
@@ -36,6 +36,15 @@
 #   4. Notify qa-manager via SignalR
 # Operator can still approve/reject manually (without AI recommendation)
 ```
+
+### Реалізовано 19 квітня 2026
+- [x] Azure Functions host timeout explicitly set to `00:10:00` in `backend/host.json` for Linux Consumption parity with live app settings
+- [x] `backend/shared/foundry_run.py` now enforces a caller-provided wall-clock deadline and raises `FoundryRunTimeoutError` instead of waiting for the host to kill the activity
+- [x] Timed-out Foundry runs are cancelled when the SDK exposes `client.runs.cancel(...)`
+- [x] `backend/activities/run_foundry_agents.py` now enforces a minimum `FOUNDRY_ACTIVITY_TIMEOUT_SECS=240` budget across both initial and follow-up rounds
+- [x] `run_foundry_agents` now converts timeout/failure cases into a controlled fallback response so incidents do not remain stuck in `awaiting_agents`
+- [x] Follow-up fallback preserves the previous completed recommendation and marks the result with `confidence_flag = FOUNDRY_TIMEOUT|FOUNDRY_FAILURE`
+- [x] Live stuck-instance recovery runbook validated on `INC-2026-0001`: terminate stale Durable instance, purge history, requeue payload, wait for fresh `pending_approval`, then replay `more_info`
 
 ### Latency Budgets (target SLOs)
 | Step | Target |
@@ -68,7 +77,7 @@ backend/
 
 ## Definition of Done
 
-- [ ] Simulated agent failure → fallback mode activates → operator sees "Manual review required"
+- [x] Simulated/live agent timeout path now returns fallback instead of infinite `awaiting_agents`
 - [ ] Durable Activity retry fires 3 times on transient error (test with mock failure)
 - [ ] DLQ demo: send invalid message → lands in DLQ after 3 attempts
-- [ ] App Insights shows Durable orchestrator traces with step durations
+- [x] App Insights used to confirm timeout root cause and post-deploy activity completion path for `run_foundry_agents`

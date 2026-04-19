@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import type { IncidentEvent } from "../../types/incident";
 
 interface Props {
@@ -33,47 +34,103 @@ function truncate(text: string, max = 160): string {
   return text.length > max ? text.slice(0, max).trimEnd() + "…" : text;
 }
 
+function sortNewestFirst<T extends { timestamp: string }>(items: T[]): T[] {
+  return [...items].sort((left, right) => {
+    const leftTs = Date.parse(left.timestamp);
+    const rightTs = Date.parse(right.timestamp);
+    if (Number.isNaN(leftTs) || Number.isNaN(rightTs)) {
+      return right.timestamp.localeCompare(left.timestamp);
+    }
+    return rightTs - leftTs;
+  });
+}
+
+function getEventMeta(action: string): [string, string] {
+  return ACTION_META[action] ?? [
+    action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    "evt-dot--system",
+  ];
+}
+
+function TimelineEventRow({ event }: { event: IncidentEvent }) {
+  const [label, dotCls] = getEventMeta(event.action);
+
+  return (
+    <li key={event.id} className={`evt-item evt-item--${event.actor_type}`}>
+      <span className={`evt-dot ${dotCls}`} aria-hidden="true" />
+      <div className="evt-body">
+        <div className="evt-header">
+          <span className="evt-label">{label}</span>
+          <span className="evt-time">{formatEventTime(event.timestamp)}</span>
+        </div>
+        <div className="evt-actor">{event.actor}</div>
+        {event.details && (
+          <div className="evt-details">{truncate(event.details)}</div>
+        )}
+      </div>
+    </li>
+  );
+}
+
 export default function EventTimeline({
   events,
   title = "Status History",
   emptyMessage = "No status events recorded yet.",
 }: Props) {
+  const timelineContentId = useId();
+  const [isCollapsed, setIsCollapsed] = useState(true);
+
   // Show only status events; transcript (agent_response, operator_question) lives in AgentChat
   console.debug("[EventTimeline] received", events.length, "events:", events.map((e) => ({ id: e.id, action: e.action, category: e.category })));
-  const statusEvents = events.filter(
+  const statusEvents = sortNewestFirst(events).filter(
     (ev) => ev.category !== "transcript" && ev.action !== "agent_response",
   );
   console.debug("[EventTimeline] statusEvents after filter:", statusEvents.length);
+  const latestStatusEvent = statusEvents[0];
 
   return (
     <section className="incident-section">
-      <h3 className="section-title">{title}</h3>
+      <div className="timeline-section-header">
+        <h3 className="section-title">{title}</h3>
+        {statusEvents.length > 0 && (
+          <button
+            type="button"
+            className="timeline-toggle"
+            aria-expanded={!isCollapsed}
+            aria-controls={timelineContentId}
+            aria-label={isCollapsed ? "Expand status history" : "Collapse status history"}
+            title={isCollapsed ? "Expand status history" : "Collapse status history"}
+            onClick={() => setIsCollapsed((current) => !current)}
+          >
+            <svg
+              className="timeline-toggle-icon"
+              viewBox="0 0 12 12"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M4 2.5L8 6L4 9.5" />
+            </svg>
+          </button>
+        )}
+      </div>
       {statusEvents.length === 0 ? (
         <p className="timeline-empty">{emptyMessage}</p>
       ) : (
-        <ol className="evt-timeline">
-          {statusEvents.map((ev) => {
-            const [label, dotCls] = ACTION_META[ev.action] ?? [
-              ev.action.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-              "evt-dot--system",
-            ];
-            return (
-              <li key={ev.id} className={`evt-item evt-item--${ev.actor_type}`}>
-                <span className={`evt-dot ${dotCls}`} aria-hidden="true" />
-                <div className="evt-body">
-                  <div className="evt-header">
-                    <span className="evt-label">{label}</span>
-                    <span className="evt-time">{formatEventTime(ev.timestamp)}</span>
-                  </div>
-                  <div className="evt-actor">{ev.actor}</div>
-                  {ev.details && (
-                    <div className="evt-details">{truncate(ev.details)}</div>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+        <div id={timelineContentId} className="timeline-content">
+          <div className={`timeline-view timeline-view--summary${isCollapsed ? " is-active" : ""}`}>
+            <ol className="evt-timeline evt-timeline--collapsed">
+              {latestStatusEvent && <TimelineEventRow event={latestStatusEvent} />}
+            </ol>
+          </div>
+
+          <div className={`timeline-view timeline-view--full${!isCollapsed ? " is-active" : ""}`}>
+            <ol className="evt-timeline">
+              {statusEvents.map((event) => (
+                <TimelineEventRow key={event.id} event={event} />
+              ))}
+            </ol>
+          </div>
+        </div>
       )}
     </section>
   );

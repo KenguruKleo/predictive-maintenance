@@ -48,14 +48,13 @@ async def service_bus_start_orchestrator(
 
     instance_id = f"durable-{incident_id}"
 
-    # Check if an orchestrator for this incident is already running
+    # Only start a new instance when there is no Durable status record left.
+    # This prevents duplicate round=0 replays after terminate/requeue recovery
+    # while the previous instance history still exists or is being replayed.
     existing = await client.get_status(instance_id)
-    if existing and existing.runtime_status in (
-        df.OrchestrationRuntimeStatus.Running,
-        df.OrchestrationRuntimeStatus.Pending,
-    ):
+    if existing is not None:
         logger.warning(
-            "Orchestrator instance %s already running (status=%s) — ignoring duplicate",
+            "Orchestrator instance %s already exists (status=%s) — ignoring duplicate Service Bus start",
             instance_id,
             existing.runtime_status,
         )

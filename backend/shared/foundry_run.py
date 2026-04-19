@@ -13,13 +13,16 @@ approval transparently.
 
 import logging
 import time
+from typing import Any, cast
 
 from azure.ai.agents import AgentsClient
+from azure.ai.agents import models as agents_models
 from azure.ai.agents.models import (
     AgentThreadCreationOptions,
     RunStatus,
-    ToolApproval,
 )
+
+ToolApproval = getattr(agents_models, "ToolApproval", None)
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +38,10 @@ _MAX_ITERATIONS = 60
 _POLL_INTERVAL = 2.0  # seconds
 
 
+class FoundryRunTimeoutError(RuntimeError):
+    """Raised when a Foundry agent run exceeds the caller's wall-clock budget."""
+
+
 def create_thread_and_process_run_with_approval(
     client: AgentsClient,
     *,
@@ -42,6 +49,7 @@ def create_thread_and_process_run_with_approval(
     thread: AgentThreadCreationOptions,
     max_iterations: int = _MAX_ITERATIONS,
     poll_interval: float = _POLL_INTERVAL,
+    max_wait_seconds: float | None = None,
 ):
     """Create a thread + run and poll to completion, auto-approving MCP tool calls.
 
@@ -54,9 +62,20 @@ def create_thread_and_process_run_with_approval(
     thread_id = run.thread_id
     run_id = run.id
     logger.info("Foundry run started: run=%s thread=%s", run_id, thread_id)
+    deadline = time.monotonic() + max_wait_seconds if max_wait_seconds else None
 
     for i in range(max_iterations):
-        time.sleep(poll_interval)
+        if deadline is not None:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                _cancel_run_if_possible(client, thread_id, run_id)
+                raise FoundryRunTimeoutError(
+                    f"Foundry run {run_id} exceeded {max_wait_seconds:.0f}s without reaching a terminal status"
+                )
+            time.sleep(min(poll_interval, remaining))
+        else:
+            time.sleep(poll_interval)
+
         run = client.runs.get(thread_id=thread_id, run_id=run_id)
         status = run.status
 
@@ -72,11 +91,9 @@ def create_thread_and_process_run_with_approval(
                     len(calls),
                     ", ".join(_describe(c) for c in calls),
                 )
-                approvals = [
-                    ToolApproval(tool_call_id=_call_id(c), approve=True)
-                    for c in calls
-                ]
-                run = client.runs.submit_tool_outputs(
+                approvals = [_build_tool_approval(c) for c in calls]
+                submit_tool_outputs = cast(Any, client.runs.submit_tool_outputs)
+                run = submit_tool_outputs(
                     thread_id=thread_id,
                     run_id=run_id,
                     tool_approvals=approvals,
@@ -107,6 +124,12 @@ def create_thread_and_process_run_with_approval(
             logger.info("Foundry run %s reached terminal status: %s", run_id, status)
             return run
 
+    _cancel_run_if_possible(client, thread_id, run_id)
+    if max_wait_seconds:
+        raise FoundryRunTimeoutError(
+            f"Foundry run {run_id} exceeded {max_wait_seconds:.0f}s without reaching a terminal status"
+        )
+
     raise RuntimeError(
         f"Foundry run {run_id} did not complete within {max_iterations} iterations"
     )
@@ -130,3 +153,20 @@ def _describe(call) -> str:
     if isinstance(call, dict):
         return f"{call.get('server_label', '?')}/{call.get('name', '?')}"
     return f"{getattr(call, 'server_label', '?')}/{getattr(call, 'name', '?')}"
+
+
+def _build_tool_approval(call) -> Any:
+    payload = {"tool_call_id": _call_id(call), "approve": True}
+    if ToolApproval is None:
+        return payload
+    return ToolApproval(**payload)
+
+
+def _cancel_run_if_possible(client: AgentsClient, thread_id: str, run_id: str) -> None:
+    cancel = getattr(client.runs, "cancel", None)
+    if not callable(cancel):
+        return
+    try:
+        cancel(thread_id=thread_id, run_id=run_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to cancel Foundry run %s after timeout: %s", run_id, exc)

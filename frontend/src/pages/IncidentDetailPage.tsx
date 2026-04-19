@@ -64,25 +64,25 @@ export default function IncidentDetailPage() {
 
   return (
     <div className="page-incident-detail">
-      <div className="incident-header">
-        <Breadcrumb
-          items={[
-            { label: "Operations Dashboard", to: "/" },
-            { label: incident.incident_number ?? incident.id },
-          ]}
-        />
-        <h1 className="incident-title">
-          {incident.incident_number ?? incident.id}
-          {displayTitle ? ` · ${displayTitle}` : ""}
-        </h1>
-        <div className="incident-header-meta">
-          <StatusBadge status={incident.status} />
-          <span>Equipment: {incident.equipment_id}</span>
-        </div>
-      </div>
-
       <div className="incident-columns">
         <div className="incident-left">
+          <div className="incident-header">
+            <Breadcrumb
+              items={[
+                { label: "Operations Dashboard", to: "/" },
+                { label: incident.incident_number ?? incident.id },
+              ]}
+            />
+            <h1 className="incident-title">
+              {incident.incident_number ?? incident.id}
+              {displayTitle ? ` · ${displayTitle}` : ""}
+            </h1>
+            <div className="incident-header-meta">
+              <StatusBadge status={incident.status} />
+              <span>Equipment: {incident.equipment_id}</span>
+            </div>
+          </div>
+
           <ErrorBoundary inline section="Incident Info">
             <IncidentInfo incident={incident} />
           </ErrorBoundary>

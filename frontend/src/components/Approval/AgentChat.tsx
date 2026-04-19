@@ -15,22 +15,35 @@ interface Props {
   events: IncidentEvent[];
   onSend?: (message: string) => void;
   readOnly?: boolean;
+  showComposer?: boolean;
   title?: string;
   emptyState?: string;
   inputId?: string;
   inputRef?: RefObject<HTMLTextAreaElement | null>;
 }
 
+function sortNewestFirst<T extends { timestamp: string }>(items: T[]): T[] {
+  return [...items].sort((left, right) => {
+    const leftTs = Date.parse(left.timestamp);
+    const rightTs = Date.parse(right.timestamp);
+    if (Number.isNaN(leftTs) || Number.isNaN(rightTs)) {
+      return right.timestamp.localeCompare(left.timestamp);
+    }
+    return rightTs - leftTs;
+  });
+}
+
 export default function AgentChat({
   events,
   onSend,
   readOnly,
+  showComposer = false,
   title = "Agent Conversation",
   emptyState = "Ask the AI agent for more details before deciding.",
   inputId,
   inputRef,
 }: Props) {
-  const chatMessages: ChatMsg[] = events
+  const chatMessages: ChatMsg[] = sortNewestFirst(events)
     .filter(
       (e) =>
         e.action === "operator_question" ||
@@ -60,6 +73,24 @@ export default function AgentChat({
   return (
     <div className="agent-chat">
       <h4 className="chat-title">{title}</h4>
+
+      {!readOnly && onSend && showComposer && (
+        <form className="chat-input-form" onSubmit={handleSubmit}>
+          <textarea
+            id={inputId}
+            ref={inputRef}
+            name="chatInput"
+            className="chat-input"
+            placeholder="Ask a detailed question..."
+            autoComplete="off"
+            rows={4}
+          />
+          <button type="submit" className="btn btn--primary chat-send">
+            Send question
+          </button>
+        </form>
+      )}
+
       <div className="chat-messages">
         {chatMessages.length === 0 && (
           <div className="chat-empty">
@@ -80,23 +111,6 @@ export default function AgentChat({
           </div>
         ))}
       </div>
-
-      {!readOnly && onSend && (
-        <form className="chat-input-form" onSubmit={handleSubmit}>
-          <textarea
-            id={inputId}
-            ref={inputRef}
-            name="chatInput"
-            className="chat-input"
-            placeholder="Ask a detailed question..."
-            autoComplete="off"
-            rows={4}
-          />
-          <button type="submit" className="btn btn--primary chat-send">
-            Send question
-          </button>
-        </form>
-      )}
     </div>
   );
 }

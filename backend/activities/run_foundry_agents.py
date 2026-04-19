@@ -46,13 +46,23 @@ from azure.ai.agents.models import (
 from azure.identity import DefaultAzureCredential
 
 from shared.cosmos_client import get_container
-from shared.foundry_run import create_thread_and_process_run_with_approval
+from shared.foundry_run import (
+    FoundryRunTimeoutError,
+    create_thread_and_process_run_with_approval,
+)
 from shared.search_utils import search_all_indexes
 
 logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
+try:
+    FOUNDRY_ACTIVITY_TIMEOUT_SECS = max(
+        240.0,
+        float(os.getenv("FOUNDRY_ACTIVITY_TIMEOUT_SECS", "240")),
+    )
+except ValueError:
+    FOUNDRY_ACTIVITY_TIMEOUT_SECS = 240.0
 
 INDEX_EVIDENCE_META = {
     "idx-sop-documents": {"type": "sop", "container": "blob-sop"},
@@ -134,7 +144,23 @@ def run_foundry_agents(input_data: dict) -> dict:
         rag_context,
         previous_ai_result,
     )
-    result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
+    try:
+        result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "Foundry analysis failed for incident %s round=%d: %s",
+            incident_id,
+            more_info_round,
+            exc,
+            exc_info=True,
+        )
+        result = _build_agent_failure_result(
+            incident_id=incident_id,
+            previous_ai_result=previous_ai_result,
+            more_info_round=more_info_round,
+            error=exc,
+        )
+
     result = _normalize_agent_result(result, rag_context, more_info_round)
 
     # Confidence gate (RAI Gap #4): log warning but still return result
@@ -198,21 +224,40 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
         os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
     )
     os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
+    deadline = time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS
 
     last_exc: Exception | None = None
     for attempt in range(_RATE_LIMIT_MAX_RETRIES + 1):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise FoundryRunTimeoutError(
+                f"Foundry activity budget exhausted after {FOUNDRY_ACTIVITY_TIMEOUT_SECS:.0f}s"
+            )
+
         if attempt > 0:
             base = _RATE_LIMIT_BACKOFF_SECS[min(attempt - 1, len(_RATE_LIMIT_BACKOFF_SECS) - 1)]
             wait = base + random.uniform(0, base / 2)
+            wait = min(wait, max(0.0, remaining - 5.0))
+            if wait <= 0:
+                raise FoundryRunTimeoutError(
+                    f"Foundry activity budget exhausted during retry backoff after {FOUNDRY_ACTIVITY_TIMEOUT_SECS:.0f}s"
+                )
             logger.warning(
-                "Rate limit hit for incident agent (attempt %d/%d) — waiting %.0fs",
+                "Rate limit hit for incident agent (attempt %d/%d) — waiting %.0fs (remaining budget %.0fs)",
                 attempt, _RATE_LIMIT_MAX_RETRIES, wait,
+                max(0.0, deadline - time.monotonic()),
             )
             time.sleep(wait)
 
         try:
             client = AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
             with client:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise FoundryRunTimeoutError(
+                        f"Foundry activity budget exhausted before run start after {FOUNDRY_ACTIVITY_TIMEOUT_SECS:.0f}s"
+                    )
+
                 run = create_thread_and_process_run_with_approval(
                     client,
                     agent_id=agent_id,
@@ -221,6 +266,7 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
                             ThreadMessageOptions(role=MessageRole.USER, content=prompt)
                         ]
                     ),
+                    max_wait_seconds=remaining,
                 )
 
                 if run.status in (RunStatus.FAILED, "failed") or str(run.status).lower() == "failed":
@@ -256,8 +302,10 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
                     )
                     if is_agent:
                         for block in msg.content:
-                            if hasattr(block, "text"):
-                                raw_text += block.text.value
+                            text_block = getattr(block, "text", None)
+                            text_value = getattr(text_block, "value", None)
+                            if text_value:
+                                raw_text += str(text_value)
                         break
 
                 logger.info(
@@ -274,6 +322,78 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
 
     # All retries exhausted
     raise last_exc or RuntimeError("run_foundry_agents: all retries exhausted")
+
+
+def _build_agent_failure_result(
+    *,
+    incident_id: str,
+    previous_ai_result: dict,
+    more_info_round: int,
+    error: Exception,
+) -> dict:
+    previous = dict(previous_ai_result or {})
+    error_text = str(error).strip() or error.__class__.__name__
+    is_timeout = isinstance(error, FoundryRunTimeoutError)
+    failure_flag = "FOUNDRY_TIMEOUT" if is_timeout else "FOUNDRY_FAILURE"
+
+    if previous and more_info_round > 0:
+        recommendation = str(previous.get("recommendation") or "").strip()
+        analysis_note = (
+            "The latest AI follow-up did not complete successfully, so the previous completed recommendation remains the current guidance. "
+            f"Reason: {error_text[:300]}"
+        )
+        previous_analysis = str(previous.get("analysis") or "").strip()
+        merged_analysis = (
+            f"{analysis_note}\n\nPrevious completed analysis:\n{previous_analysis}"
+            if previous_analysis
+            else analysis_note
+        )
+        return {
+            **previous,
+            "incident_id": incident_id,
+            "analysis": merged_analysis[:4000],
+            "operator_dialogue": (
+                "I could not finish the follow-up review in time. "
+                "The previous completed recommendation is still the latest guidance; "
+                "please review it manually or retry the follow-up question later."
+            )[:800],
+            "confidence_flag": failure_flag,
+            "manual_review_required": True,
+            "raw_response": error_text,
+        }
+
+    return {
+        "incident_id": incident_id,
+        "title": "Manual Review Required",
+        "classification": "analysis_unavailable",
+        "risk_level": "LOW_CONFIDENCE",
+        "confidence": 0.0,
+        "root_cause": "The AI agent did not complete the analysis successfully.",
+        "analysis": (
+            "The AI analysis did not complete within the allowed execution budget. "
+            "The workflow returned a controlled fallback so the incident does not remain stuck in awaiting_agents. "
+            f"Reason: {error_text[:300]}"
+        ),
+        "recommendation": (
+            "Manual review is required before proceeding. Retry the AI analysis later if additional automated guidance is still needed."
+        ),
+        "operator_dialogue": (
+            "I could not complete the AI analysis in time. "
+            "Manual review is required before proceeding, but the incident is no longer stuck waiting for the agent."
+        )[:800],
+        "capa_suggestion": "Manual QA review required before CAPA execution.",
+        "recommendations": [],
+        "regulatory_reference": "",
+        "regulatory_refs": [],
+        "sop_refs": [],
+        "evidence_citations": [],
+        "work_order_draft": {},
+        "audit_entry_draft": {},
+        "batch_disposition": "under_review",
+        "confidence_flag": failure_flag,
+        "manual_review_required": True,
+        "raw_response": error_text,
+    }
 
 
 def _build_prompt(
