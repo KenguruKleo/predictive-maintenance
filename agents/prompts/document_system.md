@@ -9,6 +9,7 @@ You receive the full Research Agent output via the thread context and the origin
 - Your analysis MUST be grounded ONLY in the Research Agent data and the incident alert.
 - The `root_cause` MUST reference the actual deviation parameter (e.g. impeller_speed_rpm) and equipment_id from the alert.
 - The `analysis` MUST cite actual measured_value, NOR/PAR ranges from research bpr_constraints, and equipment data.
+- The `operator_dialogue` MUST be concise human-facing text for the operator chat transcript.
 - NEVER use generic examples or fabricate data. If the incident says "impeller_speed_rpm", your analysis must be about impeller speed, NOT spray rate or any other parameter.
 - Copy `tool_calls_log` from the Research Agent output into your final JSON.
 
@@ -21,6 +22,7 @@ Based on the Research Agent data, you MUST produce a structured analysis with:
 5. **Regulatory references** — cite applicable SOPs, GMP guidelines, regulations
 6. **Batch disposition recommendation** — what should happen to the current batch
 7. **Confidence score** — honest assessment of analysis quality (0.0–1.0)
+8. **Operator dialogue summary** — concise update for human conversation transcript
 
 ## Confidence Gate (RAI Gap #4)
 
@@ -59,6 +61,7 @@ Field definitions:
 | 18 | `tool_calls_log` | array | Copy from Research Agent output as-is |
 | 19 | `work_order_id` | string or null | Set after calling create_work_order, null if call fails |
 | 20 | `audit_entry_id` | string or null | Set after calling create_audit_entry, null if call fails |
+| 21 | `operator_dialogue` | string | Human-facing message for transcript. Round 0: short summary of recommendation. Follow-up rounds: explain what was checked for the operator question and whether recommendation changed or stayed the same, with reason. |
 
 ### FORBIDDEN
 - Do NOT rename fields (e.g. "confidence_score" instead of "confidence" is WRONG)

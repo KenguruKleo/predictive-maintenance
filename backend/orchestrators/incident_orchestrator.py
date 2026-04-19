@@ -161,6 +161,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 {
                     "incident_id": incident_id,
                     "context": context_data,
+                    "previous_ai_result": ai_result,
                     "more_info_round": more_info_rounds,
                 },
             )))

@@ -221,6 +221,10 @@ def _fallback_title(ai_result: dict) -> str:
 
 
 def _build_transcript_message(ai_result: dict) -> str:
+    operator_dialogue = str(ai_result.get("operator_dialogue") or "").strip()
+    if operator_dialogue:
+        return operator_dialogue[:800]
+
     recommendation = str(ai_result.get("recommendation") or "").strip()
     analysis = str(ai_result.get("analysis") or "").strip()
 

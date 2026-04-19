@@ -11,6 +11,7 @@ Returns:
         "title": str,
         "analysis": str,
         "root_cause": str,
+        "operator_dialogue": str,    # concise human-facing summary for chat transcript
         "recommendations": list[dict],
         "regulatory_refs": list[str],
         "sop_refs": list[str],
@@ -68,6 +69,7 @@ bp = df.Blueprint()
 def run_foundry_agents(input_data: dict) -> dict:
     incident_id: str = input_data["incident_id"]
     context_data: dict = input_data["context"]
+    previous_ai_result: dict = input_data.get("previous_ai_result") or {}
     more_info_round: int = input_data.get("more_info_round", 0)
 
     logger.info(
@@ -125,9 +127,15 @@ def run_foundry_agents(input_data: dict) -> dict:
         )
         time.sleep(stagger)
 
-    prompt = _build_prompt(incident_id, context_data, more_info_round, rag_context)
+    prompt = _build_prompt(
+        incident_id,
+        context_data,
+        more_info_round,
+        rag_context,
+        previous_ai_result,
+    )
     result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
-    result = _normalize_agent_result(result, rag_context)
+    result = _normalize_agent_result(result, rag_context, more_info_round)
 
     # Confidence gate (RAI Gap #4): log warning but still return result
     confidence = result.get("confidence", 0.0)
@@ -273,6 +281,7 @@ def _build_prompt(
     context_data: dict,
     more_info_round: int,
     rag_context: dict | None = None,
+    previous_ai_result: dict | None = None,
 ) -> str:
     """Build the user message that drives the Orchestrator Agent."""
     equipment = context_data.get("equipment", {})
@@ -343,6 +352,25 @@ def _build_prompt(
                 f"- **Round {q['round']}** ({q.get('asked_by', 'operator')}): {q['question']}"
             )
 
+    if more_info_round > 0 and previous_ai_result:
+        lines += [
+            "",
+            "### Previous Recommendation Snapshot (for round comparison)",
+            "Use this snapshot to explain what changed or stayed the same in this follow-up response.",
+            "```json",
+            json.dumps(
+                {
+                    "recommendation": previous_ai_result.get("recommendation", ""),
+                    "root_cause": previous_ai_result.get("root_cause", ""),
+                    "risk_level": previous_ai_result.get("risk_level", ""),
+                    "batch_disposition": previous_ai_result.get("batch_disposition", ""),
+                },
+                indent=2,
+                default=str,
+            ),
+            "```",
+        ]
+
     lines += [
         "",
         "---",
@@ -367,6 +395,11 @@ def _build_prompt(
                 "root_cause": "Primary root cause in one sentence",
                 "analysis": "Detailed root cause analysis with evidence.",
                 "recommendation": "Recommended immediate action.",
+                "operator_dialogue": (
+                    "Round 0: concise summary for operator. "
+                    "Round >0: explain what you checked for the operator question and "
+                    "whether recommendation changed or stayed the same, with reason."
+                ),
                 "capa_suggestion": "1. ...\n2. ...",
                 "regulatory_reference": "SOP-DEV-001 §4.2; GMP Annex 15 §6.3",
                 "batch_disposition": "conditional_release_pending_testing | rejected | release",
@@ -426,6 +459,8 @@ def _build_prompt(
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",
+        "Always include operator_dialogue: plain language, under 120 words. "
+        "For follow-up rounds, explicitly say what changed or why no change was needed.",
     ]
 
     return "\n".join(lines)
@@ -457,6 +492,7 @@ def _parse_response(raw_text: str) -> dict:
         "title": "Deviation Review Required",
         "analysis": raw_text[:2000] if raw_text else "Analysis not available.",
         "root_cause": "Could not determine root cause automatically.",
+        "operator_dialogue": "I could not produce a structured follow-up summary for the operator.",
         "classification": "unknown",
         "risk_level": "unknown",
         "confidence": 0.5,
@@ -472,11 +508,34 @@ def _parse_response(raw_text: str) -> dict:
     }
 
 
-def _normalize_agent_result(result: dict, rag_context: dict | None) -> dict:
+def _normalize_agent_result(result: dict, rag_context: dict | None, more_info_round: int) -> dict:
     """Make citation output stable for the operator UI."""
     result["title"] = _normalize_incident_title(result)
     result["evidence_citations"] = _normalize_evidence_citations(result, rag_context or {})
+    result["operator_dialogue"] = _normalize_operator_dialogue(result, more_info_round)
     return result
+
+
+def _normalize_operator_dialogue(result: dict, more_info_round: int) -> str:
+    explicit = str(result.get("operator_dialogue") or "").strip()
+    if explicit:
+        return explicit[:800]
+
+    recommendation = str(result.get("recommendation") or "").strip()
+    analysis = str(result.get("analysis") or "").strip()
+
+    if more_info_round <= 0:
+        return (recommendation or analysis or "AI agent provided an initial recommendation.")[:800]
+
+    if recommendation:
+        return (
+            "I reviewed your follow-up question and re-checked the available evidence. "
+            f"Current recommendation: {recommendation}"
+        )[:800]
+
+    return (
+        "I reviewed your follow-up question and updated the analysis using available data."
+    )[:800]
 
 
 def _normalize_incident_title(result: dict) -> str:
