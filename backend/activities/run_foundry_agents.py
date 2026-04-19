@@ -28,6 +28,7 @@ Returns:
 import json
 import logging
 import os
+import random
 import re
 import time
 from datetime import datetime, timezone
@@ -109,6 +110,21 @@ def run_foundry_agents(input_data: dict) -> dict:
         except Exception as exc:
             logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
 
+    # Startup stagger: deterministically spread concurrent incidents to avoid
+    # thundering-herd on the Foundry rate limit.  Uses the numeric suffix of the
+    # incident ID to derive a 0-60 s offset (e.g. INC-2026-0048 → 48*17 % 60 = 36 s).
+    try:
+        suffix = int(incident_id.rsplit("-", 1)[-1])
+        stagger = (suffix * 17) % 60
+    except ValueError:
+        stagger = random.randint(0, 59)
+    if stagger > 0:
+        logger.info(
+            "Startup stagger %.0fs for %s (thundering-herd prevention)",
+            stagger, incident_id,
+        )
+        time.sleep(stagger)
+
     prompt = _build_prompt(incident_id, context_data, more_info_round, rag_context)
     result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
     result = _normalize_agent_result(result, rag_context)
@@ -132,7 +148,9 @@ def run_foundry_agents(input_data: dict) -> dict:
 
 
 _RATE_LIMIT_MAX_RETRIES = 5
-_RATE_LIMIT_BACKOFF_SECS = [15, 30, 60, 90, 120]
+# Base backoff in seconds; actual wait = base + random jitter (0..base/2)
+# This prevents thundering herd when multiple incidents retry simultaneously.
+_RATE_LIMIT_BACKOFF_SECS = [30, 60, 90, 120, 180]
 
 
 def _is_rate_limit_error(err: object) -> bool:
@@ -176,9 +194,10 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
     last_exc: Exception | None = None
     for attempt in range(_RATE_LIMIT_MAX_RETRIES + 1):
         if attempt > 0:
-            wait = _RATE_LIMIT_BACKOFF_SECS[min(attempt - 1, len(_RATE_LIMIT_BACKOFF_SECS) - 1)]
+            base = _RATE_LIMIT_BACKOFF_SECS[min(attempt - 1, len(_RATE_LIMIT_BACKOFF_SECS) - 1)]
+            wait = base + random.uniform(0, base / 2)
             logger.warning(
-                "Rate limit hit for incident agent (attempt %d/%d) — waiting %ds",
+                "Rate limit hit for incident agent (attempt %d/%d) — waiting %.0fs",
                 attempt, _RATE_LIMIT_MAX_RETRIES, wait,
             )
             time.sleep(wait)
