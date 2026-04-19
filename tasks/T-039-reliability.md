@@ -45,6 +45,7 @@
 - [x] `run_foundry_agents` now converts timeout/failure cases into a controlled fallback response so incidents do not remain stuck in `awaiting_agents`
 - [x] Follow-up fallback preserves the previous completed recommendation and marks the result with `confidence_flag = FOUNDRY_TIMEOUT|FOUNDRY_FAILURE`
 - [x] Live stuck-instance recovery runbook validated on `INC-2026-0001`: terminate stale Durable instance, purge history, requeue payload, wait for fresh `pending_approval`, then replay `more_info`
+- [x] `scripts/recover_live_incident.py` automates that recovery runbook in one command and can optionally replay the latest stored `more_info` question only after the fresh initial round is ready
 
 ### Latency Budgets (target SLOs)
 | Step | Target |

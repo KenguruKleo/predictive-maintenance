@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + reusable incident recovery script)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -42,6 +42,7 @@
 - T-029/T-032/T-033 — incident detail approval UX спрощено: прибрано sticky/self-scroll у правій колонці, `Ask question` переведено в multiline textarea, transcript тепер зберігає initial + follow-up agent replies через `incident_events`, а recommendation card лишається latest state окремо від діалогу
 - T-039 — `run_foundry_agents` hardened against long Foundry runs for both initial and `more_info` rounds: `backend/host.json` now sets `functionTimeout=00:10:00`, Foundry polling is bounded by an explicit wall-clock budget, timed-out agent runs are cancelled when possible, and the activity now returns a controlled manual-review fallback instead of leaving incidents stuck in `awaiting_agents`
 - T-039 — live recovery path verified for `INC-2026-0001`: stale Durable instance terminated + purged, incident re-queued, fresh initial round returned to `pending_approval`, and the preserved operator `more_info` question was replayed onto the new orchestration instance
+- T-039 — added `scripts/recover_live_incident.py`: one-command recovery for stuck live incidents (`terminate → purge → requeue → wait initial → optional replay more_info`) plus README usage notes for future on-call recovery
 
 **Завершено (17 квітня 2026):****
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)

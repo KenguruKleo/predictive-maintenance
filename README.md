@@ -294,6 +294,39 @@ python scripts/clean_test_data.py --dry-run
 
 ---
 
+## Recover Stuck Live Incident
+
+```bash
+# Preview the recovery plan without touching Azure state
+python scripts/recover_live_incident.py --incident-id INC-2026-0001 --dry-run
+
+# Full recovery: terminate + purge + requeue + wait + replay the stored more_info
+python scripts/recover_live_incident.py --incident-id INC-2026-0001 --yes
+
+# Recover only the initial round and stop before replaying more_info
+python scripts/recover_live_incident.py --incident-id INC-2026-0001 --skip-more-info-replay --yes
+
+# Override the stored follow-up question
+python scripts/recover_live_incident.py \
+  --incident-id INC-2026-0001 \
+  --question "Re-check the sensor calibration hypothesis before concluding tubing failure." \
+  --yes
+```
+
+The recovery script does all of the following in one run:
+
+- Reads the current incident document from Cosmos DB and reconstructs the original alert payload
+- Terminates the matching Durable instance if it is still active, then purges its history
+- Requeues the original payload to Service Bus and waits for a fresh initial response to return the incident to `pending_approval`
+- Replays the latest stored `more_info` question only after the fresh initial round is ready, unless `--skip-more-info-replay` is used
+
+Operational note:
+
+- Start with `--dry-run` when the incident state is unclear
+- The script expects Azure CLI access plus the same local settings used by the backend (`backend/local.settings.json` or equivalent env vars)
+
+---
+
 ## Backend API Endpoints
 
 | Method | Endpoint | Description |
