@@ -53,11 +53,28 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         container = get_container("incidents")
-        query, params = _build_query(roles, status_filter, severity_filter, date_from, date_to, page, page_size)
+        caller_id = _get_caller_id(req)
+        query, params = _build_query(
+            roles,
+            caller_id,
+            status_filter,
+            severity_filter,
+            date_from,
+            date_to,
+            page,
+            page_size,
+        )
         items = list(container.query_items(query=query, parameters=params, enable_cross_partition_query=True))
 
         # Count query (without pagination)
-        count_query, count_params = _build_count_query(roles, status_filter, severity_filter, date_from, date_to)
+        count_query, count_params = _build_count_query(
+            roles,
+            caller_id,
+            status_filter,
+            severity_filter,
+            date_from,
+            date_to,
+        )
         count_result = list(container.query_items(query=count_query, parameters=count_params, enable_cross_partition_query=True))
         total = count_result[0] if count_result else len(items)
 
@@ -120,14 +137,14 @@ def get_incident(req: func.HttpRequest) -> func.HttpResponse:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _build_query(roles, status_filter, severity_filter, date_from, date_to, page, page_size) -> tuple[str, list]:
+def _build_query(roles, caller_id, status_filter, severity_filter, date_from, date_to, page, page_size) -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
     primary_role = get_primary_role(roles)
     if primary_role == "Operator":
         where_clauses.append("c.workflow_state.assigned_to = @caller_id")
-        params.append({"name": "@caller_id", "value": _DEMO_USER_ID})
+        params.append({"name": "@caller_id", "value": caller_id})
     elif primary_role == "MaintenanceTech":
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
 
@@ -158,14 +175,14 @@ def _build_query(roles, status_filter, severity_filter, date_from, date_to, page
     return query, params
 
 
-def _build_count_query(roles, status_filter, severity_filter, date_from="", date_to="") -> tuple[str, list]:
+def _build_count_query(roles, caller_id, status_filter, severity_filter, date_from="", date_to="") -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
     primary_role = get_primary_role(roles)
     if primary_role == "Operator":
         where_clauses.append("c.workflow_state.assigned_to = @caller_id")
-        params.append({"name": "@caller_id", "value": _DEMO_USER_ID})
+        params.append({"name": "@caller_id", "value": caller_id})
     elif primary_role == "MaintenanceTech":
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
 
@@ -213,8 +230,16 @@ def _slim_incident(doc: dict) -> dict:
 
 
 def _get_caller_id(req: func.HttpRequest) -> str:
-    """Extract user ID from mock header (local dev) or leave empty for prod."""
-    return req.headers.get("X-Mock-User-Id", "")
+    """Extract caller identity, preserving local mock auth fallback behavior."""
+    caller_id = req.headers.get("X-Mock-User-Id", "").strip() or req.headers.get("X-Mock-User", "").strip()
+    if caller_id:
+        return caller_id
+
+    roles = get_caller_roles(req)
+    if roles:
+        return _DEMO_USER_ID
+
+    return ""
 
 
 # Fallback demo user ID for operator filter when running without auth

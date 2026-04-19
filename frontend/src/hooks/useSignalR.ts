@@ -6,6 +6,7 @@ import {
 } from "@microsoft/signalr";
 import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../authConfig";
+import { IS_E2E_AUTH } from "../authRuntime";
 
 export interface Toast {
   id: string;
@@ -50,6 +51,8 @@ export function useSignalR() {
   }, [queryClient]);
 
   useEffect(() => {
+    if (IS_E2E_AUTH) return;
+
     let cancelled = false;
 
     async function connect() {

@@ -6,7 +6,7 @@ export interface Template {
   description_template: string;
   default_priority?: string;
   assigned_team?: string;
-  fields: string[];
+  fields: string[] | Record<string, unknown>;
   last_modified_by: string;
   last_modified_at: string;
 }

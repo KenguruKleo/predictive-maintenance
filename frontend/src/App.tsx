@@ -11,13 +11,14 @@ import ManagerDashboardPage from "./pages/ManagerDashboardPage";
 import TemplateManagementPage from "./pages/TemplateManagementPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { IS_E2E_AUTH } from "./authRuntime";
 import "./App.css";
 
 export default function App() {
   const isAuthenticated = useIsAuthenticated();
   const { inProgress } = useMsal();
 
-  if (inProgress !== InteractionStatus.None) {
+  if (!IS_E2E_AUTH && inProgress !== InteractionStatus.None) {
     return (
       <div className="loading-screen">
         <div className="spinner" />
@@ -26,7 +27,7 @@ export default function App() {
     );
   }
 
-  if (!isAuthenticated) {
+  if (!IS_E2E_AUTH && !isAuthenticated) {
     return <LoginPage loginRequest={loginRequest} />;
   }
 

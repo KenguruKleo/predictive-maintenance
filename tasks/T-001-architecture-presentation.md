@@ -184,6 +184,7 @@ Track A: GitHub + Azure + Azure AI Foundry
 - **Health dashboards** для внутрішньої IT команди — видно де черга росте, де агент повільний
 - **Alerting** — якщо агент не відповів за N секунд → автоматичний fallback до мануального процесу
 - **Distributed tracing** — кожен інцидент має correlation ID, можна відстежити весь шлях від alert до закриття
+- **Agent telemetry by incident (Admin view)** — окрема сторінка для IT Admin/QA: хронологія викликів agent -> sub-agent -> tools по конкретному incident (run IDs, duration, retries, помилки, токени, estimated cost). Це критично для tuning prompt/tool конфігурації та пост-мортем аналізу
 
 ---
 

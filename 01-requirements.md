@@ -129,7 +129,7 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 | **Grounding / RAG** | Validated SOP/BPR, CAPA history retrieval | ✅ Добре |
 | **Model Lifecycle** | Evaluation, governed deployment, versioning/rollback | ⚠️ Частково (згадано, не деталізовано) |
 | **Responsible AI** | Confidence thresholds, evidence gating | ❌ Відсутній |
-| **AI Observability** | Agent monitoring, output tracing | ❌ Відсутній |
+| **AI Observability** | Agent monitoring, output tracing | ⚠️ Частково — incident-scoped App Insights prompt and response traces are now implemented in backend; dashboards, alerts, and admin retrieval UX are still pending |
 | **Prompt Injection Defense** | Content safety, input validation | ❌ Відсутній |
 
 ---
@@ -223,7 +223,7 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 - [ ] **Responsible AI** — confidence gate + evidence schema у §8.3, реалізація T-040
 - [ ] **Prompt injection defenses** — описано в §8, реалізація T-040
 - [ ] **Content Safety** — архітектура в cross-cutting concerns, реалізація T-040
-- [ ] **Agent observability** — App Insights задеплоєно, custom metrics T-040
+- [ ] **Agent observability** — incident-scoped prompt and response traces implemented in backend, custom metrics, dashboard, and admin retrieval still pending (T-040)
 - [ ] **RAG на SOP/BPR/CAPA** — 4 AI Search indexes описано (§8.5), AI Search не задеплоєно, T-037
 - [ ] **Operator UI** — wireframe у T-033, React проект не створено, T-032
 - [ ] **Sample decision package** — schema у §8.3, реалізація T-026

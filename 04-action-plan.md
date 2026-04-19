@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + reusable incident recovery script)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-044 (Local Playwright E2E — auth bypass + smoke setup)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -37,12 +37,16 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (19 квітня 2026):**
+- T-044 — frontend local E2E path implemented: `VITE_AUTH_MODE=e2e`, shared mock-auth runtime, forced local `/api` base URL in E2E mode, Vite `/api` proxy, Playwright config with frontend+backend `webServer`, and 2 passing smoke tests (`operator` dashboard, `it-admin` templates)
+- T-044 — while wiring admin smoke tests, frontend template handling was hardened to match the real backend contract: `GET /api/templates` now unwraps `{ items, total }`, object-shaped `fields` no longer crash the list page, and the editor preserves `fields` on save
 - T-042 — backend deploy hardened: GitHub Actions backend deploy переведено на Azure Functions Core Tools publish (`func azure functionapp publish --python`), тобто той самий remote-build path, який реально відновлює Linux Consumption runtime після regression з `0 functions` і 404 на `/api/*`
 - T-041 — для parity додано `AzureWebJobsFeatureFlags=EnableWorkerIndexing` у Function App app settings
 - T-029/T-032/T-033 — incident detail approval UX спрощено: прибрано sticky/self-scroll у правій колонці, `Ask question` переведено в multiline textarea, transcript тепер зберігає initial + follow-up agent replies через `incident_events`, а recommendation card лишається latest state окремо від діалогу
 - T-039 — `run_foundry_agents` hardened against long Foundry runs for both initial and `more_info` rounds: `backend/host.json` now sets `functionTimeout=00:10:00`, Foundry polling is bounded by an explicit wall-clock budget, timed-out agent runs are cancelled when possible, and the activity now returns a controlled manual-review fallback instead of leaving incidents stuck in `awaiting_agents`
 - T-039 — live recovery path verified for `INC-2026-0001`: stale Durable instance terminated + purged, incident re-queued, fresh initial round returned to `pending_approval`, and the preserved operator `more_info` question was replayed onto the new orchestration instance
 - T-039 — added `scripts/recover_live_incident.py`: one-command recovery for stuck live incidents (`terminate → purge → requeue → wait initial → optional replay more_info`) plus README usage notes for future on-call recovery
+- T-039/T-040 — added incident-scoped Foundry prompt and response tracing in `run_foundry_agents` behind `FOUNDRY_PROMPT_TRACE_ENABLED`, with a stable `FOUNDRY_PROMPT_TRACE` envelope (`incident_id`, `round`, `trace_kind`, `thread_id`, `run_id`, chunk metadata) so logs can be queried later per incident for admin and audit troubleshooting
+- T-040 — documented current multi-agent control flow, model split, SDK observability limits, and App Insights retrieval pattern in `docs/foundry-followup-analysis.md`
 
 **Завершено (17 квітня 2026):****
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)
@@ -92,6 +96,8 @@
 | T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
+| T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — structured logs для agent/sub-agent/tool calls + admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🔜 TODO | T-034 |
+| T-044 | **[Local Playwright E2E mode](./tasks/T-044-playwright-local-e2e.md)** — dev-only auth mode + local backend proxy + smoke tests без Entra login | Quality / DX | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |
 | T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 5 indexes, 9 docs, 117 chunks з HNSW vector search | Gap #4 | 🟠 HIGH | ✅ DONE | — |
@@ -104,7 +110,7 @@
 |---|---|---|---|---|
 | T-038 | **[Security layer](./tasks/T-038-security.md)** — Key Vault, VNet, Private Endpoints, Managed Identities, retention policy (21 CFR Part 11), data classification | Gap #2 | 🟡 MEDIUM | 🔜 TODO |
 | T-039 | **[Reliability layer](./tasks/T-039-reliability.md)** — retry policies, fallback mode, circuit breaker, latency SLOs | Gap #3 | 🟡 MEDIUM | 🟡 IN PROGRESS |
-| T-040 | **[RAI layer](./tasks/T-040-rai.md)** — confidence gate impl, Content Safety API, prompt injection guard, eval metrics | Gap #4 | 🟡 MEDIUM | 🔜 TODO |
+| T-040 | **[RAI layer](./tasks/T-040-rai.md)** — confidence gate impl, Content Safety API, prompt injection guard, eval metrics | Gap #4 | 🟡 MEDIUM | 🟡 IN PROGRESS |
 
 ---
 
@@ -126,12 +132,12 @@
 | 24–25 квіт | T-027 (Execution Agent) · T-029 (human approval API) · T-030 (SignalR) |
 | 26–27 квіт | ✅ T-031 (backend API) · ✅ T-035 (RBAC) |
 | 28–29 квіт | T-032 (React core) · T-033 (approval UX) |
-| 30 квіт | T-034 (інші ролі frontend) · T-040 (RAI layer) |
+| 30 квіт | T-034 (інші ролі frontend) · T-040 (RAI layer) · T-043 (agent telemetry admin view) |
 
 ### Week 3 (1–7 травня) — Polish + Submission
 | Підзадача |
 |---|
-| T-034 (інші ролі frontend) · T-038/039/040 (security/reliability/RAI layers) |
+| T-034 (інші ролі frontend) · T-038/039/040 (security/reliability/RAI layers) · T-043 (agent telemetry admin view) |
 | T-001 (оновити презентацію) · T-010 (cartoon AS-IS/TO-BE) · T-002 (відео) |
 | Final submission |
 

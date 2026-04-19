@@ -32,8 +32,11 @@ import os
 import random
 import re
 import time
+from collections.abc import Sequence
 from datetime import datetime, timezone
 from difflib import SequenceMatcher
+from functools import lru_cache
+from pathlib import Path
 from urllib.parse import quote
 
 import azure.durable_functions as df
@@ -72,6 +75,27 @@ INDEX_EVIDENCE_META = {
     "idx-gmp-policies": {"type": "gmp", "container": "blob-gmp"},
     "idx-incident-history": {"type": "historical", "container": "blob-history"},
 }
+
+TRACE_MARKER = "FOUNDRY_PROMPT_TRACE"
+TRACE_ENABLED = os.getenv("FOUNDRY_PROMPT_TRACE_ENABLED", "").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+try:
+    TRACE_CHUNK_SIZE = max(
+        2000,
+        int(os.getenv("FOUNDRY_PROMPT_TRACE_CHUNK_SIZE", "12000")),
+    )
+except ValueError:
+    TRACE_CHUNK_SIZE = 12000
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+AGENT_PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
+
+DEFAULT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
 
 bp = df.Blueprint()
 
@@ -145,8 +169,20 @@ def run_foundry_agents(input_data: dict) -> dict:
         rag_context,
         previous_ai_result,
     )
+    _log_orchestrator_prompt_trace(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        orchestrator_agent_id=orchestrator_agent_id,
+        prompt=prompt,
+        context_data=context_data,
+    )
     try:
-        result = _call_orchestrator_agent(prompt, orchestrator_agent_id)
+        result = _call_orchestrator_agent(
+            prompt,
+            orchestrator_agent_id,
+            incident_id=incident_id,
+            more_info_round=more_info_round,
+        )
     except Exception as exc:  # noqa: BLE001
         logger.error(
             "Foundry analysis failed for incident %s round=%d: %s",
@@ -182,6 +218,13 @@ def run_foundry_agents(input_data: dict) -> dict:
         )
         result["confidence_flag"] = "LOW_CONFIDENCE"
 
+    _log_trace_json(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="normalized_result",
+        payload=result,
+    )
+
     return result
 
 
@@ -215,7 +258,13 @@ def _is_rate_limit_error(err: object) -> bool:
     )
 
 
-def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
+def _call_orchestrator_agent(
+    prompt: str,
+    agent_id: str,
+    *,
+    incident_id: str,
+    more_info_round: int,
+) -> dict:
     """Create a Foundry thread, run the Orchestrator Agent, return parsed result.
 
     Uses ``create_thread_and_process_run_with_approval`` to handle MCP tool
@@ -226,11 +275,6 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
     Rate-limit errors are retried up to _RATE_LIMIT_MAX_RETRIES times with
     exponential back-off.
     """
-    endpoint = os.environ.get(
-        "AZURE_AI_FOUNDRY_AGENTS_ENDPOINT",
-        os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
-    )
-    os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
     deadline = time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS
 
     last_exc: Exception | None = None
@@ -257,7 +301,7 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
             time.sleep(wait)
 
         try:
-            client = AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
+            client = _build_agents_client()
             with client:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
@@ -294,13 +338,24 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
                     run.status, run.thread_id, run.id,
                 )
 
-                messages = client.messages.list(thread_id=run.thread_id)
+                message_items = list(client.messages.list(thread_id=run.thread_id))
+                _log_trace_json(
+                    incident_id=incident_id,
+                    more_info_round=more_info_round,
+                    trace_kind="thread_messages",
+                    payload={
+                        "thread_id": run.thread_id,
+                        "run_id": run.id,
+                        "status": str(run.status),
+                        "messages": _serialize_thread_messages(message_items),
+                    },
+                )
 
                 # list_messages returns newest-first; first AGENT message is the answer.
                 # NOTE: azure-ai-agents SDK uses MessageRole.AGENT (value="assistant"),
                 # but str(MessageRole.AGENT) == "MessageRole.AGENT", NOT "assistant".
                 raw_text = ""
-                for msg in messages:
+                for msg in message_items:
                     role = getattr(msg, "role", None)
                     is_agent = (
                         role == MessageRole.AGENT
@@ -319,7 +374,30 @@ def _call_orchestrator_agent(prompt: str, agent_id: str) -> dict:
                     "Foundry raw response length=%d first 500 chars: %s",
                     len(raw_text), raw_text[:500],
                 )
-                return _parse_response(raw_text)
+                _log_trace_text(
+                    incident_id=incident_id,
+                    more_info_round=more_info_round,
+                    trace_kind="raw_response",
+                    text=raw_text,
+                    metadata={
+                        "thread_id": run.thread_id,
+                        "run_id": run.id,
+                        "agent_id": agent_id,
+                    },
+                )
+                parsed = _parse_response(raw_text)
+                _log_trace_json(
+                    incident_id=incident_id,
+                    more_info_round=more_info_round,
+                    trace_kind="parsed_response",
+                    payload=parsed,
+                    metadata={
+                        "thread_id": run.thread_id,
+                        "run_id": run.id,
+                        "agent_id": agent_id,
+                    },
+                )
+                return parsed
 
         except Exception as exc:  # noqa: BLE001
             if _is_rate_limit_error(exc):
@@ -519,6 +597,7 @@ def _build_prompt(
                 "classification": "process_parameter_excursion | equipment_malfunction | ...",
                 "risk_level": "low | medium | high | critical",
                 "confidence": 0.85,
+                "confidence_flag": None,
                 "root_cause": "Primary root cause in one sentence",
                 "analysis": "Detailed root cause analysis with evidence.",
                 "recommendation": "Recommended immediate action.",
@@ -526,6 +605,8 @@ def _build_prompt(
                     "Round 0: concise summary for operator. "
                     "Round >0: start by saying what follow-up question you reviewed, "
                     "then state clearly whether recommendation/root cause changed or stayed the same, and why. "
+                    "If the follow-up asks whether a BPR, SOP, or other document directly requires an action, "
+                    "answer that explicitly in plain language instead of implying it. "
                     "Do not simply repeat the recommendation text."
                 ),
                 "capa_suggestion": "1. ...\n2. ...",
@@ -556,15 +637,9 @@ def _build_prompt(
                 ],
                 "evidence_citations": [
                     {
-                        "type": "sop|manual|bpr|gmp|historical|incident",
-                        "document_id": "SOP-DEV-001",
-                        "document_title": "Deviation Management",
+                        "source": "SOP-DEV-001",
                         "section": "§4.2",
                         "text_excerpt": "...",
-                        "source_blob": "SOP-DEV-001-Deviation-Management.md",
-                        "index_name": "idx-sop-documents",
-                        "chunk_index": 0,
-                        "score": 0.82,
                     }
                 ],
                 "work_order_draft": {
@@ -579,20 +654,259 @@ def _build_prompt(
                     "root_cause": "...",
                     "capa_actions": "...",
                 },
+                "tool_calls_log": [
+                    {
+                        "tool": "get_equipment",
+                        "args": {"equipment_id": "GR-204"},
+                        "status": "ok",
+                    }
+                ],
+                "work_order_id": None,
+                "audit_entry_id": None,
+                "execution_error": None,
             },
             indent=2,
         ),
         "```",
         "",
+        "Every field above is required except execution_error, which may be null when tool execution succeeds.",
+        "Carry forward tool_calls_log from the Research Agent and preserve work_order_id/audit_entry_id from the Document Agent tool execution.",
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",
         "Always include operator_dialogue: plain language, under 120 words. "
-        "For follow-up rounds, explicitly say what question you checked, what changed or why no change was needed, "
+        "For follow-up rounds, explicitly say what question you checked, what changed or why no change was needed. "
+        "If the question asks whether a BPR, SOP, or other document directly requires an action, answer that explicitly with the evidence you found. "
         "and never just repeat the recommendation or analysis verbatim.",
     ]
 
     return "\n".join(lines)
+
+
+def _log_orchestrator_prompt_trace(
+    *,
+    incident_id: str,
+    more_info_round: int,
+    orchestrator_agent_id: str,
+    prompt: str,
+    context_data: dict,
+) -> None:
+    if not TRACE_ENABLED:
+        return
+
+    prompt_bundle = {
+        "orchestrator_agent_id": orchestrator_agent_id,
+        "configured_models": _configured_agent_models(),
+        "operator_questions": context_data.get("operator_questions", []),
+        "system_prompts": _system_prompt_snapshot(orchestrator_agent_id),
+    }
+    _log_trace_json(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="prompt_context",
+        payload=prompt_bundle,
+    )
+    _log_trace_text(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="orchestrator_user_prompt",
+        text=prompt,
+        metadata={"orchestrator_agent_id": orchestrator_agent_id},
+    )
+
+
+def _configured_agent_models() -> dict[str, str]:
+    return {
+        "research": _resolve_agent_model("FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_AGENT_MODEL),
+        "document": _resolve_agent_model(
+            "FOUNDRY_DOCUMENT_AGENT_MODEL",
+            DEFAULT_DOCUMENT_AGENT_MODEL,
+        ),
+        "orchestrator": _resolve_agent_model(
+            "FOUNDRY_ORCHESTRATOR_AGENT_MODEL",
+            DEFAULT_AGENT_MODEL,
+        ),
+    }
+
+
+def _resolve_agent_model(env_var: str, default_model: str) -> str:
+    override = os.getenv(env_var, "").strip()
+    if override:
+        return override
+
+    global_override = os.getenv("FOUNDRY_AGENT_MODEL", "").strip()
+    if global_override:
+        return global_override
+
+    return default_model
+
+
+def _build_agents_client() -> AgentsClient:
+    endpoint = os.environ.get(
+        "AZURE_AI_FOUNDRY_AGENTS_ENDPOINT",
+        os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
+    )
+    os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
+    return AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
+
+
+def _system_prompt_snapshot(orchestrator_agent_id: str) -> dict[str, str]:
+    return {
+        "orchestrator": _read_agent_prompt(orchestrator_agent_id, "orchestrator_system.md"),
+        "research": _read_agent_prompt(
+            os.getenv("RESEARCH_AGENT_ID", "").strip(),
+            "research_system.md",
+        ),
+        "document": _read_agent_prompt(
+            os.getenv("DOCUMENT_AGENT_ID", "").strip(),
+            "document_system.md",
+        ),
+    }
+
+
+def _read_agent_prompt(agent_id: str, file_name: str) -> str:
+    live_instructions = _get_live_agent_instructions(agent_id)
+    if live_instructions:
+        return live_instructions
+
+    prompt_path = _resolve_prompt_path(file_name)
+    if prompt_path is None:
+        return f"<prompt file unavailable: {file_name}>"
+
+    try:
+        return prompt_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        return f"<failed to read {prompt_path}: {exc}>"
+
+
+@lru_cache(maxsize=8)
+def _get_live_agent_instructions(agent_id: str) -> str:
+    if not agent_id:
+        return ""
+
+    try:
+        client = _build_agents_client()
+        with client:
+            agent = client.get_agent(agent_id)
+        return str(getattr(agent, "instructions", "") or "").strip()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to fetch live agent instructions for %s: %s", agent_id, exc)
+        return ""
+
+
+def _resolve_prompt_path(file_name: str) -> Path | None:
+    direct_candidate = AGENT_PROMPTS_DIR / file_name
+    if direct_candidate.is_file():
+        return direct_candidate
+
+    for parent in Path(__file__).resolve().parents:
+        candidate = parent / "agents" / "prompts" / file_name
+        if candidate.is_file():
+            return candidate
+
+    return None
+
+
+def _serialize_thread_messages(messages: Sequence[object]) -> list[dict[str, object]]:
+    serialized: list[dict[str, object]] = []
+    for message in messages:
+        serialized.append(
+            {
+                "id": getattr(message, "id", None),
+                "role": _serialize_value(getattr(message, "role", None)),
+                "created_at": getattr(message, "created_at", None),
+                "metadata": _serialize_value(getattr(message, "metadata", None)),
+                "content": _serialize_message_content(getattr(message, "content", [])),
+            }
+        )
+    return serialized
+
+
+def _serialize_message_content(content_blocks: Sequence[object] | None) -> list[dict[str, object]]:
+    serialized_blocks: list[dict[str, object]] = []
+    for block in content_blocks or []:
+        text_block = getattr(block, "text", None)
+        text_value = getattr(text_block, "value", None)
+        serialized_blocks.append(
+            {
+                "type": getattr(block, "type", block.__class__.__name__),
+                "text": text_value,
+                "raw": _serialize_value(block if text_value is None else None),
+            }
+        )
+    return serialized_blocks
+
+
+def _serialize_value(value: object) -> object:
+    if value is None:
+        return None
+    if isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, dict):
+        return {str(key): _serialize_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_serialize_value(item) for item in value]
+    if hasattr(value, "__dict__"):
+        return {
+            str(key): _serialize_value(item)
+            for key, item in vars(value).items()
+            if not key.startswith("_")
+        }
+    return str(value)
+
+
+def _log_trace_json(
+    *,
+    incident_id: str,
+    more_info_round: int,
+    trace_kind: str,
+    payload: object,
+    metadata: dict[str, object] | None = None,
+) -> None:
+    _log_trace_text(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind=trace_kind,
+        text=json.dumps(payload, ensure_ascii=False, default=str, indent=2),
+        metadata=metadata,
+        content_type="json",
+    )
+
+
+def _log_trace_text(
+    *,
+    incident_id: str,
+    more_info_round: int,
+    trace_kind: str,
+    text: str,
+    metadata: dict[str, object] | None = None,
+    content_type: str = "text",
+) -> None:
+    if not TRACE_ENABLED:
+        return
+
+    metadata = metadata or {}
+    chunks = _chunk_text(text or "", TRACE_CHUNK_SIZE)
+    total_chunks = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        payload = {
+            "marker": TRACE_MARKER,
+            "incident_id": incident_id,
+            "round": more_info_round,
+            "trace_kind": trace_kind,
+            "content_type": content_type,
+            "chunk_index": index,
+            "chunk_count": total_chunks,
+            "metadata": metadata,
+            "content": chunk,
+        }
+        logger.info("%s %s", TRACE_MARKER, json.dumps(payload, ensure_ascii=False, default=str))
+
+
+def _chunk_text(text: str, size: int) -> list[str]:
+    if not text:
+        return [""]
+    return [text[index:index + size] for index in range(0, len(text), size)]
 
 
 def _parse_response(raw_text: str) -> dict:
@@ -720,6 +1034,10 @@ def _should_rewrite_followup_dialogue(
         return True
 
     latest_question = _get_latest_operator_question(operator_questions)
+    if latest_question and _is_direct_requirement_question(latest_question):
+        if not _answers_direct_requirement_question(normalized_explicit):
+            return True
+
     if latest_question and not _mentions_change_or_reason(normalized_explicit):
         return True
 
@@ -735,6 +1053,7 @@ def _build_followup_operator_dialogue(
     recommendation = str(result.get("recommendation") or "").strip()
     root_cause = str(result.get("root_cause") or "").strip()
     changed_fields = _get_changed_followup_fields(result, previous_ai_result)
+    direct_requirement_answer = _build_direct_requirement_answer(latest_question, result)
 
     if latest_question:
         intro = f'I reviewed your follow-up question: "{_shorten_text(latest_question, 180)}".'
@@ -743,19 +1062,26 @@ def _build_followup_operator_dialogue(
 
     if changed_fields:
         field_summary = _human_join(changed_fields)
-        details: list[str] = [
-            f"I updated {field_summary} based on the available evidence."
-        ]
+        details: list[str] = []
+        if direct_requirement_answer:
+            details.append(direct_requirement_answer)
+        details.append(f"I updated {field_summary} based on the available evidence.")
         if root_cause:
             details.append(f"Updated root cause hypothesis: {root_cause}")
         if recommendation:
             details.append(f"Updated recommendation: {recommendation}")
         return " ".join([intro, *details]).strip()
 
-    no_change_parts = [
-        intro,
-        "I did not find enough new evidence to change the current recommendation or root-cause hypothesis.",
-    ]
+    no_change_parts = [intro]
+    if direct_requirement_answer:
+        no_change_parts.append(direct_requirement_answer)
+        no_change_parts.append(
+            "The recommendation and root-cause hypothesis remain unchanged based on the available evidence."
+        )
+    else:
+        no_change_parts.append(
+            "I did not find enough new evidence to change the current recommendation or root-cause hypothesis."
+        )
     if recommendation:
         no_change_parts.append(f"Recommendation remains: {recommendation}")
     return " ".join(no_change_parts).strip()
@@ -782,6 +1108,130 @@ def _get_latest_operator_question(operator_questions: list[dict]) -> str:
         return ""
     latest = operator_questions[-1]
     return str(latest.get("question") or "").strip()
+
+
+def _is_direct_requirement_question(question: str) -> bool:
+    normalized_question = _normalize_text(question)
+    if not normalized_question:
+        return False
+
+    requirement_markers = (
+        "direct requirement",
+        "directly require",
+        "mandate",
+        "requirement to",
+        "required to",
+        "must stop",
+        "stop the line",
+        "line stop",
+    )
+    document_markers = ("bpr", "sop", "document", "procedure")
+    return any(marker in normalized_question for marker in requirement_markers) and any(
+        marker in normalized_question for marker in document_markers
+    )
+
+
+def _answers_direct_requirement_question(normalized_dialogue: str) -> bool:
+    answer_markers = (
+        "i did not find a direct",
+        "i found a direct",
+        "there is no direct requirement",
+        "there is a direct requirement",
+        "the bpr does not",
+        "the bpr requires",
+        "the sop does not",
+        "the sop requires",
+        "does not directly require",
+        "directly requires",
+        "does not state",
+        "states that",
+    )
+    return any(marker in normalized_dialogue for marker in answer_markers)
+
+
+def _build_direct_requirement_answer(latest_question: str, result: dict) -> str:
+    if not _is_direct_requirement_question(latest_question):
+        return ""
+
+    source, section, excerpt = _extract_requirement_evidence(result)
+    if excerpt and _has_direct_stop_requirement(excerpt):
+        source_label = _format_evidence_label(source, section)
+        if source_label:
+            return (
+                f'I found retrieved evidence in {source_label} that directly requires a stop or hold action: '
+                f'"{_shorten_text(excerpt, 140)}".'
+            )
+        return (
+            f'I found retrieved evidence that directly requires a stop or hold action: '
+            f'"{_shorten_text(excerpt, 140)}".'
+        )
+
+    if excerpt:
+        source_label = _format_evidence_label(source, section)
+        label_suffix = f" in {source_label}" if source_label else ""
+        return (
+            f'I did not find retrieved BPR or SOP evidence{label_suffix} that directly says to stop the line at this condition; '
+            f'the closest cited requirement is "{_shorten_text(excerpt, 140)}".'
+        )
+
+    return "I did not find retrieved BPR or SOP evidence that directly says to stop the line at this condition."
+
+
+def _extract_requirement_evidence(result: dict) -> tuple[str, str, str]:
+    prioritized: list[tuple[str, str, str]] = []
+    fallback: list[tuple[str, str, str]] = []
+
+    for collection_name in ("evidence_citations", "sop_refs", "regulatory_refs"):
+        for item in result.get(collection_name, []) or []:
+            if not isinstance(item, dict):
+                continue
+
+            source = str(
+                item.get("source")
+                or item.get("document_title")
+                or item.get("id")
+                or item.get("regulation")
+                or ""
+            ).strip()
+            section = str(item.get("section") or item.get("relevant_section") or "").strip()
+            excerpt = str(item.get("text_excerpt") or "").strip()
+            if not excerpt:
+                continue
+
+            normalized_haystack = _normalize_text(f"{source} {section} {excerpt}")
+            candidate = (source, section, excerpt)
+            if "bpr" in normalized_haystack or "product nor" in normalized_haystack:
+                prioritized.append(candidate)
+            elif "sop" in normalized_haystack or "procedure" in normalized_haystack:
+                prioritized.append(candidate)
+            else:
+                fallback.append(candidate)
+
+    if prioritized:
+        return prioritized[0]
+    if fallback:
+        return fallback[0]
+    return "", "", ""
+
+
+def _has_direct_stop_requirement(excerpt: str) -> bool:
+    normalized_excerpt = _normalize_text(excerpt)
+    stop_markers = (
+        "stop the line",
+        "must stop",
+        "halt production",
+        "production must be stopped",
+        "hold the batch",
+        "batch must be held",
+        "reject the batch",
+    )
+    return any(marker in normalized_excerpt for marker in stop_markers)
+
+
+def _format_evidence_label(source: str, section: str) -> str:
+    if source and section:
+        return f"{source} {section}"
+    return source or section
 
 
 def _mentions_change_or_reason(normalized_text: str) -> bool:

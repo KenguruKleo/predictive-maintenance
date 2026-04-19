@@ -7,6 +7,14 @@ interface Props {
   onCancel: () => void;
 }
 
+function normalizeTemplateFields(fields: Template["fields"]): Record<string, unknown> {
+  if (Array.isArray(fields)) {
+    return Object.fromEntries(fields.map((field) => [field, ""]));
+  }
+
+  return fields ?? {};
+}
+
 export default function TemplateEditor({ template, onSave, onCancel }: Props) {
   const [name, setName] = useState(template.name);
   const [descriptionTemplate, setDescriptionTemplate] = useState(
@@ -21,6 +29,7 @@ export default function TemplateEditor({ template, onSave, onCancel }: Props) {
       description_template: descriptionTemplate,
       default_priority: priority || undefined,
       assigned_team: team || undefined,
+      fields: normalizeTemplateFields(template.fields),
     });
   };
 

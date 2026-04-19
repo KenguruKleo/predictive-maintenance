@@ -44,6 +44,8 @@
 | T-032 | [T-032-frontend-core.md](./T-032-frontend-core.md) | React frontend — core | 🔴 CRITICAL | 🔜 TODO |
 | T-033 | [T-033-frontend-approval.md](./T-033-frontend-approval.md) | React frontend — approval UX | 🔴 CRITICAL | 🔜 TODO |
 | T-034 | [T-034-frontend-other-roles.md](./T-034-frontend-other-roles.md) | React frontend — manager/auditor/IT | 🟠 HIGH | 🔜 TODO |
+| T-043 | [T-043-agent-telemetry-admin-view.md](./T-043-agent-telemetry-admin-view.md) | Agent telemetry + admin incident view | 🟠 HIGH | 🔜 TODO |
+| T-044 | [T-044-playwright-local-e2e.md](./T-044-playwright-local-e2e.md) | Local Playwright E2E mode (dev auth + local proxy) | 🟠 HIGH | 🟡 IN PROGRESS |
 
 ## Security / Reliability / RAI / CI-CD
 
@@ -51,6 +53,6 @@
 |---|---|---|---|---|
 | T-035 | [T-035-rbac.md](./T-035-rbac.md) | RBAC setup (Entra ID, 5 roles) | 🟠 HIGH | 🔜 TODO |
 | T-038 | [T-038-security.md](./T-038-security.md) | Security layer (Key Vault, VNet, MI) | 🟡 MEDIUM | 🔜 TODO |
-| T-039 | [T-039-reliability.md](./T-039-reliability.md) | Reliability layer | 🟡 MEDIUM | 🔜 TODO |
-| T-040 | [T-040-rai.md](./T-040-rai.md) | RAI layer | 🟡 MEDIUM | 🔜 TODO |
+| T-039 | [T-039-reliability.md](./T-039-reliability.md) | Reliability layer | 🟡 MEDIUM | 🟡 IN PROGRESS |
+| T-040 | [T-040-rai.md](./T-040-rai.md) | RAI layer | 🟡 MEDIUM | 🟡 IN PROGRESS |
 | T-042 | [T-042-cicd.md](./T-042-cicd.md) | GitHub Actions CI/CD | 🟠 HIGH | ✅ DONE |

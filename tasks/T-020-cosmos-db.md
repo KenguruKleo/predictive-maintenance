@@ -39,6 +39,8 @@
 - partition: incident_id
 - range: timestamp
 
+> Extension: T-043 reuses `incident_events` for agent telemetry with `type = "agent_telemetry"`; no separate collection needed for hackathon MVP.
+
 # equipment
 - partition: id (same as id — singleton lookup)
 

@@ -17,6 +17,9 @@ param searchServiceName string
 param foundryProjectConnectionString string
 param foundrySearchConnectionId string
 param signalrConnectionString string
+param orchestratorAgentId string = ''
+param researchAgentId string = ''
+param documentAgentId string = ''
 
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
@@ -100,9 +103,9 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'MAX_MORE_INFO_ROUNDS', value: '3' }
         { name: 'CONFIDENCE_THRESHOLD', value: '0.75' }
         // Agent IDs — populated after agents/create_agents.py runs
-        { name: 'ORCHESTRATOR_AGENT_ID', value: '' }
-        { name: 'RESEARCH_AGENT_ID', value: '' }
-        { name: 'DOCUMENT_AGENT_ID', value: '' }
+        { name: 'ORCHESTRATOR_AGENT_ID', value: orchestratorAgentId }
+        { name: 'RESEARCH_AGENT_ID', value: researchAgentId }
+        { name: 'DOCUMENT_AGENT_ID', value: documentAgentId }
         { name: 'EXECUTION_AGENT_ID', value: '' }
       ]
       ftpsState: 'Disabled'

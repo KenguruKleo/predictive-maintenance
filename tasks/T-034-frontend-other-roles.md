@@ -42,12 +42,14 @@ Features:
 
 ```
 src/pages/TemplatesPage.tsx
+src/pages/IncidentTelemetryPage.tsx
 
 Features:
 - List of templates (work order, audit entry)
 - Edit template fields (inline editor or modal)
 - PUT /api/templates/{id} on save
 - Version history display
+- Agent telemetry by incident: timeline of agent/sub-agent/tool events with filters (incidentId, status, agent)
 ```
 
 ---
@@ -58,4 +60,5 @@ Features:
 - [ ] Auditor view renders full audit trail with filter controls
 - [ ] Auditor CSV export works
 - [ ] IT Admin can edit and save template (change propagates to mock seeded data)
+- [ ] IT Admin sees per-incident agent telemetry timeline (from `/api/incidents/{id}/agent-telemetry`)
 - [ ] Role-gating: auditor cannot see IT Admin page, operator cannot see manager dashboard

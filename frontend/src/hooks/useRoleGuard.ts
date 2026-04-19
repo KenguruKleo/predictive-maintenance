@@ -1,5 +1,5 @@
 import { useAuth } from "./useAuth";
-import type { AppRole } from "./useAuth";
+import type { AppRole } from "../authRuntime";
 
 export function useRoleGuard(allowedRoles: AppRole[] | ["*"]) {
   const { roles } = useAuth();

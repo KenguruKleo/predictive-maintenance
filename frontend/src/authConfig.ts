@@ -7,6 +7,7 @@
  */
 
 import type { Configuration, PopupRequest, RedirectRequest } from "@azure/msal-browser";
+import { IS_E2E_AUTH } from "./authRuntime";
 
 // These env vars are injected at build time via Vite (VITE_* prefix)
 const TENANT_ID =
@@ -41,6 +42,7 @@ export const apiRequest: PopupRequest = {
   scopes: [`api://${API_CLIENT_ID}/.default`],
 };
 
-export const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL ??
-  "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api";
+export const API_BASE_URL = IS_E2E_AUTH
+  ? "/api"
+  : import.meta.env.VITE_API_BASE_URL ??
+    "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api";

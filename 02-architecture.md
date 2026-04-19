@@ -21,6 +21,7 @@
    - [8.11 Розбивка на Azure Functions](#811-розбивка-на-azure-functions--повна-карта)
    - [8.12 Azure SignalR — контракт](#812-azure-signalr--контракт)
    - [8.13 Шар документів — Ingestion Architecture](#813-шар-документів--ingestion-architecture)
+  - [8.14 Agent Observability — Prompt Trace Path](#814-agent-observability--prompt-trace-path)
 9. [Changelog архітектури](#9-changelog-архітектури)
 
 ---
@@ -1023,6 +1024,61 @@ infra/modules/storage.bicep — provisioned containers:
 
 > **Hackathon note:** Storage Account `stsentinelintelerzrpo` вже задеплоєно. Container `documents` вже існує — може залишитись для Durable Functions state (auto-managed). 5 нових containers додаються інкрементально оновленням storage.bicep + redeploy. Це робота в **T-036** (ingestion pipeline) + відповідне оновлення **T-041** (Bicep).
 
+### 8.14 Agent Observability — Prompt Trace Path
+
+> **Нове в v2.7.** Для incident-level troubleshooting `run_foundry_agents` now emits structured App Insights traces behind `FOUNDRY_PROMPT_TRACE_ENABLED`.
+
+#### Problem this solves
+
+The original architecture already had audit logging for business actions, but it did not preserve enough evidence to answer questions such as:
+
+- what exact follow-up question reached the Foundry Orchestrator Agent
+- which model split was active for that run
+- whether the bad operator-facing answer came from the Document Agent or from backend normalization
+- whether the same incident can later be reviewed by IT Admin or auditors
+
+#### Trace boundary
+
+The backend can reliably observe and log:
+
+- the outer prompt sent to the Foundry Orchestrator Agent
+- the configured system prompts for Orchestrator, Research, and Document
+- the final thread messages returned by Foundry
+- the raw top-level response
+- the parsed JSON package
+- the normalized final result that is persisted to Cosmos and UI
+
+The current `azure-ai-agents` SDK build used in this repo does **not** expose connected sub-agent run steps directly, so internal Research and Document invocation payloads are only partially visible.
+
+#### Trace contract
+
+Every trace record uses the marker `FOUNDRY_PROMPT_TRACE` and includes stable incident-scoped fields:
+
+- `incident_id`
+- `round`
+- `trace_kind`
+- `chunk_index`
+- `chunk_count`
+- `thread_id` and `run_id` when available
+
+Current trace kinds:
+
+- `prompt_context`
+- `orchestrator_user_prompt`
+- `thread_messages`
+- `raw_response`
+- `parsed_response`
+- `normalized_result`
+
+#### Retrieval model
+
+The intent is to support both:
+
+- engineering troubleshooting in App Insights and Log Analytics
+- a future admin endpoint or page that retrieves traces by `incident_id`
+
+This closes the gap between business audit trail and AI runtime observability without changing the Durable workflow contract.
+
 ---
 
 ## 9. Changelog архітектури
@@ -1037,6 +1093,7 @@ infra/modules/storage.bicep — provisioned containers:
 | 2026-04-17 | v2.4 | **Рев'ю:** §4 AS-SUBMITTED disclaimer + Component Evolution table (v1.0→v2.0); §8.3 JSON output schemas для всіх агентів + confidence gate failure matrix; §8.4 cross-partition query note; §8.6 LOW_CONFIDENCE гілка в HITL flow; §8.11 idempotency note; §8.12 SignalR contract (хуб, groups, events, negotiation flow). | Review |
 | 2026-04-17 | v2.5 | **Document Layer Architecture:** §8.1 AI Search: 4→5 indexes (додано `idx-bpr-documents`); §8.2 RAG Storage row оновлено; §8.3 Research Agent: додано `search_bpr_documents` RAG tool; §8.5 RAG vs Direct: додано BPR row; §8.8 Storage: 1 container → 5 окремих blob containers per source type; §8.13 новий розділ — Document Layer Ingestion Architecture (5 containers, 5 ingestors, table-aware BPR chunking, agent→index mapping). T-036 + T-025 оновлено. | Gap #4 review |
 | 2026-04-17 | v2.6 | **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent переведені в sub-agents Foundry Orchestrator Agent (`AgentTool`). Durable: 2 activities (`run_research_agent` + `run_document_agent`) → 1 activity `run_foundry_agents`. `more_info` loop: Durable накопичує `operator_questions`, Foundry керує internal iterations через `max_iterations`. §8.1 схема, §8.2 таблиця, §8.3 Orchestrator Agent, §8.9 діаграма, §8.10b ADR-002, §8.11 Functions map — оновлено. T-024, T-025, T-026, 04-action-plan оновлено. | — |
+| 2026-04-19 | v2.7 | **Agent Observability:** `run_foundry_agents` now emits structured incident-scoped App Insights traces for the backend-visible Foundry path. Added §8.14 prompt trace contract, incident retrieval model, and explicit note that the current SDK does not expose connected sub-agent run steps directly. | Gap #3, Gap #4 |
 
 ---
 

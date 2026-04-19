@@ -1,11 +1,12 @@
 {
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "languageVersion": "2.0",
   "contentVersion": "1.0.0.0",
   "metadata": {
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "18063928697317658432"
+      "templateHash": "7701340556084991954"
     }
   },
   "parameters": {
@@ -39,6 +40,27 @@
       "metadata": {
         "description": "6-char unique suffix derived from RG id — do not override unless needed."
       }
+    },
+    "orchestratorAgentId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry Orchestrator agent ID. Update after running agents/create_agents.py --update."
+      }
+    },
+    "researchAgentId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry Research agent ID. Update after running agents/create_agents.py --update."
+      }
+    },
+    "documentAgentId": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Azure AI Foundry Document agent ID. Update after running agents/create_agents.py --update."
+      }
     }
   },
   "variables": {
@@ -49,8 +71,8 @@
       "managedBy": "bicep"
     }
   },
-  "resources": [
-    {
+  "resources": {
+    "storage": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "storage",
@@ -165,7 +187,7 @@
         }
       }
     },
-    {
+    "monitoring": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "monitoring",
@@ -263,7 +285,7 @@
         }
       }
     },
-    {
+    "cosmos": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "cosmos",
@@ -293,7 +315,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "990624464306594645"
+              "templateHash": "11036439946638088874"
             }
           },
           "parameters": {
@@ -433,7 +455,7 @@
         }
       }
     },
-    {
+    "servicebus": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "servicebus",
@@ -521,7 +543,7 @@
         }
       }
     },
-    {
+    "functions": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "functions",
@@ -541,37 +563,49 @@
             "value": "[format('func-{0}-{1}', variables('prefix'), parameters('uniqueSuffix'))]"
           },
           "storageAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageName.value]"
+            "value": "[reference('storage').outputs.storageName.value]"
           },
           "appInsightsConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.appInsightsConnectionString.value]"
+            "value": "[reference('monitoring').outputs.appInsightsConnectionString.value]"
           },
           "cosmosEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosEndpoint.value]"
+            "value": "[reference('cosmos').outputs.cosmosEndpoint.value]"
           },
           "cosmosAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosAccountName.value]"
+            "value": "[reference('cosmos').outputs.cosmosAccountName.value]"
           },
           "serviceBusNamespaceName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'servicebus'), '2025-04-01').outputs.serviceBusName.value]"
+            "value": "[reference('servicebus').outputs.serviceBusName.value]"
           },
           "openaiEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiEndpoint.value]"
+            "value": "[reference('openai').outputs.openaiEndpoint.value]"
           },
           "openaiAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiAccountName.value]"
+            "value": "[reference('openai').outputs.openaiAccountName.value]"
           },
           "searchEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceEndpoint.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceEndpoint.value]"
           },
           "searchServiceName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceName.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceName.value]"
           },
           "foundryProjectConnectionString": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.projectConnectionString.value]"
+            "value": "[reference('aiFoundry').outputs.projectConnectionString.value]"
           },
           "foundrySearchConnectionId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.searchConnectionId.value]"
+            "value": "[reference('aiFoundry').outputs.searchConnectionId.value]"
+          },
+          "signalrConnectionString": {
+            "value": "[listOutputsWithSecureValues('signalr', '2025-04-01').signalrConnectionString]"
+          },
+          "orchestratorAgentId": {
+            "value": "[parameters('orchestratorAgentId')]"
+          },
+          "researchAgentId": {
+            "value": "[parameters('researchAgentId')]"
+          },
+          "documentAgentId": {
+            "value": "[parameters('documentAgentId')]"
           }
         },
         "template": {
@@ -581,7 +615,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "15108979359860056184"
+              "templateHash": "16408943838382421005"
             }
           },
           "parameters": {
@@ -626,6 +660,21 @@
             },
             "foundrySearchConnectionId": {
               "type": "string"
+            },
+            "signalrConnectionString": {
+              "type": "string"
+            },
+            "orchestratorAgentId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "researchAgentId": {
+              "type": "string",
+              "defaultValue": ""
+            },
+            "documentAgentId": {
+              "type": "string",
+              "defaultValue": ""
             }
           },
           "resources": [
@@ -667,6 +716,10 @@
                     {
                       "name": "FUNCTIONS_WORKER_RUNTIME",
                       "value": "python"
+                    },
+                    {
+                      "name": "AzureWebJobsFeatureFlags",
+                      "value": "EnableWorkerIndexing"
                     },
                     {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
@@ -733,6 +786,10 @@
                       "value": "[parameters('foundrySearchConnectionId')]"
                     },
                     {
+                      "name": "AzureSignalRConnectionString",
+                      "value": "[parameters('signalrConnectionString')]"
+                    },
+                    {
                       "name": "MAX_MORE_INFO_ROUNDS",
                       "value": "3"
                     },
@@ -742,15 +799,15 @@
                     },
                     {
                       "name": "ORCHESTRATOR_AGENT_ID",
-                      "value": ""
+                      "value": "[parameters('orchestratorAgentId')]"
                     },
                     {
                       "name": "RESEARCH_AGENT_ID",
-                      "value": ""
+                      "value": "[parameters('researchAgentId')]"
                     },
                     {
                       "name": "DOCUMENT_AGENT_ID",
-                      "value": ""
+                      "value": "[parameters('documentAgentId')]"
                     },
                     {
                       "name": "EXECUTION_AGENT_ID",
@@ -784,16 +841,17 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'aiFoundry')]",
-        "[resourceId('Microsoft.Resources/deployments', 'aiSearch')]",
-        "[resourceId('Microsoft.Resources/deployments', 'cosmos')]",
-        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
-        "[resourceId('Microsoft.Resources/deployments', 'openai')]",
-        "[resourceId('Microsoft.Resources/deployments', 'servicebus')]",
-        "[resourceId('Microsoft.Resources/deployments', 'storage')]"
+        "aiFoundry",
+        "aiSearch",
+        "cosmos",
+        "monitoring",
+        "openai",
+        "servicebus",
+        "signalr",
+        "storage"
       ]
     },
-    {
+    "aiSearch": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "aiSearch",
@@ -881,7 +939,7 @@
         }
       }
     },
-    {
+    "openai": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "openai",
@@ -1021,7 +1079,7 @@
         }
       }
     },
-    {
+    "aiFoundry": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "aiFoundry",
@@ -1044,25 +1102,25 @@
             "value": "[format('aip-{0}-{1}', variables('prefix'), parameters('uniqueSuffix'))]"
           },
           "storageAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageName.value]"
+            "value": "[reference('storage').outputs.storageName.value]"
           },
           "appInsightsId": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.appInsightsId.value]"
+            "value": "[reference('monitoring').outputs.appInsightsId.value]"
           },
           "keyVaultName": {
             "value": "[format('kv-sntl-{0}-{1}', parameters('environmentName'), parameters('uniqueSuffix'))]"
           },
           "openaiAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiAccountName.value]"
+            "value": "[reference('openai').outputs.openaiAccountName.value]"
           },
           "openaiEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.aiServicesEndpoint.value]"
+            "value": "[reference('openai').outputs.aiServicesEndpoint.value]"
           },
           "searchServiceName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceName.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceName.value]"
           },
           "searchServiceEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceEndpoint.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceEndpoint.value]"
           }
         },
         "template": {
@@ -1251,13 +1309,13 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'aiSearch')]",
-        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
-        "[resourceId('Microsoft.Resources/deployments', 'openai')]",
-        "[resourceId('Microsoft.Resources/deployments', 'storage')]"
+        "aiSearch",
+        "monitoring",
+        "openai",
+        "storage"
       ]
     },
-    {
+    "swa": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "swa",
@@ -1364,7 +1422,112 @@
         }
       }
     },
-    {
+    "signalr": {
+      "type": "Microsoft.Resources/deployments",
+      "apiVersion": "2025-04-01",
+      "name": "signalr",
+      "properties": {
+        "expressionEvaluationOptions": {
+          "scope": "inner"
+        },
+        "mode": "Incremental",
+        "parameters": {
+          "location": {
+            "value": "[parameters('location')]"
+          },
+          "tags": {
+            "value": "[variables('tags')]"
+          },
+          "signalrName": {
+            "value": "[format('sigr-{0}-{1}', variables('prefix'), parameters('uniqueSuffix'))]"
+          }
+        },
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "languageVersion": "2.0",
+          "contentVersion": "1.0.0.0",
+          "metadata": {
+            "_generator": {
+              "name": "bicep",
+              "version": "0.42.1.51946",
+              "templateHash": "15265638399348616998"
+            }
+          },
+          "parameters": {
+            "location": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "object"
+            },
+            "signalrName": {
+              "type": "string"
+            },
+            "skuName": {
+              "type": "string",
+              "defaultValue": "Free_F1",
+              "allowedValues": [
+                "Free_F1",
+                "Standard_S1"
+              ],
+              "metadata": {
+                "description": "Free_F1 for dev/demo; Standard_S1 for production."
+              }
+            }
+          },
+          "resources": {
+            "signalr": {
+              "type": "Microsoft.SignalRService/signalR",
+              "apiVersion": "2023-02-01",
+              "name": "[parameters('signalrName')]",
+              "location": "[parameters('location')]",
+              "tags": "[parameters('tags')]",
+              "sku": {
+                "name": "[parameters('skuName')]",
+                "capacity": 1
+              },
+              "properties": {
+                "features": [
+                  {
+                    "flag": "ServiceMode",
+                    "value": "Serverless"
+                  },
+                  {
+                    "flag": "EnableConnectivityLogs",
+                    "value": "true"
+                  },
+                  {
+                    "flag": "EnableMessagingLogs",
+                    "value": "true"
+                  }
+                ],
+                "cors": {
+                  "allowedOrigins": [
+                    "*"
+                  ]
+                },
+                "upstream": {}
+              }
+            }
+          },
+          "outputs": {
+            "signalrName": {
+              "type": "string",
+              "value": "[parameters('signalrName')]"
+            },
+            "signalrHostname": {
+              "type": "string",
+              "value": "[reference('signalr').hostName]"
+            },
+            "signalrConnectionString": {
+              "type": "securestring",
+              "value": "[listKeys('signalr', '2023-02-01').primaryConnectionString]"
+            }
+          }
+        }
+      }
+    },
+    "acr": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "acr",
@@ -1444,7 +1607,7 @@
         }
       }
     },
-    {
+    "containerApps": {
       "type": "Microsoft.Resources/deployments",
       "apiVersion": "2025-04-01",
       "name": "containerApps",
@@ -1467,31 +1630,31 @@
             "value": "[parameters('uniqueSuffix')]"
           },
           "logAnalyticsWorkspaceName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'monitoring'), '2025-04-01').outputs.workspaceName.value]"
+            "value": "[reference('monitoring').outputs.workspaceName.value]"
           },
           "acrName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr'), '2025-04-01').outputs.acrName.value]"
+            "value": "[reference('acr').outputs.acrName.value]"
           },
           "cosmosAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosAccountName.value]"
+            "value": "[reference('cosmos').outputs.cosmosAccountName.value]"
           },
           "cosmosDatabaseName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.databaseName.value]"
+            "value": "[reference('cosmos').outputs.databaseName.value]"
           },
           "searchServiceName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceName.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceName.value]"
           },
           "searchEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceEndpoint.value]"
+            "value": "[reference('aiSearch').outputs.searchServiceEndpoint.value]"
           },
           "openaiAccountName": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiAccountName.value]"
+            "value": "[reference('openai').outputs.openaiAccountName.value]"
           },
           "openaiEndpoint": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiEndpoint.value]"
+            "value": "[reference('openai').outputs.openaiEndpoint.value]"
           },
           "embeddingDeployment": {
-            "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.embeddingDeploymentName.value]"
+            "value": "[reference('openai').outputs.embeddingDeploymentName.value]"
           }
         },
         "template": {
@@ -2075,62 +2238,62 @@
         }
       },
       "dependsOn": [
-        "[resourceId('Microsoft.Resources/deployments', 'acr')]",
-        "[resourceId('Microsoft.Resources/deployments', 'aiSearch')]",
-        "[resourceId('Microsoft.Resources/deployments', 'cosmos')]",
-        "[resourceId('Microsoft.Resources/deployments', 'monitoring')]",
-        "[resourceId('Microsoft.Resources/deployments', 'openai')]"
+        "acr",
+        "aiSearch",
+        "cosmos",
+        "monitoring",
+        "openai"
       ]
     }
-  ],
+  },
   "outputs": {
     "functionsAppName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functions'), '2025-04-01').outputs.funcAppName.value]"
+      "value": "[reference('functions').outputs.funcAppName.value]"
     },
     "functionsHostname": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'functions'), '2025-04-01').outputs.funcAppHostname.value]"
+      "value": "[reference('functions').outputs.funcAppHostname.value]"
     },
     "cosmosEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.cosmosEndpoint.value]"
+      "value": "[reference('cosmos').outputs.cosmosEndpoint.value]"
     },
     "cosmosDatabaseName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'cosmos'), '2025-04-01').outputs.databaseName.value]"
+      "value": "[reference('cosmos').outputs.databaseName.value]"
     },
     "serviceBusEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'servicebus'), '2025-04-01').outputs.serviceBusEndpoint.value]"
+      "value": "[reference('servicebus').outputs.serviceBusEndpoint.value]"
     },
     "storageAccountName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'storage'), '2025-04-01').outputs.storageName.value]"
+      "value": "[reference('storage').outputs.storageName.value]"
     },
     "foundryProjectConnectionString": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.projectConnectionString.value]"
+      "value": "[reference('aiFoundry').outputs.projectConnectionString.value]"
     },
     "foundryProjectName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.projectName.value]"
+      "value": "[reference('aiFoundry').outputs.projectName.value]"
     },
     "foundryAgentsEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.agentsEndpoint.value]"
+      "value": "[reference('aiFoundry').outputs.agentsEndpoint.value]"
     },
     "foundrySearchConnectionId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiFoundry'), '2025-04-01').outputs.searchConnectionId.value]"
+      "value": "[reference('aiFoundry').outputs.searchConnectionId.value]"
     },
     "staticWebAppUrl": {
       "type": "string",
-      "value": "[format('https://{0}', reference(resourceId('Microsoft.Resources/deployments', 'swa'), '2025-04-01').outputs.swaHostname.value)]"
+      "value": "[format('https://{0}', reference('swa').outputs.swaHostname.value)]"
     },
     "staticWebAppName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'swa'), '2025-04-01').outputs.swaName.value]"
+      "value": "[reference('swa').outputs.swaName.value]"
     },
     "resourcePrefix": {
       "type": "string",
@@ -2138,51 +2301,51 @@
     },
     "searchServiceEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceEndpoint.value]"
+      "value": "[reference('aiSearch').outputs.searchServiceEndpoint.value]"
     },
     "searchServiceName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'aiSearch'), '2025-04-01').outputs.searchServiceName.value]"
+      "value": "[reference('aiSearch').outputs.searchServiceName.value]"
     },
     "openaiEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiEndpoint.value]"
+      "value": "[reference('openai').outputs.openaiEndpoint.value]"
     },
     "openaiAccountName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.openaiAccountName.value]"
+      "value": "[reference('openai').outputs.openaiAccountName.value]"
     },
     "embeddingDeploymentName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.embeddingDeploymentName.value]"
+      "value": "[reference('openai').outputs.embeddingDeploymentName.value]"
     },
     "gpt4oDeploymentName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'openai'), '2025-04-01').outputs.gpt4oDeploymentName.value]"
+      "value": "[reference('openai').outputs.gpt4oDeploymentName.value]"
     },
     "acrLoginServer": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr'), '2025-04-01').outputs.acrLoginServer.value]"
+      "value": "[reference('acr').outputs.acrLoginServer.value]"
     },
     "acrName": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'acr'), '2025-04-01').outputs.acrName.value]"
+      "value": "[reference('acr').outputs.acrName.value]"
     },
     "mcpDbUrl": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.mcpDbUrl.value]"
+      "value": "[reference('containerApps').outputs.mcpDbUrl.value]"
     },
     "mcpSearchUrl": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.mcpSearchUrl.value]"
+      "value": "[reference('containerApps').outputs.mcpSearchUrl.value]"
     },
     "mcpQmsUrl": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.mcpQmsUrl.value]"
+      "value": "[reference('containerApps').outputs.mcpQmsUrl.value]"
     },
     "mcpCmmsUrl": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Resources/deployments', 'containerApps'), '2025-04-01').outputs.mcpCmmsUrl.value]"
+      "value": "[reference('containerApps').outputs.mcpCmmsUrl.value]"
     }
   }
 }

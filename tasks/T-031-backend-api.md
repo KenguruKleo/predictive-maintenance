@@ -22,6 +22,7 @@ REST API endpoints для React frontend: читання incidents, audit events
 | `GET` | `/api/incidents` | all | List incidents (role-filtered: operator sees own, manager sees all) |
 | `GET` | `/api/incidents/{id}` | all | Get incident detail with AI analysis |
 | `GET` | `/api/incidents/{id}/events` | all | Get audit event timeline |
+| `GET` | `/api/incidents/{id}/agent-telemetry` | qa-manager, it-admin, auditor | Agent/sub-agent/tool telemetry timeline (extension task T-043) |
 | `GET` | `/api/equipment/{id}` | all | Get equipment master data |
 | `GET` | `/api/batches/current/{equipment_id}` | all | Get active batch for equipment |
 | `GET` | `/api/templates` | it-admin | List all templates |
@@ -95,6 +96,7 @@ backend/
 - [ ] All 9 endpoints return correct data for seeded mock incidents
 - [ ] `GET /api/incidents` role-filtering works: operator sees only assigned incidents
 - [ ] `GET /api/incidents/{id}/events` returns chronological event timeline
+- [ ] `GET /api/incidents/{id}/agent-telemetry` returns structured AI telemetry timeline (tracked in T-043)
 - [ ] `PUT /api/templates/{id}` validates schema before save (it-admin only)
 - [ ] 403 returned for unauthorized role access
 - [ ] Response time < 500ms for all GET endpoints (Cosmos point reads)

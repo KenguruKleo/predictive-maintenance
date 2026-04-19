@@ -18,7 +18,7 @@
 
 ### Retry Policies
 - [ ] Azure Functions: built-in retry policy (3 attempts, exponential backoff) for Service Bus
-- [x] Durable Activities: `RetryOptions(max_number_of_attempts=3, first_retry_interval=timedelta(seconds=5))`
+- [ ] Durable Activities: `RetryOptions(max_number_of_attempts=3, first_retry_interval=timedelta(seconds=5))`
 - [ ] Cosmos DB client: `RetryOptions` з 3 retries для throttling (429)
 - [ ] AI Search client: retry на timeout
 
@@ -38,14 +38,10 @@
 ```
 
 ### Реалізовано 19 квітня 2026
-- [x] Azure Functions host timeout explicitly set to `00:10:00` in `backend/host.json` for Linux Consumption parity with live app settings
-- [x] `backend/shared/foundry_run.py` now enforces a caller-provided wall-clock deadline and raises `FoundryRunTimeoutError` instead of waiting for the host to kill the activity
-- [x] Timed-out Foundry runs are cancelled when the SDK exposes `client.runs.cancel(...)`
-- [x] `backend/activities/run_foundry_agents.py` now enforces a minimum `FOUNDRY_ACTIVITY_TIMEOUT_SECS=240` budget across both initial and follow-up rounds
-- [x] `run_foundry_agents` now converts timeout/failure cases into a controlled fallback response so incidents do not remain stuck in `awaiting_agents`
-- [x] Follow-up fallback preserves the previous completed recommendation and marks the result with `confidence_flag = FOUNDRY_TIMEOUT|FOUNDRY_FAILURE`
-- [x] Live stuck-instance recovery runbook validated on `INC-2026-0001`: terminate stale Durable instance, purge history, requeue payload, wait for fresh `pending_approval`, then replay `more_info`
-- [x] `scripts/recover_live_incident.py` automates that recovery runbook in one command and can optionally replay the latest stored `more_info` question only after the fresh initial round is ready
+- [x] `backend/activities/run_foundry_agents.py` now emits incident-scoped structured App Insights traces behind `FOUNDRY_PROMPT_TRACE_ENABLED`
+- [x] Trace envelope includes `incident_id`, `round`, `trace_kind`, chunk metadata, and `thread_id` / `run_id` when available so one incident can be reconstructed later
+- [x] Trace kinds now cover the backend-visible Foundry path: prompt context, outer Orchestrator prompt, Foundry thread messages, raw response, parsed response, and normalized final result
+- [ ] Live validation rerun still needs to confirm whether the returned Foundry thread exposes enough detail for Research and Document sub-agent internals
 
 ### Latency Budgets (target SLOs)
 | Step | Target |
@@ -78,7 +74,8 @@ backend/
 
 ## Definition of Done
 
-- [x] Simulated/live agent timeout path now returns fallback instead of infinite `awaiting_agents`
+- [ ] Simulated agent failure → fallback mode activates → operator sees "Manual review required"
 - [ ] Durable Activity retry fires 3 times on transient error (test with mock failure)
 - [ ] DLQ demo: send invalid message → lands in DLQ after 3 attempts
-- [x] App Insights used to confirm timeout root cause and post-deploy activity completion path for `run_foundry_agents`
+- [x] App Insights shows backend-visible Foundry prompt and response traces grouped by incident
+- [ ] App Insights shows Durable orchestrator traces with step durations

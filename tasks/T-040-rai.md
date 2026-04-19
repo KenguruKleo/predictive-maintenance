@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟡 MEDIUM  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Gap:** Gap #4 Responsible AI ✅
 
 ---
@@ -61,11 +61,17 @@ def sanitize_string_fields(body: dict) -> dict:
 - [ ] Prompt injection check on `description`, `reason`, `question` fields in all POST endpoints
 
 ### Observability
-- [ ] Azure App Insights configured on Functions app
+- [x] Azure App Insights configured on Functions app
+- [x] `run_foundry_agents` emits structured trace records with `incident_id`, `round`, `trace_kind`, and `thread_id` / `run_id` when available
+- [x] Prompt and response troubleshooting path is documented in `docs/foundry-followup-analysis.md`
 - [ ] Custom metric: `agent_run_duration_ms` per agent type
 - [ ] Custom metric: `agent_confidence` (track confidence distribution)
-- [ ] Custom dimension: `incident_id` on all traces
+- [ ] Dedicated custom dimensions and metrics pipeline beyond structured trace logs
 - [ ] Alert: confidence < 0.5 fires App Insights alert
+- [ ] Agent/sub-agent run IDs (`run_id`, `thread_id`) logged with `incident_id` for traceability
+- [ ] Tool call telemetry (`tool_name`, `duration_ms`, `status`) logged for each incident
+- [ ] Incident-centric telemetry endpoint available for admin analysis (`GET /api/incidents/{id}/agent-telemetry`)
+- [ ] Admin dashboard can view agent behavior timeline per incident (integration with T-043)
 
 ---
 
@@ -74,4 +80,5 @@ def sanitize_string_fields(body: dict) -> dict:
 - [ ] Confidence gate tested: confidence=0.5 → LOW_CONFIDENCE shown in UI
 - [ ] Content Safety check runs on agent output (verified in App Insights logs)
 - [ ] Prompt injection attempt in POST /api/alerts `description` field → 400 response
-- [ ] App Insights dashboard shows agent traces with durations and confidence metrics
+- [ ] App Insights dashboard or API endpoint shows per-incident agent traces with durations and confidence metrics
+- [ ] For a selected incident, admin can reconstruct full AI path (agent -> sub-agent -> tools -> output)

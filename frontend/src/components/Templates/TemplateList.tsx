@@ -5,6 +5,14 @@ interface Props {
   onEdit: (id: string) => void;
 }
 
+function formatTemplateFields(fields: Template["fields"]): string {
+  if (Array.isArray(fields)) {
+    return fields.join(", ");
+  }
+
+  return Object.keys(fields ?? {}).join(", ");
+}
+
 export default function TemplateList({ templates, onEdit }: Props) {
   return (
     <div className="template-list">
@@ -27,7 +35,7 @@ export default function TemplateList({ templates, onEdit }: Props) {
             {tpl.last_modified_by}
           </div>
           <div className="template-fields">
-            Fields: {tpl.fields.join(", ")}
+            Fields: {formatTemplateFields(tpl.fields)}
           </div>
         </div>
       ))}

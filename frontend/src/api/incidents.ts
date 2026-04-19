@@ -6,6 +6,7 @@ import type {
   IncidentListResponse,
 } from "../types/incident";
 import type { DecisionPayload } from "../types/approval";
+import { getE2EDecisionDefaults, IS_E2E_AUTH } from "../authRuntime";
 
 export async function getIncidents(
   filters: IncidentFilters = {},
@@ -54,9 +55,11 @@ export async function submitDecision(
   id: string,
   payload: DecisionPayload,
 ): Promise<void> {
+  const e2eDecisionDefaults = IS_E2E_AUTH ? getE2EDecisionDefaults() : null;
+
   await client.post(`/incidents/${encodeURIComponent(id)}/decision`, {
-    user_id: "ivan.petrenko",
-    role: "operator",
     ...payload,
+    user_id: payload.user_id ?? e2eDecisionDefaults?.userId ?? "ivan.petrenko",
+    role: payload.role ?? e2eDecisionDefaults?.role ?? "operator",
   });
 }

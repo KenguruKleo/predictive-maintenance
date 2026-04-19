@@ -155,11 +155,46 @@ Operational notes:
 - Override all agents at once when needed: `FOUNDRY_AGENT_MODEL=gpt-4o python agents/create_agents.py --update`
 - Override agents individually when needed: `FOUNDRY_DOCUMENT_AGENT_MODEL=gpt-4o FOUNDRY_RESEARCH_AGENT_MODEL=gpt-4o-mini FOUNDRY_ORCHESTRATOR_AGENT_MODEL=gpt-4o-mini python agents/create_agents.py --update`
 - Local runs use Azure CLI auth by default; set `FOUNDRY_AGENT_CREDENTIAL=default` only if you specifically want `DefaultAzureCredential`.
+- To capture incident-scoped prompt and response traces for troubleshooting, set `FOUNDRY_PROMPT_TRACE_ENABLED=1`. Optional: `FOUNDRY_PROMPT_TRACE_CHUNK_SIZE=12000`.
 
 Additional notes:
 - `create_agents.py --update` is idempotent; it updates existing agents in place.
 - If `AZURE_AI_FOUNDRY_AGENTS_ENDPOINT` is missing, the script cannot find the target Foundry project.
 - If `MCP_*_URL` variables are missing, the script will run with OpenAPI tools disabled, which is not suitable for normal agent operation.
+
+### Foundry Prompt Traces
+
+When `FOUNDRY_PROMPT_TRACE_ENABLED=1` is set, `backend/activities/run_foundry_agents.py` writes structured App Insights traces with the marker `FOUNDRY_PROMPT_TRACE`.
+
+Every trace record includes stable incident-scoped fields so the logs can later back an admin troubleshooting page:
+
+- `incident_id`
+- `round`
+- `trace_kind`
+- `thread_id` and `run_id` when available
+- chunk metadata for long prompts and responses
+
+Current trace kinds:
+
+- `prompt_context`
+- `orchestrator_user_prompt`
+- `thread_messages`
+- `raw_response`
+- `parsed_response`
+- `normalized_result`
+
+Example App Insights query for one incident:
+
+```kusto
+traces
+| where message has "FOUNDRY_PROMPT_TRACE"
+| extend payload = parse_json(extract("FOUNDRY_PROMPT_TRACE\\s+(\\{.*\\})", 1, message))
+| where tostring(payload.incident_id) == "INC-2026-0006"
+| project timestamp, round = toint(payload.round), trace_kind = tostring(payload.trace_kind), chunk_index = toint(payload.chunk_index), content = tostring(payload.content)
+| order by timestamp asc, round asc, trace_kind asc, chunk_index asc
+```
+
+Design notes and current SDK limitations are captured in `docs/foundry-followup-analysis.md`.
 
 ### Run Backend Locally
 

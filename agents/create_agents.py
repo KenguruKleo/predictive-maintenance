@@ -79,6 +79,7 @@ DOCUMENT_RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "incident_id": {"type": "string"},
+        "title": {"type": "string"},
         "classification": {
             "type": "string",
             "enum": [
@@ -201,9 +202,11 @@ DOCUMENT_RESPONSE_SCHEMA = {
         },
         "work_order_id": {"type": ["string", "null"]},
         "audit_entry_id": {"type": ["string", "null"]},
+        "execution_error": {"type": ["string", "null"]},
     },
     "required": [
         "incident_id",
+        "title",
         "classification",
         "risk_level",
         "confidence",

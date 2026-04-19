@@ -18,6 +18,15 @@ param projectName string = 'sentinel-intel'
 @description('6-char unique suffix derived from RG id — do not override unless needed.')
 param uniqueSuffix string = substring(uniqueString(resourceGroup().id), 0, 6)
 
+@description('Azure AI Foundry Orchestrator agent ID. Update after running agents/create_agents.py --update.')
+param orchestratorAgentId string = ''
+
+@description('Azure AI Foundry Research agent ID. Update after running agents/create_agents.py --update.')
+param researchAgentId string = ''
+
+@description('Azure AI Foundry Document agent ID. Update after running agents/create_agents.py --update.')
+param documentAgentId string = ''
+
 // Variables
 
 var prefix = '${projectName}-${environmentName}'
@@ -88,6 +97,9 @@ module functions 'modules/functions.bicep' = {
     foundryProjectConnectionString: aiFoundry.outputs.projectConnectionString
     foundrySearchConnectionId: aiFoundry.outputs.searchConnectionId
     signalrConnectionString: signalr.outputs.signalrConnectionString
+    orchestratorAgentId: orchestratorAgentId
+    researchAgentId: researchAgentId
+    documentAgentId: documentAgentId
   }
 }
 
