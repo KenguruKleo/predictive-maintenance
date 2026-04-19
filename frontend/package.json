@@ -4,8 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "dev:e2e": "VITE_AUTH_MODE=e2e vite --host 127.0.0.1 --port 4173",
+    "dev": "env -u VITE_AUTH_MODE -u VITE_API_BASE_URL -u SENTINEL_LOCAL_API_URL vite",
+    "dev:e2e": "VITE_AUTH_MODE=e2e vite --config vite.config.e2e.ts --host 127.0.0.1 --port 4173",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",

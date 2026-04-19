@@ -382,7 +382,7 @@ Monitoring setup:
 | Grounding / RAG | ✅ GOOD | Validated SOP/BPR, CAPA history retrieval |
 | Model Lifecycle | ⚠️ PARTIAL | Evaluation та governed deployment згадано але не деталізовано |
 | Responsible AI | ❌ MISSING | Confidence thresholds, evidence gating, hallucination controls |
-| AI Observability | ⚠️ PARTIAL | Incident-scoped App Insights traces now cover the backend-visible Foundry path; dashboards, alerts, and admin retrieval UX are still pending |
+| AI Observability | ⚠️ PARTIAL | Incident-scoped App Insights traces now cover the backend-visible Foundry path; Cosmos `incident_events` covers business audit / transcript only; dashboards, alerts, and admin retrieval UX are still pending |
 | Prompt Injection Defense | ❌ MISSING | Content safety, input validation |
 
 ---
@@ -410,7 +410,7 @@ Monitoring setup:
 | #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🎨 DESIGNED | GitHub Actions CI/CD (T-042) + Bicep IaC (T-041) + Track A явно в архітектурі | [T-041](./tasks/T-041-bicep-iac.md), [T-042](./tasks/T-042-cicd.md) |
 | #2 Security | 🔴 HIGH | 🎨 DESIGNED | Entra ID + Key Vault + Managed Identities + VNet + 5 RBAC roles | [T-035](./tasks/T-035-rbac.md), [T-038](./tasks/T-038-security.md) |
 | #3 Reliability | 🔴 HIGH | 🎨 DESIGNED | Azure Service Bus DLQ + Durable Functions retry + fallback mode + timeout escalation | [T-022](./tasks/T-022-service-bus.md), [T-039](./tasks/T-039-reliability.md) |
-| #4 RAI | 🟠 HIGH | 🔧 IN PROGRESS | Confidence gate path already exists; App Insights prompt and response traces are now implemented for the backend-visible Foundry flow; Content Safety, prompt-injection guard, and dashboards remain pending | [T-040](./tasks/T-040-rai.md) |
+| #4 RAI | 🟠 HIGH | 🔧 IN PROGRESS | Confidence gate path already exists; App Insights prompt and response traces are now implemented for the backend-visible Foundry flow, while Cosmos `incident_events` still only carries business audit / transcript events; Content Safety, prompt-injection guard, admin retrieval UX, and dashboards remain pending | [T-040](./tasks/T-040-rai.md), [T-043](./tasks/T-043-agent-telemetry-admin-view.md) |
 | #5 UX | 🟠 MEDIUM | 🎨 DESIGNED | React + Vite operator dashboard + approval UX + SignalR real-time + 5 role views | [T-032](./tasks/T-032-frontend-core.md), [T-033](./tasks/T-033-frontend-approval.md) |
 | #6 IaC | 🟡 MEDIUM | 🎨 DESIGNED | Bicep `infra/main.bicep` + modules для всіх 12 ресурсів | [T-041](./tasks/T-041-bicep-iac.md) |
 

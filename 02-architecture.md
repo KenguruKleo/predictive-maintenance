@@ -328,16 +328,16 @@ Sensor Signal → Alert (already automated anomaly detection)
 ┌──────────────┐  ┌───────────────────┐  ┌──────────────────────────┐
 │   AZURE      │  │  AZURE AI FOUNDRY │  │   AZURE COSMOS DB        │
 │   SIGNALR    │  │  AGENT SERVICE    │  │   Serverless             │
-│              │  │                   │  │   (5 containers)         │
+│              │  │                   │  │   (8 containers)         │
 │  Real-time   │  │  Orchestrator     │  │  incidents               │
-│  push to     │  │  ├─ Research Agt  │  │  equipment (mock CMMS)   │
-│  React UI    │  │  ├─ Document Agt  │  │  batches (mock MES)      │
-│  (Gap #5 ✅) │  │  └─ Execution Agt │  │  capa-plans              │
-└──────────────┘  │                   │  │  approval-tasks          │
-                  │  MCP Servers:     │  └──────────────────────────┘
-                  │  ├─ mcp-sentinel-db │
-                  │  ├─ mcp-qms        │
-                  │  └─ mcp-cmms       │
+│  push to     │  │  ├─ Research Agt  │  │  incident_events         │
+│  React UI    │  │  ├─ Document Agt  │  │  notifications           │
+│  (Gap #5 ✅) │  │  └─ Execution Agt │  │  equipment (mock CMMS)   │
+└──────────────┘  │                   │  │  batches (mock MES)      │
+                  │  MCP Servers:     │  │  capa-plans              │
+                  │  ├─ mcp-sentinel-db │  │  approval-tasks        │
+                  │  ├─ mcp-qms        │  │  templates              │
+                  │  └─ mcp-cmms       │  └──────────────────────────┘
                   └───────────────────┘
                           │
                           ▼
@@ -357,6 +357,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 │                  BACKEND API — Azure Functions HTTP                 │
 │  POST /api/alerts              GET /api/incidents                   │
 │  GET  /api/incidents/{id}      GET /api/incidents/{id}/events       │
+│  🔜 GET /api/incidents/{id}/agent-telemetry (admin diagnostics)     │
 │  POST /api/incidents/{id}/decision  (resumes Durable orchestrator)  │
 │  GET/PUT /api/templates/{id}   GET /api/equipment/{id}              │
 │  GET /api/batches/current/{eq_id}                                   │
@@ -370,7 +371,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  Role: qa-manager    → All incidents + escalation queue             │
 │  Role: maint-tech    → Work orders view (read-only)                 │
 │  Role: auditor       → Full audit trail view (read-only)            │
-│  Role: it-admin      → Template management + LLM analytics          │
+│  Role: it-admin      → Template management + telemetry diagnostics  │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -381,7 +382,8 @@ Sensor Signal → Alert (already automated anomaly detection)
 │    Fallback mode · Circuit breaker · Timeout escalation             │
 │  RAI (Gap #4 ✅): Confidence gate 0.7 · Azure Content Safety ·      │
 │    Evidence-grounded output · Prompt injection guard                │
-│  Observability: Azure Monitor · App Insights · Log Analytics        │
+│  Observability: Azure Monitor · App Insights · Log Analytics ·      │
+│    Cosmos `incident_events` for business audit / transcript         │
 │  Track A (Gap #1 ✅): GitHub repo · GitHub Actions CI/CD ·          │
 │    Bicep IaC · Azure Foundry evaluation runs                        │
 │  IaC (Gap #6 ✅): Bicep templates · main.bicep + modules/           │
@@ -405,7 +407,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **MCP: mcp-sentinel-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
 | **MCP: mcp-qms** | Python (stdio MCP server) | Tool: create_audit_entry (QMS integration) | — |
 | **MCP: mcp-cmms** | Python (stdio MCP server) | Tool: create_work_order (CMMS integration) | — |
-| **Incident DB** | Azure Cosmos DB Serverless | 5 containers: incidents, equipment, batches, capa-plans, approval-tasks | — |
+| **Incident DB** | Azure Cosmos DB Serverless | 8 containers: incidents, incident_events, notifications, equipment, batches, capa-plans, approval-tasks, templates | — |
 | **RAG Storage** | Azure AI Search | **5 indexes**: SOPs, equipment manuals, GMP policies, **BPR product specs**, incident history | Gap #4 |
 | **Document Ingestion** | Blob Storage + blob trigger Function | Chunk → embed → AI Search (for SOPs/manuals) | — |
 | **Real-time Push** | Azure SignalR Service | Push notifications до React UI (approval pending, status change) | Gap #5 |
@@ -413,7 +415,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | **Identity & Access** | Azure Entra ID | AuthN/AuthZ, Managed Identities, 5 RBAC roles | Gap #2 |
 | **Secrets** | Azure Key Vault | All connection strings, API keys, agent secrets | Gap #2 |
 | **Network** | VNet + Private Endpoints | Cosmos DB, AI Search, Service Bus не відкриті в інтернет | Gap #2 |
-| **Observability** | App Insights + Log Analytics | Request traces, agent traces, errors, metrics | Gap #4 |
+| **Observability** | App Insights + Log Analytics + Cosmos `incident_events` | Deep agent traces in App Insights; business audit and transcript timeline in Cosmos | Gap #4 |
 | **IaC** | Bicep (infra/) | Repeatable provisioning для всіх ресурсів | Gap #6 |
 | **CI/CD** | GitHub Actions | Build, test, Bicep deploy, Foundry eval | Gap #1 |
 
@@ -513,17 +515,20 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 ### 8.4 Cosmos DB — схема контейнерів та доступ
 
-**Database:** `sentinel-intelligence` · Serverless · 5 контейнерів
+**Database:** `sentinel-intelligence` · Serverless · 8 контейнерів
 
 #### Контейнери
 
 | Контейнер | Partition Key | Призначення |
 |---|---|---|
 | `incidents` | `/equipmentId` | Основний документ incident + AI analysis + workflow state |
+| `incident_events` | `/incidentId` | Business audit trail, operator transcript, coarse agent lifecycle events |
+| `notifications` | `/incidentId` | SignalR-facing notification records and delivery state |
 | `equipment` | `/id` | Mock CMMS: master data, validated params, PM history |
 | `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
 | `capa-plans` | `/incidentId` | Згенеровані Document Agent CAPA плани |
 | `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks + execution results |
+| `templates` | `/id` | Editable work order and audit entry templates for IT Admin |
 
 > ⚠️ **Cross-partition query concern:** `incidents` партиціоновано по `/equipmentId`. Запити `GET /api/incidents` (список усіх) та фільтри по `status`/`date`/`severity` у dashboard — cross-partition (дорого). **Вирішення:** Cosmos DB автоматично підтримує cross-partition запити з `enableCrossPartitionQuery=True`; для hackathon обсягу (~100 incidents) прийнятно. В production — додати materialized view через Change Feed або secondary index по `status` + `createdAt`.
 
@@ -533,6 +538,9 @@ Sensor Signal → Alert (already automated anomaly detection)
 |---|---|---|---|
 | `incidents` | Azure Functions | Create, Read, Update | `azure-cosmos` SDK |
 | `incidents` | Research Agent | Read (semantic search) | MCP: `search_incidents(equipment_id, date_range)` |
+| `incident_events` | Azure Functions | Write decision, transcript, audit, and lifecycle events | `azure-cosmos` SDK |
+| `incident_events` | Backend API | Read chronological incident timeline | `GET /api/incidents/{id}/events` |
+| `notifications` | Azure Functions | Write pending and delivered notification records | `azure-cosmos` SDK |
 | `equipment` | Azure Functions | Read | `azure-cosmos` SDK |
 | `equipment` | Research Agent | Read by ID | MCP: `get_equipment(id)` |
 | `batches` | Azure Functions | Read | `azure-cosmos` SDK |
@@ -541,6 +549,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | `capa-plans` | Execution Agent | Read (before execution) | MCP: read CAPA plan |
 | `approval-tasks` | Azure Functions | Write (create task), Read (poll decision) | `azure-cosmos` SDK |
 | `approval-tasks` | Execution Agent | Write (audit entry result) | MCP: `create_audit_entry` |
+| `templates` | Azure Functions | Read, Update for admin template management | `GET/PUT /api/templates` |
 
 ---
 
@@ -638,7 +647,7 @@ Sensor Signal → Alert (already automated anomaly detection)
 | Storage Account | `stsentinelintelerzrpo` | `Microsoft.Storage/storageAccounts` | `modules/storage.bicep` | Стан Durable Functions + **5 Blob containers** для document ingestion (`blob-sop`, `blob-manuals`, `blob-gmp`, `blob-bpr`, `blob-history`). Наразі задеплоєно 1 container `documents` → потребує оновлення в T-036/T-041. |
 | Log Analytics | `log-sentinel-intel-dev-erzrpo` | `Microsoft.OperationalInsights/workspaces` | `modules/monitoring.bicep` | Workspace для App Insights (30 днів retention) |
 | Application Insights | `appi-sentinel-intel-dev-erzrpo` | `Microsoft.Insights/components` | `modules/monitoring.bicep` | Traces, metrics, exceptions для Functions |
-| Cosmos DB Account | `cosmos-sentinel-intel-dev-erzrpo` | `Microsoft.DocumentDB/databaseAccounts` | `modules/cosmos.bicep` | Serverless, database `sentinel-intelligence`, 5 containers |
+| Cosmos DB Account | `cosmos-sentinel-intel-dev-erzrpo` | `Microsoft.DocumentDB/databaseAccounts` | `modules/cosmos.bicep` | Serverless, database `sentinel-intelligence`, 8 containers |
 | Service Bus | `sb-sentinel-intel-dev-erzrpo` | `Microsoft.ServiceBus/namespaces` | `modules/servicebus.bicep` | Standard tier, queue `alert-queue` (maxDelivery=5, DLQ) |
 | App Service Plan | `asp-func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/serverFarms` | `modules/functions.bicep` | Consumption plan (Y1), Linux |
 | Azure Functions | `func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/sites` | `modules/functions.bicep` | Python 3.11, `function_app.py` |
@@ -648,10 +657,13 @@ Sensor Signal → Alert (already automated anomaly detection)
 | Container | Partition Key | Призначення |
 |---|---|---|
 | `incidents` | `/equipmentId` | Основний документ incident + AI analysis |
+| `incident_events` | `/incidentId` | Audit trail, transcript, coarse lifecycle events |
+| `notifications` | `/incidentId` | Notification records for SignalR-driven UX |
 | `equipment` | `/id` | Mock CMMS: master data, validated params |
 | `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
 | `capa-plans` | `/incidentId` | Згенеровані CAPA plans |
 | `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks |
+| `templates` | `/id` | IT Admin editable templates |
 
 **Ще не задеплоєно** (наступні кроки):
 
@@ -887,12 +899,11 @@ Service Bus: alert-queue
 |---|---|---|
 | `create_incident` | Створює документ incident у Cosmos DB | Cosmos: `incidents` |
 | `enrich_context` | Читає equipment + batch за ID з алерту | Cosmos: `equipment`, `batches` |
-| `run_research_agent` | Запускає Foundry Research Agent: RAG + MCP → повертає structured context JSON | Foundry SDK (`azure-ai-projects`) |
-| `run_document_agent` | Запускає Foundry Document Agent: будує decision package, зберігає CAPA чернетку | Foundry SDK → Cosmos: `capa-plans` |
-| `notify_operator` | 1. Пише record у `approval-tasks` (status: pending) 2. POST до SignalR REST API → push до React UI | Cosmos: `approval-tasks`, Azure SignalR |
+| `run_foundry_agents` | Запускає Foundry Orchestrator Agent (Research + Document як Connected Agents), будує decision package, зберігає CAPA чернетку, пише App Insights trace records | Foundry SDK (`azure-ai-projects`) → Cosmos: `capa-plans`, App Insights |
+| `notify_operator` | 1. Пише records у `approval-tasks`, `notifications`, `incident_events` 2. POST до SignalR REST API → push до React UI | Cosmos: `approval-tasks`, `notifications`, `incident_events`, Azure SignalR |
 | `run_execution_agent` | Запускає Foundry Execution Agent після approval: create_work_order + create_audit_entry | Foundry SDK → MCP-QMS, MCP-CMMS |
 | `close_incident` | Оновлює incident status: "rejected" | Cosmos: `incidents` |
-| `finalize_audit` | Пише фінальний audit record: рішення + timestamps + агентні кроки | Cosmos: `approval-tasks`, `incidents` |
+| `finalize_audit` | Пише фінальний audit record: рішення + timestamps + агентні кроки | Cosmos: `incident_events`, `approval-tasks`, `incidents` |
 
 #### Як оркестратор прокидається (FN-2)
 
@@ -1070,6 +1081,63 @@ Current trace kinds:
 - `parsed_response`
 - `normalized_result`
 
+#### Current storage split
+
+Today observability data is split across **two stores with different purposes**:
+
+- **Cosmos DB `incident_events`** stores the business-facing audit trail and transcript timeline:
+  - `analysis_started`
+  - `agent_response`
+  - `more_info`
+  - approval / rejection / escalation events
+- **Application Insights / Log Analytics** stores the deeper backend-visible Foundry trace records emitted by `run_foundry_agents` under `FOUNDRY_PROMPT_TRACE`.
+
+This is the current intended split:
+
+- Cosmos is optimized for incident-centric UI timeline reads
+- App Insights is optimized for troubleshooting, prompt inspection, and post-mortem diagnostics
+
+#### What frontend can already read
+
+The current React incident detail page already consumes:
+
+- `GET /api/incidents/{id}/events`
+
+That endpoint reads from `incident_events` and powers the operator / auditor timeline, but it does **not** expose the deeper App Insights prompt and response trace payloads.
+
+So today the frontend can show:
+
+- business audit events
+- transcript events such as operator questions and agent replies
+
+but it cannot yet show:
+
+- `prompt_context`
+- `orchestrator_user_prompt`
+- `thread_messages`
+- `raw_response` / `parsed_response` / `normalized_result`
+
+#### Recommended admin delivery path
+
+For the IT Admin / QA telemetry view, the cleanest next slice is:
+
+1. add `GET /api/incidents/{id}/agent-telemetry`
+2. have the backend query App Insights / Log Analytics for `FOUNDRY_PROMPT_TRACE` rows by `incident_id`
+3. normalize those trace records into a frontend-friendly DTO with summary cards and chronological items
+4. optionally merge in `incident_events` rows so admins can see business timeline and deep agent trace in one page
+
+For hackathon/demo, this App-Insights-backed endpoint is the best first pass because the detailed trace data already exists.
+
+Optional second pass:
+
+- persist a compact projection of admin-relevant telemetry into `incident_events` with `type = "agent_telemetry"`
+- use that projection for fast UI rendering and easier Cosmos-side filtering
+
+Important limitation:
+
+- the current `azure-ai-agents` SDK still does **not** expose exact connected sub-agent run steps directly
+- so the first admin page should be framed as a **backend-visible Foundry trace view**, not as a guaranteed full internal Research/Document call graph
+
 #### Retrieval model
 
 The intent is to support both:
@@ -1094,6 +1162,7 @@ This closes the gap between business audit trail and AI runtime observability wi
 | 2026-04-17 | v2.5 | **Document Layer Architecture:** §8.1 AI Search: 4→5 indexes (додано `idx-bpr-documents`); §8.2 RAG Storage row оновлено; §8.3 Research Agent: додано `search_bpr_documents` RAG tool; §8.5 RAG vs Direct: додано BPR row; §8.8 Storage: 1 container → 5 окремих blob containers per source type; §8.13 новий розділ — Document Layer Ingestion Architecture (5 containers, 5 ingestors, table-aware BPR chunking, agent→index mapping). T-036 + T-025 оновлено. | Gap #4 review |
 | 2026-04-17 | v2.6 | **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent переведені в sub-agents Foundry Orchestrator Agent (`AgentTool`). Durable: 2 activities (`run_research_agent` + `run_document_agent`) → 1 activity `run_foundry_agents`. `more_info` loop: Durable накопичує `operator_questions`, Foundry керує internal iterations через `max_iterations`. §8.1 схема, §8.2 таблиця, §8.3 Orchestrator Agent, §8.9 діаграма, §8.10b ADR-002, §8.11 Functions map — оновлено. T-024, T-025, T-026, 04-action-plan оновлено. | — |
 | 2026-04-19 | v2.7 | **Agent Observability:** `run_foundry_agents` now emits structured incident-scoped App Insights traces for the backend-visible Foundry path. Added §8.14 prompt trace contract, incident retrieval model, and explicit note that the current SDK does not expose connected sub-agent run steps directly. | Gap #3, Gap #4 |
+| 2026-04-19 | v2.8 | **Telemetry storage alignment:** architecture docs updated to reflect the real split between Cosmos `incident_events` (business audit / transcript) and App Insights `FOUNDRY_PROMPT_TRACE` records (deep agent diagnostics). Cosmos inventory aligned to 8 deployed containers, and the recommended admin frontend path is now an App-Insights-backed `GET /api/incidents/{id}/agent-telemetry` endpoint with optional Cosmos projection. | T-043 |
 
 ---
 

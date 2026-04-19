@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE (18-19 квітня 2026)  
+**Статус:** ✅ DONE (18-19 квітня 2026; updated 19 квітня 2026 for round-0 operator_dialogue hardening)  
 **Блокує:** T-024 (run_foundry_agents activity), T-033 (approval UX shows this output)  
 **Залежить від:** T-024 (Orchestrator Agent), T-025 (Research Agent output via Orchestrator), T-020 (templates collection)
 
@@ -150,3 +150,9 @@ CRITICAL RULES:
 - [ ] Evidence citations присутні (мінімум 2 на кожну рекомендацію)
 - [ ] Work order draft і audit entry draft коректно заповнені на основі templates
 - [ ] Тест на INC-2026-0001 (GR-204 impeller speed): ai_result відповідає очікуваному в mock incident
+
+## Post-completion hardening (19 квітня 2026)
+
+- `run_foundry_agents.py` now rewrites impossible initial transcript phrasing on round `0` (for example, "the recommendation remains the same") instead of exposing that raw wording to the operator UI.
+- Added a focused regression test in `tests/test_operator_followup_dialogue.py` for stale comparison language on the first recommendation.
+- Live validation confirmed the fix on `INC-2026-0013`: the first operator-facing message now starts with the actual finding and recommendation instead of implying there was a previous recommendation.

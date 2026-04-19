@@ -73,6 +73,18 @@ export default function CommandPalette({ open, onClose }: Props) {
           },
         ]
       : []),
+    ...(roles.includes("qa-manager") || roles.includes("it-admin") || roles.includes("auditor")
+      ? [
+          {
+            id: "nav-telemetry",
+            icon: "🧭",
+            label: "Incident Telemetry",
+            description: "Backend-visible Foundry trace by incident",
+            category: "Navigate",
+            action: () => go("/telemetry"),
+          },
+        ]
+      : []),
     ...(roles.includes("it-admin")
       ? [
           {

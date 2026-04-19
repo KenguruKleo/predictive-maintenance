@@ -4,6 +4,8 @@ import type {
   IncidentEvent,
   IncidentFilters,
   IncidentListResponse,
+  IncidentTelemetryFilters,
+  IncidentTelemetryResponse,
 } from "../types/incident";
 import type { DecisionPayload } from "../types/approval";
 import { getE2EDecisionDefaults, IS_E2E_AUTH } from "../authRuntime";
@@ -49,6 +51,22 @@ export async function getIncidentEvents(
     return (data as { events: IncidentEvent[] }).events;
   }
   return Array.isArray(data) ? data : [];
+}
+
+export async function getIncidentTelemetry(
+  id: string,
+  filters: IncidentTelemetryFilters = {},
+): Promise<IncidentTelemetryResponse> {
+  const params = new URLSearchParams();
+  if (filters.agent_name) params.set("agent_name", filters.agent_name);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.round !== undefined) params.set("round", String(filters.round));
+
+  const { data } = await client.get<IncidentTelemetryResponse>(
+    `/incidents/${encodeURIComponent(id)}/agent-telemetry`,
+    { params },
+  );
+  return data;
 }
 
 export async function submitDecision(

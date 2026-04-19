@@ -3,10 +3,11 @@ import {
   getIncidents,
   getIncident,
   getIncidentEvents,
+  getIncidentTelemetry,
   submitDecision,
 } from "../api/incidents";
 import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
-import type { IncidentFilters } from "../types/incident";
+import type { IncidentFilters, IncidentTelemetryFilters } from "../types/incident";
 import type { DecisionPayload } from "../types/approval";
 
 export function useIncidents(filters: IncidentFilters = {}) {
@@ -47,6 +48,17 @@ export function useIncidentEvents(id: string) {
   return useQuery({
     queryKey: ["incident-events", id],
     queryFn: () => getIncidentEvents(id),
+    enabled: !!id,
+  });
+}
+
+export function useIncidentTelemetry(
+  id: string,
+  filters: IncidentTelemetryFilters = {},
+) {
+  return useQuery({
+    queryKey: ["incident-telemetry", id, filters],
+    queryFn: () => getIncidentTelemetry(id, filters),
     enabled: !!id,
   });
 }

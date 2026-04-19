@@ -172,6 +172,70 @@ export interface IncidentEvent {
   updated_fields?: string[];
 }
 
+export type AgentTelemetryStatus = "started" | "completed" | "failed";
+
+export type AgentTelemetryAgentName =
+  | "orchestrator"
+  | "research"
+  | "document"
+  | "execution"
+  | "tool";
+
+export interface IncidentTelemetryItem {
+  id: string;
+  timestamp: string;
+  round: number;
+  trace_kind: string;
+  title: string;
+  status: AgentTelemetryStatus;
+  agent_name: AgentTelemetryAgentName | (string & {});
+  source: "app_insights" | (string & {});
+  content_type: "json" | "text" | (string & {});
+  content: string;
+  preview: string;
+  metadata: Record<string, unknown>;
+  chunk_count: number;
+  content_length: number;
+  run_id?: string | null;
+  thread_id?: string | null;
+}
+
+export interface IncidentTelemetrySummary {
+  total_items: number;
+  started_items: number;
+  completed_items: number;
+  failed_items: number;
+  rounds: number[];
+  agent_names: string[];
+  trace_kinds: string[];
+  total_content_chars: number;
+  total_duration_ms?: number | null;
+  last_timestamp?: string | null;
+  view_scope: string;
+}
+
+export interface IncidentTelemetryFilters {
+  agent_name?: AgentTelemetryAgentName | "";
+  status?: AgentTelemetryStatus | "";
+  round?: number;
+}
+
+export interface IncidentTelemetryResponse {
+  incident_id: string;
+  summary: IncidentTelemetrySummary;
+  items: IncidentTelemetryItem[];
+  query: {
+    agent_name?: string | null;
+    status?: string | null;
+    round?: number | null;
+  };
+  scope: {
+    source: string;
+    view: string;
+    limitations: string[];
+  };
+}
+
 export interface IncidentListResponse {
   items: Incident[];
   total: number;

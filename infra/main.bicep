@@ -87,6 +87,7 @@ module functions 'modules/functions.bicep' = {
     funcAppName: 'func-${prefix}-${uniqueSuffix}'
     storageAccountName: storage.outputs.storageName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
+    appInsightsResourceId: monitoring.outputs.appInsightsId
     cosmosEndpoint: cosmos.outputs.cosmosEndpoint
     cosmosAccountName: cosmos.outputs.cosmosAccountName
     serviceBusNamespaceName: servicebus.outputs.serviceBusName

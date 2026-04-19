@@ -15,11 +15,26 @@ Blueprints registered here:
   - activities.finalize_audit      (T-024) Final audit record
   - triggers.http_incidents        (T-031) GET /api/incidents[/{id}]
   - triggers.http_incident_events  (T-031) GET /api/incidents/{id}/events
+  - triggers.http_agent_telemetry  (T-043) GET /api/incidents/{id}/agent-telemetry
   - triggers.http_equipment        (T-031) GET /api/equipment/{id}
   - triggers.http_batches          (T-031) GET /api/batches/current/{equipment_id}
   - triggers.http_templates        (T-031) GET/PUT /api/templates[/{id}]
   - triggers.http_stats            (T-031) GET /api/stats/summary
 """
+
+from pathlib import Path
+import sys
+
+# Azure Functions Core Tools can prepend unrelated workspace paths ahead of this
+# app, so force the backend directory to the front before importing local
+# top-level packages like `utils`, `shared`, `triggers`, and `activities`.
+BACKEND_ROOT = str(Path(__file__).resolve().parent)
+if sys.path[0] != BACKEND_ROOT:
+    try:
+        sys.path.remove(BACKEND_ROOT)
+    except ValueError:
+        pass
+    sys.path.insert(0, BACKEND_ROOT)
 
 import azure.durable_functions as df
 import azure.functions as func
@@ -32,6 +47,7 @@ from activities.run_execution_agent import bp as run_execution_agent_bp
 from activities.run_foundry_agents import bp as run_foundry_agents_bp
 from orchestrators.incident_orchestrator import bp as orchestrator_bp
 from triggers.http_batches import bp as batches_bp
+from triggers.http_agent_telemetry import bp as agent_telemetry_bp
 from triggers.http_decision import bp as decision_bp
 from triggers.http_documents import bp as documents_bp
 from triggers.http_equipment import bp as equipment_bp
@@ -54,6 +70,7 @@ app.register_functions(signalr_bp)
 # ── REST API (T-031) ──────────────────────────────────────────────────────
 app.register_functions(incidents_bp)
 app.register_functions(incident_events_bp)
+app.register_functions(agent_telemetry_bp)
 app.register_functions(equipment_bp)
 app.register_functions(batches_bp)
 app.register_functions(templates_bp)

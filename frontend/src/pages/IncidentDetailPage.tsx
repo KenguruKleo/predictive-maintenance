@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
 import IncidentInfo from "../components/Incident/IncidentInfo";
@@ -51,6 +51,8 @@ export default function IncidentDetailPage() {
         }
       : undefined);
 
+  const canViewTelemetry = hasAnyRole("qa-manager", "it-admin", "auditor");
+
   // Build a display title from alert fields when incident.title is absent
   const displayTitle = incident.title ?? (() => {
     if (!incident.parameter) return "";
@@ -80,6 +82,16 @@ export default function IncidentDetailPage() {
             <div className="incident-header-meta">
               <StatusBadge status={incident.status} />
               <span>Equipment: {incident.equipment_id}</span>
+              {canViewTelemetry && (
+                <div className="incident-header-actions">
+                  <Link
+                    to={`/telemetry?incidentId=${encodeURIComponent(incident.id)}`}
+                    className="btn btn--secondary btn--sm"
+                  >
+                    View Telemetry
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 

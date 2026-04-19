@@ -237,7 +237,15 @@ README.md
 - [x] Vite dev proxy forwards `/api` to a local Functions host
 - [x] Playwright config starts frontend + backend locally and runs passing smoke tests
 - [x] Local E2E usage documented in `frontend/README.md`
+- [x] Local Functions startup no longer resolves `utils.*` from unrelated workspace folders before this repo's `backend/`
+- [x] Missing local App Insights query dependency no longer prevents the whole Functions host from starting; `/api/incidents/{id}/agent-telemetry` now degrades locally instead of crashing host startup
 - [ ] Backend guardrail that guarantees mock auth is accepted only in local/development environments is still pending
+
+### Local backend startup note
+
+- Azure Functions Core Tools may prepend other workspace folders to `sys.path`; locally this caused `utils.auth` imports to resolve to `/workspace/nursefly-web/python/utils.py` and crash on `boto3`.
+- `backend/function_app.py` now forces the repo `backend/` directory to the front of `sys.path` before importing `utils`, `shared`, `triggers`, and `activities`.
+- `backend/triggers/http_agent_telemetry.py` now lazy-loads `shared.agent_telemetry`, so a missing local `azure.monitor.query` install affects only the telemetry endpoint instead of blocking all HTTP APIs needed by frontend E2E.
 
 ---
 

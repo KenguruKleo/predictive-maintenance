@@ -5,6 +5,7 @@ param tags object
 param funcAppName string
 param storageAccountName string
 param appInsightsConnectionString string
+param appInsightsResourceId string
 
 // Runtime wiring — endpoints + keys from other modules
 param cosmosEndpoint string
@@ -47,6 +48,11 @@ resource searchService 'Microsoft.Search/searchServices@2024-06-01-preview' exis
   name: searchServiceName
 }
 
+var monitoringReaderRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '43d0d8ad-25c7-4714-9337-8ba259a9fe05'
+)
+
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: 'asp-${funcAppName}'
   location: location
@@ -66,6 +72,9 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   location: location
   tags: tags
   kind: 'functionapp,linux'
+  identity: {
+    type: 'SystemAssigned'
+  }
   properties: {
     serverFarmId: appServicePlan.id
     siteConfig: {
@@ -76,6 +85,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'FUNCTIONS_WORKER_RUNTIME', value: 'python' }
         { name: 'AzureWebJobsFeatureFlags', value: 'EnableWorkerIndexing' }
         { name: 'APPLICATIONINSIGHTS_CONNECTION_STRING', value: appInsightsConnectionString }
+        { name: 'APPLICATIONINSIGHTS_RESOURCE_ID', value: appInsightsResourceId }
         { name: 'SCM_DO_BUILD_DURING_DEPLOYMENT', value: 'true' }
         // Cosmos DB
         { name: 'COSMOS_ENDPOINT', value: cosmosEndpoint }
@@ -112,6 +122,16 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
       minTlsVersion: '1.2'
     }
     httpsOnly: true
+  }
+}
+
+resource functionAppMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(resourceGroup().id, functionApp.id, 'monitoring-reader')
+  scope: resourceGroup()
+  properties: {
+    roleDefinitionId: monitoringReaderRoleDefinitionId
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
   }
 }
 

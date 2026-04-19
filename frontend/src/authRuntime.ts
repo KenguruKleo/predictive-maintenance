@@ -47,6 +47,13 @@ const RAW_AUTH_MODE = String(import.meta.env.VITE_AUTH_MODE ?? "msal").toLowerCa
 
 export const AUTH_MODE: AuthMode = RAW_AUTH_MODE === "e2e" ? "e2e" : "msal";
 export const IS_E2E_AUTH = AUTH_MODE === "e2e";
+export const APP_ROLE_OPTIONS: AppRole[] = [
+  "operator",
+  "qa-manager",
+  "maintenance-tech",
+  "auditor",
+  "it-admin",
+];
 
 function normalizeRole(value: unknown): AppRole | null {
   if (typeof value !== "string") return null;
@@ -119,6 +126,19 @@ export function getE2EAuthState(): E2EAuthState {
 export function clearE2EAuthState(): void {
   if (typeof window === "undefined") return;
   window.localStorage.removeItem(STORAGE_KEY);
+}
+
+export function setE2EPrimaryRole(role: AppRole): void {
+  if (typeof window === "undefined") return;
+
+  const authState = getE2EAuthState();
+  window.localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      ...authState,
+      roles: [role],
+    }),
+  );
 }
 
 export function getE2ERequestHeaders(): Record<string, string> {

@@ -8,6 +8,7 @@ import OperationsDashboard from "./pages/OperationsDashboard";
 import IncidentDetailPage from "./pages/IncidentDetailPage";
 import IncidentHistoryPage from "./pages/IncidentHistoryPage";
 import ManagerDashboardPage from "./pages/ManagerDashboardPage";
+import IncidentTelemetryPage from "./pages/IncidentTelemetryPage";
 import TemplateManagementPage from "./pages/TemplateManagementPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -54,6 +55,11 @@ export default function App() {
             <Route path="manager" element={
               <ErrorBoundary section="Manager Dashboard">
                 <ManagerDashboardPage />
+              </ErrorBoundary>
+            } />
+            <Route path="telemetry" element={
+              <ErrorBoundary section="Incident Telemetry">
+                <IncidentTelemetryPage />
               </ErrorBoundary>
             } />
             <Route path="templates" element={

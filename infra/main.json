@@ -6,7 +6,7 @@
     "_generator": {
       "name": "bicep",
       "version": "0.42.1.51946",
-      "templateHash": "7701340556084991954"
+      "templateHash": "15603742591773746136"
     }
   },
   "parameters": {
@@ -568,6 +568,9 @@
           "appInsightsConnectionString": {
             "value": "[reference('monitoring').outputs.appInsightsConnectionString.value]"
           },
+          "appInsightsResourceId": {
+            "value": "[reference('monitoring').outputs.appInsightsId.value]"
+          },
           "cosmosEndpoint": {
             "value": "[reference('cosmos').outputs.cosmosEndpoint.value]"
           },
@@ -615,7 +618,7 @@
             "_generator": {
               "name": "bicep",
               "version": "0.42.1.51946",
-              "templateHash": "16408943838382421005"
+              "templateHash": "5426874505433439352"
             }
           },
           "parameters": {
@@ -632,6 +635,9 @@
               "type": "string"
             },
             "appInsightsConnectionString": {
+              "type": "string"
+            },
+            "appInsightsResourceId": {
               "type": "string"
             },
             "cosmosEndpoint": {
@@ -677,6 +683,9 @@
               "defaultValue": ""
             }
           },
+          "variables": {
+            "monitoringReaderRoleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '43d0d8ad-25c7-4714-9337-8ba259a9fe05')]"
+          },
           "resources": [
             {
               "type": "Microsoft.Web/serverfarms",
@@ -700,6 +709,9 @@
               "location": "[parameters('location')]",
               "tags": "[parameters('tags')]",
               "kind": "functionapp,linux",
+              "identity": {
+                "type": "SystemAssigned"
+              },
               "properties": {
                 "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('funcAppName')))]",
                 "siteConfig": {
@@ -724,6 +736,10 @@
                     {
                       "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
                       "value": "[parameters('appInsightsConnectionString')]"
+                    },
+                    {
+                      "name": "APPLICATIONINSIGHTS_RESOURCE_ID",
+                      "value": "[parameters('appInsightsResourceId')]"
                     },
                     {
                       "name": "SCM_DO_BUILD_DURING_DEPLOYMENT",
@@ -821,6 +837,19 @@
               },
               "dependsOn": [
                 "[resourceId('Microsoft.Web/serverfarms', format('asp-{0}', parameters('funcAppName')))]"
+              ]
+            },
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2022-04-01",
+              "name": "[guid(resourceGroup().id, resourceId('Microsoft.Web/sites', parameters('funcAppName')), 'monitoring-reader')]",
+              "properties": {
+                "roleDefinitionId": "[variables('monitoringReaderRoleDefinitionId')]",
+                "principalId": "[reference(resourceId('Microsoft.Web/sites', parameters('funcAppName')), '2023-12-01', 'full').identity.principalId]",
+                "principalType": "ServicePrincipal"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', parameters('funcAppName'))]"
               ]
             }
           ],

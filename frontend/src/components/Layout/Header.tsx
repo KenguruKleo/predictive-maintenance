@@ -1,4 +1,7 @@
+import type { ChangeEvent } from "react";
 import { Link } from "react-router-dom";
+import { APP_ROLE_OPTIONS, IS_E2E_AUTH, setE2EPrimaryRole } from "../../authRuntime";
+import type { AppRole } from "../../authRuntime";
 import { useAuth } from "../../hooks/useAuth";
 
 interface Props {
@@ -7,6 +10,11 @@ interface Props {
 
 export default function Header({ onOpenPalette }: Props) {
   const { displayName, roles, logout } = useAuth();
+
+  const handleRolePreviewChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    setE2EPrimaryRole(event.target.value as AppRole);
+    window.location.reload();
+  };
 
   return (
     <header className="app-header">
@@ -22,6 +30,22 @@ export default function Header({ onOpenPalette }: Props) {
       </button>
 
       <div className="app-header-right">
+        {IS_E2E_AUTH ? (
+          <label className="e2e-role-switch">
+            <span className="e2e-role-switch-label">Preview role</span>
+            <select
+              className="e2e-role-switch-select"
+              value={roles[0] ?? "operator"}
+              onChange={handleRolePreviewChange}
+            >
+              {APP_ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {role}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
         <span className="user-name">{displayName}</span>
         {roles.map((role) => (
           <span key={role} className="role-badge">

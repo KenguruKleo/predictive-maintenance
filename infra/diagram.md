@@ -38,13 +38,16 @@ flowchart TB
         subgraph data["Data Layer"]
             subgraph cosmos["✅ Cosmos DB Serverless · cosmos-sentinel-intel-dev-erzrpo"]
                 CDB_INC["incidents&#xa;/equipmentId"]
+                CDB_EVT["incident_events&#xa;/incidentId"]
+                CDB_NOTIF["notifications&#xa;/incidentId"]
                 CDB_EQP["equipment&#xa;/id"]
                 CDB_BAT["batches&#xa;/equipmentId"]
                 CDB_CAPA["capa-plans&#xa;/incidentId"]
                 CDB_APPR["approval-tasks&#xa;/incidentId"]
+                CDB_TMPL["templates&#xa;/id"]
             end
-            SEARCH["🔜 AI Search\nsrch-sentinel-intel-dev-erzrpo\n4 RAG indexes"]
-            BLOB["✅ Storage Account\nstsentinelintelerzrpo\ncontainer: documents"]
+            SEARCH["🔜 AI Search\nsrch-sentinel-intel-dev-erzrpo\n5 RAG indexes"]
+            BLOB["✅ Storage Account\nstsentinelintelerzrpo\n5 blob containers for ingestion"]
         end
 
         subgraph realtime["Real-time"]
@@ -88,6 +91,8 @@ flowchart TB
 
     %% Compute → Data
     FUNC -->|"CRUD"| CDB_INC
+    FUNC -->|"audit + transcript"| CDB_EVT
+    FUNC -->|"notify"| CDB_NOTIF
     FUNC -->|"read"| CDB_EQP
     FUNC -->|"read"| CDB_BAT
     FUNC -->|"write (notify)"| CDB_APPR
@@ -129,10 +134,13 @@ flowchart TB
 | Container | Partition key | Status |
 |---|---|---|
 | `incidents` | `/equipmentId` | ✅ |
+| `incident_events` | `/incidentId` | ✅ |
+| `notifications` | `/incidentId` | ✅ |
 | `equipment` | `/id` | ✅ |
 | `batches` | `/equipmentId` | ✅ |
 | `capa-plans` | `/incidentId` | ✅ |
 | `approval-tasks` | `/incidentId` | ✅ |
+| `templates` | `/id` | ✅ |
 
 ---
 

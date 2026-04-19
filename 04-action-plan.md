@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-044 (Local Playwright E2E — auth bypass + smoke setup)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-043 (Agent telemetry admin delivery — App Insights traces → admin API/UI slice) · T-044 (Local Playwright E2E — auth bypass + smoke setup)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -37,6 +37,8 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (19 квітня 2026):**
+- T-044 — local backend startup for E2E was hardened: `backend/function_app.py` now forces the repo backend path ahead of unrelated workspace paths so `utils.auth` no longer resolves to a foreign `utils.py`, and `http_agent_telemetry` now lazy-loads App Insights query dependencies so a missing local `azure.monitor.query` package degrades only that admin endpoint instead of crashing the whole Functions host
+- T-026/T-040 — initial operator dialogue hardened in `run_foundry_agents.py`: round `0` now rewrites impossible carry-over phrasing like "the recommendation remains the same" to a clean first recommendation summary, with a focused regression test and live validation on `INC-2026-0013`
 - T-044 — frontend local E2E path implemented: `VITE_AUTH_MODE=e2e`, shared mock-auth runtime, forced local `/api` base URL in E2E mode, Vite `/api` proxy, Playwright config with frontend+backend `webServer`, and 2 passing smoke tests (`operator` dashboard, `it-admin` templates)
 - T-044 — while wiring admin smoke tests, frontend template handling was hardened to match the real backend contract: `GET /api/templates` now unwraps `{ items, total }`, object-shaped `fields` no longer crash the list page, and the editor preserves `fields` on save
 - T-042 — backend deploy hardened: GitHub Actions backend deploy переведено на Azure Functions Core Tools publish (`func azure functionapp publish --python`), тобто той самий remote-build path, який реально відновлює Linux Consumption runtime після regression з `0 functions` і 404 на `/api/*`
@@ -47,12 +49,13 @@
 - T-039 — added `scripts/recover_live_incident.py`: one-command recovery for stuck live incidents (`terminate → purge → requeue → wait initial → optional replay more_info`) plus README usage notes for future on-call recovery
 - T-039/T-040 — added incident-scoped Foundry prompt and response tracing in `run_foundry_agents` behind `FOUNDRY_PROMPT_TRACE_ENABLED`, with a stable `FOUNDRY_PROMPT_TRACE` envelope (`incident_id`, `round`, `trace_kind`, `thread_id`, `run_id`, chunk metadata) so logs can be queried later per incident for admin and audit troubleshooting
 - T-040 — documented current multi-agent control flow, model split, SDK observability limits, and App Insights retrieval pattern in `docs/foundry-followup-analysis.md`
+- T-043 — shipped the first admin telemetry MVP slice: App Insights-backed `GET /api/incidents/{id}/agent-telemetry`, Python normalization of `FOUNDRY_PROMPT_TRACE` rows, `/telemetry` admin page with KPI strip + timeline + copy diagnostics, incident-detail deep link, and admin navigation entries; remaining second-pass work is compact Cosmos projection plus token/cost/retry metrics when reliably available
 
 **Завершено (17 квітня 2026):****
 - ✅ T-041 — Bicep IaC: 9 ресурсів задеплоєно (Cosmos DB, Service Bus, Functions, Storage, App Insights, Log Analytics, AI Search, Azure OpenAI)
 - ✅ T-042 — GitHub Actions CI/CD: `ci.yml` + `deploy.yml` живі та зелені
 - ✅ T-022 — Service Bus: `alert-queue` + DLQ задеплоєно
-- ✅ T-020 — Cosmos DB: 6 containers задеплоєно, 55 items seeded
+- ✅ T-020 — Cosmos DB: 8 containers задеплоєно, 55 items seeded
 - ✅ T-021 — Mock data: 55 items залито в Cosmos DB (`scripts/seed_cosmos.py`)
 - ✅ T-037 — AI Search: 5 indexes, 9 docs, 117 chunks з HNSW vector embeddings
 - ✅ T-023 — Ingestion API: `POST /api/alerts` + validation + severity + idempotency + Service Bus publish; `scripts/simulate_alerts.py` з 6 demo сценаріями
@@ -75,7 +78,7 @@
 |---|---|---|---|---|---|
 | T-001 | **[Оновити архітектурну презентацію](./tasks/T-001-architecture-presentation.md)** — закрити всі gaps, показати реальну збудовану архітектуру (Track A, Security, Reliability, RAI, UX, IaC) | Gap #1–6 | 🔴 CRITICAL | 🔜 TODO | T-002 |
 | T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — повна demo презентація | Deliverables | 🔴 CRITICAL | 🔜 TODO | finals |
-| T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 6 collections, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | ✅ DONE | — |
+| T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 8 containers, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | ✅ DONE | — |
 | T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment(3), batches(20), incidents(30), templates(2) | demo | 🔴 CRITICAL | ✅ DONE | — |
 | T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | ✅ DONE | — |
 | T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: enrich→run_foundry_agents→notify→wait (24h HITL)→more_info loop→execute→finalize; ADR-002 | Gap #3 | 🔴 CRITICAL | ✅ DONE | T-029 |
@@ -96,7 +99,7 @@
 | T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
-| T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — structured logs для agent/sub-agent/tool calls + admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🔜 TODO | T-034 |
+| T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
 | T-044 | **[Local Playwright E2E mode](./tasks/T-044-playwright-local-e2e.md)** — dev-only auth mode + local backend proxy + smoke tests без Entra login | Quality / DX | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |

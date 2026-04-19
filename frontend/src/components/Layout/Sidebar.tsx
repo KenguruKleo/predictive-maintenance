@@ -76,6 +76,12 @@ const NAV_GROUPS = [
         roles: ["qa-manager", "it-admin"],
       },
       {
+        to: "/telemetry",
+        label: "Telemetry",
+        icon: "🧭",
+        roles: ["qa-manager", "auditor", "it-admin"],
+      },
+      {
         to: "/templates",
         label: "Templates",
         icon: "📄",

@@ -980,6 +980,9 @@ def _normalize_operator_dialogue(
     previous_ai_result = previous_ai_result or {}
     operator_questions = operator_questions or []
 
+    if more_info_round <= 0 and _should_rewrite_initial_operator_dialogue(explicit):
+        explicit = ""
+
     if explicit and not _should_rewrite_followup_dialogue(
         explicit,
         result,
@@ -1005,6 +1008,24 @@ def _normalize_operator_dialogue(
     return (
         "I reviewed your follow-up question and updated the analysis using available data."
     )[:800]
+
+
+def _should_rewrite_initial_operator_dialogue(explicit: str) -> bool:
+    normalized_explicit = _normalize_text(explicit)
+    if not normalized_explicit:
+        return False
+
+    invalid_initial_markers = (
+        "recommendation remains",
+        "remains the same",
+        "remains unchanged",
+        "stayed the same",
+        "recommendation stayed",
+        "updated recommendation",
+        "updated root cause",
+        "follow-up question",
+    )
+    return any(marker in normalized_explicit for marker in invalid_initial_markers)
 
 
 def _should_rewrite_followup_dialogue(
@@ -1056,35 +1077,33 @@ def _build_followup_operator_dialogue(
     direct_requirement_answer = _build_direct_requirement_answer(latest_question, result)
 
     if latest_question:
-        intro = f'I reviewed your follow-up question: "{_shorten_text(latest_question, 180)}".'
+        intro = f'I reviewed your follow-up question: "{_shorten_text(latest_question, 90)}".'
     else:
         intro = "I reviewed your follow-up question and re-checked the available evidence."
 
     if changed_fields:
         field_summary = _human_join(changed_fields)
-        details: list[str] = []
+        details: list[str] = [intro]
         if direct_requirement_answer:
             details.append(direct_requirement_answer)
         details.append(f"I updated {field_summary} based on the available evidence.")
-        if root_cause:
-            details.append(f"Updated root cause hypothesis: {root_cause}")
-        if recommendation:
-            details.append(f"Updated recommendation: {recommendation}")
-        return " ".join([intro, *details]).strip()
+        details.append(_build_updated_decision_summary(result))
+        if root_cause and "the root cause hypothesis" in changed_fields:
+            details.append(f"Updated root cause hypothesis: {_shorten_text(root_cause, 120)}")
+        return _compose_dialogue_parts(details)
 
     no_change_parts = [intro]
     if direct_requirement_answer:
         no_change_parts.append(direct_requirement_answer)
-        no_change_parts.append(
-            "The recommendation and root-cause hypothesis remain unchanged based on the available evidence."
-        )
+        no_change_parts.append(_build_no_change_decision_reason(result))
     else:
         no_change_parts.append(
             "I did not find enough new evidence to change the current recommendation or root-cause hypothesis."
         )
-    if recommendation:
-        no_change_parts.append(f"Recommendation remains: {recommendation}")
-    return " ".join(no_change_parts).strip()
+    decision_summary = _build_current_decision_summary(result)
+    if decision_summary:
+        no_change_parts.append(decision_summary)
+    return _compose_dialogue_parts(no_change_parts)
 
 
 def _get_changed_followup_fields(result: dict, previous_ai_result: dict) -> list[str]:
@@ -1158,23 +1177,92 @@ def _build_direct_requirement_answer(latest_question: str, result: dict) -> str:
         source_label = _format_evidence_label(source, section)
         if source_label:
             return (
-                f'I found retrieved evidence in {source_label} that directly requires a stop or hold action: '
+                f'I found a retrieved document instruction in {source_label} that directly requires a stop or hold action: '
                 f'"{_shorten_text(excerpt, 140)}".'
             )
         return (
-            f'I found retrieved evidence that directly requires a stop or hold action: '
+            f'I found a retrieved document instruction that directly requires a stop or hold action: '
             f'"{_shorten_text(excerpt, 140)}".'
         )
 
     if excerpt:
         source_label = _format_evidence_label(source, section)
-        label_suffix = f" in {source_label}" if source_label else ""
+        if source_label:
+            return (
+                "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition. "
+                f'The closest cited document limit in {source_label} is "{_shorten_text(excerpt, 140)}".'
+            )
         return (
-            f'I did not find retrieved BPR or SOP evidence{label_suffix} that directly says to stop the line at this condition; '
-            f'the closest cited requirement is "{_shorten_text(excerpt, 140)}".'
+            "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition. "
+            f'The closest cited document limit is "{_shorten_text(excerpt, 140)}".'
         )
 
-    return "I did not find retrieved BPR or SOP evidence that directly says to stop the line at this condition."
+    return "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition."
+
+
+def _build_no_change_decision_reason(result: dict) -> str:
+    source, section, excerpt = _extract_requirement_evidence(result)
+    source_label = _format_evidence_label(source, section)
+    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
+
+    if excerpt:
+        if source_label and batch_disposition:
+            return (
+                f'I kept the recommendation and batch disposition unchanged because {source_label} still points to '
+                f'"{_shorten_text(excerpt, 140)}", so the batch should remain {batch_disposition} while the deviation is investigated.'
+            )
+        if source_label:
+            return (
+                f'I kept the recommendation unchanged because {source_label} still points to '
+                f'"{_shorten_text(excerpt, 140)}", and that does not support changing the current decision.'
+            )
+
+    if batch_disposition:
+        return (
+            f'I kept the recommendation and batch disposition unchanged because the available evidence still supports '
+            f'keeping the batch {batch_disposition} while the deviation is investigated.'
+        )
+
+    return "I kept the recommendation unchanged because the available evidence still supports the current decision."
+
+
+def _build_current_decision_summary(result: dict) -> str:
+    summary_parts: list[str] = []
+
+    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
+    if batch_disposition:
+        summary_parts.append(f"The batch remains {batch_disposition}.")
+
+    recommendation = str(result.get("recommendation") or "").strip()
+    if recommendation:
+        summary_parts.append(f"Recommended next action: {recommendation}")
+
+    return " ".join(summary_parts).strip()
+
+
+def _build_updated_decision_summary(result: dict) -> str:
+    summary_parts: list[str] = []
+
+    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
+    if batch_disposition:
+        summary_parts.append(f"The batch is now {batch_disposition}.")
+
+    recommendation = str(result.get("recommendation") or "").strip()
+    if recommendation:
+        summary_parts.append(f"Recommended next action: {_shorten_text(recommendation, 160)}")
+
+    return " ".join(summary_parts).strip()
+
+
+def _humanize_batch_disposition(batch_disposition: str) -> str:
+    labels = {
+        "hold_pending_review": "on hold pending review",
+        "conditional_release_pending_testing": "under conditional release pending testing",
+        "rejected": "rejected",
+        "release": "released",
+    }
+    normalized = _normalize_text(batch_disposition)
+    return labels.get(normalized, batch_disposition.replace("_", " ").strip())
 
 
 def _extract_requirement_evidence(result: dict) -> tuple[str, str, str]:
@@ -1261,6 +1349,29 @@ def _shorten_text(text: str, limit: int) -> str:
         return compact
     shortened = compact[: limit - 3].rsplit(" ", 1)[0].strip()
     return f"{shortened}..." if shortened else compact[: limit - 3] + "..."
+
+
+def _compose_dialogue_parts(parts: list[str], limit: int = 800) -> str:
+    message = ""
+    for part in parts:
+        compact_part = re.sub(r"\s+", " ", str(part or "")).strip()
+        if not compact_part:
+            continue
+
+        candidate = f"{message} {compact_part}".strip() if message else compact_part
+        if len(candidate) <= limit:
+            message = candidate
+            continue
+
+        remaining = limit - len(message) - (1 if message else 0)
+        if remaining <= 0:
+            break
+
+        shortened_part = _shorten_text(compact_part, remaining)
+        message = f"{message} {shortened_part}".strip() if message else shortened_part
+        break
+
+    return message
 
 
 def _human_join(items: list[str]) -> str:

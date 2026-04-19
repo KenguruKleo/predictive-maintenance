@@ -80,6 +80,28 @@ def test_followup_dialogue_keeps_good_explicit_answer() -> None:
     assert dialogue == explicit
 
 
+def test_initial_dialogue_rewrites_stale_comparison_language() -> None:
+    dialogue = _normalize_operator_dialogue(
+        {
+            "operator_dialogue": (
+                "We reviewed the incident regarding the spray rate deviation. The recommendation remains the same: "
+                "verify the flowmeter calibration immediately to address the critical deviation."
+            ),
+            "recommendation": "Verify the flowmeter calibration immediately to address the critical deviation.",
+            "analysis": "The spray rate deviation is critical and requires immediate verification of the flowmeter.",
+            "root_cause": "Potential flowmeter calibration drift.",
+            "risk_level": "high",
+            "batch_disposition": "hold_pending_review",
+        },
+        more_info_round=0,
+        previous_ai_result={},
+        operator_questions=[],
+    )
+
+    assert dialogue == "Verify the flowmeter calibration immediately to address the critical deviation."
+    assert "remains the same" not in dialogue.lower()
+
+
 def test_followup_dialogue_rewrites_requirement_question_to_direct_answer() -> None:
     previous_ai_result = {
         "operator_dialogue": "Previous follow-up answer.",
@@ -123,7 +145,66 @@ def test_followup_dialogue_rewrites_requirement_question_to_direct_answer() -> N
         operator_questions=operator_questions,
     )
 
-    assert "did not find retrieved bpr or sop evidence" in dialogue.lower()
-    assert "directly says to stop the line" in dialogue.lower()
+    assert "did not find a retrieved bpr or sop instruction" in dialogue.lower()
+    assert "directly requires stopping the line" in dialogue.lower()
     assert "75,105" in dialogue
+    assert "i kept the recommendation and batch disposition unchanged because" in dialogue.lower()
+    assert "the batch remains on hold pending review" in dialogue.lower()
+    assert "recommended next action" in dialogue.lower()
+    assert dialogue != current_result["operator_dialogue"]
+
+
+def test_followup_dialogue_with_changed_fields_stays_complete_under_limit() -> None:
+    previous_ai_result = {
+        "operator_dialogue": "Previous follow-up answer.",
+        "recommendation": "Immediately verify the calibration of the flowmeter and inspect the tubing and nozzle for wear or blockages.",
+        "root_cause": "The deviation in spray_rate_g_min on equipment GR-204 was likely caused by a calibration drift in the flowmeter.",
+        "risk_level": "high",
+        "batch_disposition": "hold_pending_review",
+    }
+    current_result = {
+        "operator_dialogue": (
+            "I reviewed the BPR for Metformin HCl 500mg and found no direct requirement to stop the line at a spray rate "
+            "of 138 g/min for 35 minutes. The recommendation and batch disposition remain unchanged as the deviation "
+            "still poses a high risk to product quality."
+        ),
+        "recommendation": "Verify the calibration of the flowmeter and inspect the tubing and nozzle for wear or blockages.",
+        "root_cause": (
+            "The deviation in spray_rate_g_min on equipment GR-204 was likely caused by a calibration drift in the "
+            "flowmeter, as the equipment's last calibration was on 2026-02-01 and is due on 2026-08-01."
+        ),
+        "risk_level": "high",
+        "batch_disposition": "conditional_release_pending_testing",
+        "evidence_citations": [
+            {
+                "source": "BPR for Metformin HCl 500mg Granulation Process Parameters",
+                "section": "Spray Rate",
+                "text_excerpt": "Spray rate must be maintained within 70-110 g/min to ensure uniform granulation.",
+            }
+        ],
+    }
+    operator_questions = [
+        {
+            "round": 1,
+            "asked_by": "ivan.petrenko",
+            "question": (
+                "Check if the BPR for Metformin HCl 500mg has a direct requirement to stop the line at a spray rate "
+                "of 138 g/min for 35 minutes. If there is no direct requirement, adjust the recommendation and batch "
+                "disposition using the actual BPR and SOP limits."
+            ),
+        }
+    ]
+
+    dialogue = _normalize_operator_dialogue(
+        current_result,
+        more_info_round=1,
+        previous_ai_result=previous_ai_result,
+        operator_questions=operator_questions,
+    )
+
+    assert len(dialogue) <= 800
+    assert not dialogue.endswith("Update")
+    assert "directly requires stopping the line" in dialogue.lower()
+    assert "the batch is now under conditional release pending testing" in dialogue.lower()
+    assert "recommended next action" in dialogue.lower()
     assert dialogue != current_result["operator_dialogue"]

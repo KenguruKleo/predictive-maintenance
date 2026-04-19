@@ -16,6 +16,8 @@ This starts:
 - Vite frontend in `e2e` mode on `http://127.0.0.1:4173`
 - local Azure Functions host on `http://127.0.0.1:7072` with `USE_LOCAL_MOCK_AUTH=true`
 
+Normal development stays separate: `npm run dev` uses the regular Vite config and the configured remote API base URL from `.env.local`.
+
 ### Manual local run
 
 Backend:
@@ -56,7 +58,7 @@ SENTINEL_LOCAL_API_URL=http://127.0.0.1:7071 npm run dev:e2e
 
 ---
 
-# React + TypeScript + Vite
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
