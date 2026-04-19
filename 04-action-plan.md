@@ -37,6 +37,8 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (19 квітня 2026):**
+- T-045 — first implementation slice shipped for evidence/document quality: frontend incident detail now renders only normalized `evidence_citations`, backend normalization adds canonical dedupe, resolved/unresolved citation state, contextful excerpt backfill, and historical incident deep links, while `documents_from_incidents()` now indexes only approved closed/completed precedents; focused pytest coverage and frontend production build passed
+- T-045 — created a follow-up backlog task for evidence/document quality after reviewing `INC-2026-0013`: make `evidence_citations` the only UI source of truth, enforce a strict backend citation contract, dedupe by canonical document identity, improve excerpt quality, and fix historical incident evidence/link semantics without editing legacy test data
 - T-044 — local backend startup for E2E was hardened: `backend/function_app.py` now forces the repo backend path ahead of unrelated workspace paths so `utils.auth` no longer resolves to a foreign `utils.py`, and `http_agent_telemetry` now lazy-loads App Insights query dependencies so a missing local `azure.monitor.query` package degrades only that admin endpoint instead of crashing the whole Functions host
 - T-026/T-040 — initial operator dialogue hardened in `run_foundry_agents.py`: round `0` now rewrites impossible carry-over phrasing like "the recommendation remains the same" to a clean first recommendation summary, with a focused regression test and live validation on `INC-2026-0013`
 - T-044 — frontend local E2E path implemented: `VITE_AUTH_MODE=e2e`, shared mock-auth runtime, forced local `/api` base URL in E2E mode, Vite `/api` proxy, Playwright config with frontend+backend `webServer`, and 2 passing smoke tests (`operator` dashboard, `it-admin` templates)
@@ -101,6 +103,7 @@
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
 | T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
 | T-044 | **[Local Playwright E2E mode](./tasks/T-044-playwright-local-e2e.md)** — dev-only auth mode + local backend proxy + smoke tests без Entra login | Quality / DX | 🟠 HIGH | 🟡 IN PROGRESS | — |
+| T-045 | **[Evidence citations quality + historical evidence links](./tasks/T-045-evidence-citation-quality.md)** — canonical document cards, strict citation contract, excerpt backfill, unresolved evidence state, historical incident linkability | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |
 | T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 5 indexes, 9 docs, 117 chunks з HNSW vector search | Gap #4 | 🟠 HIGH | ✅ DONE | — |

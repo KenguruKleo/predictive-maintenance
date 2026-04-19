@@ -66,6 +66,8 @@ export interface EvidenceCitation {
   chunk_index?: number;
   score?: number;
   url?: string;
+  resolution_status?: "resolved" | "unresolved";
+  unresolved_reason?: string;
 }
 
 export interface CapaStep {

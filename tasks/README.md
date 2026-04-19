@@ -46,6 +46,7 @@
 | T-034 | [T-034-frontend-other-roles.md](./T-034-frontend-other-roles.md) | React frontend — manager/auditor/IT | 🟠 HIGH | 🔜 TODO |
 | T-043 | [T-043-agent-telemetry-admin-view.md](./T-043-agent-telemetry-admin-view.md) | Agent telemetry + admin incident view | 🟠 HIGH | 🔜 TODO |
 | T-044 | [T-044-playwright-local-e2e.md](./T-044-playwright-local-e2e.md) | Local Playwright E2E mode (dev auth + local proxy) | 🟠 HIGH | 🟡 IN PROGRESS |
+| T-045 | [T-045-evidence-citation-quality.md](./T-045-evidence-citation-quality.md) | Evidence citations quality + historical evidence links | 🟠 HIGH | 🟡 IN PROGRESS |
 
 ## Security / Reliability / RAI / CI-CD
 

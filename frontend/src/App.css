@@ -2113,6 +2113,37 @@
   font-size: 13px;
 }
 
+.telemetry-empty-state {
+  background: linear-gradient(180deg, rgba(0, 82, 204, 0.04), rgba(0, 82, 204, 0.015));
+  border: 1px solid rgba(0, 82, 204, 0.14);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-6);
+}
+
+.telemetry-empty-state-copy {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.telemetry-empty-state-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--text-subtle);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.telemetry-limitations--compact {
+  margin-top: 0;
+}
+
 .telemetry-incident-card {
   display: flex;
   align-items: center;

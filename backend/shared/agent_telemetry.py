@@ -11,7 +11,7 @@ import json
 import logging
 import os
 import re
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from azure.core.exceptions import HttpResponseError
@@ -50,6 +50,10 @@ _client: LogsQueryClient | None = None
 
 class TelemetryConfigError(RuntimeError):
     """Raised when telemetry query configuration is missing or invalid."""
+
+
+class TelemetryAccessError(RuntimeError):
+    """Raised when Azure Monitor denies the telemetry query identity."""
 
 
 def query_incident_agent_telemetry(
@@ -138,11 +142,12 @@ def normalize_trace_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         round_number = int(row.get("round") or 0)
         trace_kind = str(row.get("trace_kind") or "unknown").strip() or "unknown"
         metadata_text = str(row.get("metadata") or "{}")
+        timestamp = _stringify_timestamp(row.get("timestamp"))
         key = (round_number, trace_kind, metadata_text)
 
         if key not in groups:
             groups[key] = {
-                "timestamp": row.get("timestamp") or "",
+                "timestamp": timestamp,
                 "round": round_number,
                 "trace_kind": trace_kind,
                 "content_type": row.get("content_type") or "text",
@@ -159,7 +164,6 @@ def normalize_trace_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             int(row.get("chunk_count") or 1),
         )
 
-        timestamp = str(row.get("timestamp") or "")
         if timestamp and (not groups[key]["timestamp"] or timestamp < groups[key]["timestamp"]):
             groups[key]["timestamp"] = timestamp
 
@@ -263,18 +267,13 @@ def _query_trace_rows(incident_id: str) -> list[dict[str, Any]]:
         )
     except HttpResponseError as exc:
         logger.exception("Agent telemetry App Insights query failed for %s: %s", incident_id, exc)
-        raise RuntimeError("Failed to query App Insights telemetry") from exc
+        raise _classify_query_error(exc) from exc
 
     tables = result.tables if result.status == LogsQueryStatus.SUCCESS else result.partial_data
     if result.status == LogsQueryStatus.PARTIAL:
         logger.warning("Agent telemetry query returned partial data for %s: %s", incident_id, result.partial_error)
 
-    rows: list[dict[str, Any]] = []
-    for table in tables or []:
-        columns = [column.name for column in table.columns]
-        for raw_row in table.rows:
-            rows.append(dict(zip(columns, raw_row)))
-    return rows
+    return _rows_from_query_tables(tables)
 
 
 def _get_logs_query_client() -> LogsQueryClient:
@@ -317,6 +316,14 @@ def _parse_json_object(value: str) -> dict[str, Any]:
     return parsed if isinstance(parsed, dict) else {}
 
 
+def _stringify_timestamp(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value or "")
+
+
 def _build_preview(content: str, limit: int = 220) -> str:
     preview = " ".join((content or "").split())
     if len(preview) <= limit:
@@ -335,3 +342,31 @@ def _coerce_positive_int(raw_value: str, default: int) -> int:
     except (TypeError, ValueError):
         return default
     return value if value > 0 else default
+
+
+def _classify_query_error(exc: HttpResponseError) -> RuntimeError:
+    message = str(exc)
+    if "InsufficientAccessError" in message:
+        return TelemetryAccessError(
+            "Telemetry query identity lacks Azure Monitor access. "
+            "Grant Reader on the Application Insights resource and "
+            "Log Analytics Reader on the linked workspace."
+        )
+    return RuntimeError("Failed to query App Insights telemetry")
+
+
+def _rows_from_query_tables(tables: list[Any] | None) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    for table in tables or []:
+        columns = [_column_name(column) for column in table.columns]
+        for raw_row in table.rows:
+            rows.append(dict(zip(columns, raw_row)))
+    return rows
+
+
+def _column_name(column: Any) -> str:
+    if isinstance(column, str):
+        return column
+    if getattr(column, "name", None):
+        return str(column.name)
+    return str(column)

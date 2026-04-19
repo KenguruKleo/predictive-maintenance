@@ -31,6 +31,7 @@ def get_incident_agent_telemetry(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         from shared.agent_telemetry import (
+            TelemetryAccessError,
             TelemetryConfigError,
             query_incident_agent_telemetry,
             validate_agent_name,
@@ -60,6 +61,9 @@ def get_incident_agent_telemetry(req: func.HttpRequest) -> func.HttpResponse:
     except TelemetryConfigError as exc:
         logger.warning("agent telemetry config error for %s: %s", incident_id, exc)
         return _error(500, str(exc))
+    except TelemetryAccessError as exc:
+        logger.warning("agent telemetry access error for %s: %s", incident_id, exc)
+        return _error(503, str(exc))
     except Exception as exc:  # noqa: BLE001
         logger.exception("agent telemetry query failed for %s: %s", incident_id, exc)
         return _error(500, "Internal server error")

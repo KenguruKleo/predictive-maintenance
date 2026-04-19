@@ -77,12 +77,6 @@ INDEX_EVIDENCE_META = {
 }
 
 TRACE_MARKER = "FOUNDRY_PROMPT_TRACE"
-TRACE_ENABLED = os.getenv("FOUNDRY_PROMPT_TRACE_ENABLED", "").strip().lower() in {
-    "1",
-    "true",
-    "yes",
-    "on",
-}
 try:
     TRACE_CHUNK_SIZE = max(
         2000,
@@ -691,7 +685,7 @@ def _log_orchestrator_prompt_trace(
     prompt: str,
     context_data: dict,
 ) -> None:
-    if not TRACE_ENABLED:
+    if not _trace_enabled():
         return
 
     prompt_bundle = {
@@ -882,7 +876,7 @@ def _log_trace_text(
     metadata: dict[str, object] | None = None,
     content_type: str = "text",
 ) -> None:
-    if not TRACE_ENABLED:
+    if not _trace_enabled():
         return
 
     metadata = metadata or {}
@@ -907,6 +901,15 @@ def _chunk_text(text: str, size: int) -> list[str]:
     if not text:
         return [""]
     return [text[index:index + size] for index in range(0, len(text), size)]
+
+
+def _trace_enabled() -> bool:
+    return os.getenv("FOUNDRY_PROMPT_TRACE_ENABLED", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
 
 def _parse_response(raw_text: str) -> dict:
@@ -1428,13 +1431,7 @@ def _normalize_evidence_citations(result: dict, rag_context: dict) -> list[dict]
     seen: set[tuple] = set()
     for item in raw_items:
         citation = _normalize_single_citation(item, flat_hits)
-        key = (
-            citation.get("type", ""),
-            citation.get("document_title", ""),
-            citation.get("section", ""),
-            citation.get("source_blob", ""),
-            citation.get("text_excerpt", "")[:80],
-        )
+        key = _citation_identity_key(citation)
         if key in seen:
             continue
         seen.add(key)
@@ -1462,6 +1459,8 @@ def _flatten_rag_hits(rag_context: dict) -> list[dict]:
 def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
     match = _find_matching_hit(item, flat_hits)
     citation_type = item.get("type") or _infer_citation_type(item, match)
+    source = item.get("source") or (match or {}).get("document_id") or (match or {}).get("document_title") or ""
+    reference = item.get("reference") or item.get("regulation") or ""
     document_title = (
         item.get("document_title")
         or item.get("title")
@@ -1480,26 +1479,58 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
     )
     source_blob = item.get("source_blob") or item.get("sourceBlob") or (match or {}).get("source", "")
     container = item.get("container") or (match or {}).get("container", "")
+    if citation_type == "historical" and not document_id:
+        document_id = _extract_historical_incident_id(source_blob or source or document_title)
     known_doc = _infer_known_document(item)
+    if not document_id and known_doc:
+        document_id = known_doc.get("document_id", "")
     if not source_blob and known_doc:
         source_blob = known_doc["source_blob"]
     if not container and known_doc:
         container = known_doc["container"]
-    if known_doc and (
-        not document_title or document_title in {"equipment_manual_notes", "incident", "details"}
+    if known_doc and document_id == known_doc.get("document_id") and document_title != known_doc["document_title"]:
+        document_title = known_doc["document_title"]
+    elif known_doc and (
+        not document_title
+        or document_title in {"equipment_manual_notes", "incident", "details", "sop", "gmp", "manual", "batch record", "bpr_constraints"}
+        or document_title.lower() in {
+            known_doc.get("document_id", "").lower(),
+            str(source or "").lower(),
+            str(reference or "").lower(),
+        }
     ):
         document_title = known_doc["document_title"]
+    if citation_type == "historical" and document_id and document_title.lower() in {"incident", "details", "historical"}:
+        document_title = f"Similar incident {document_id}"
     if not document_title:
-        section_fallback = item.get("section") or item.get("relevant_section") or ""
-        if citation_type and section_fallback:
-            document_title = f"{citation_type.upper()} reference"
-        elif citation_type:
-            document_title = f"{citation_type.upper()} evidence"
+        if citation_type == "historical" and document_id:
+            document_title = f"Similar incident {document_id}"
+        else:
+            document_title = source or reference
     section = item.get("section") or item.get("relevant_section") or ""
-    text_excerpt = item.get("text_excerpt") or item.get("quote") or item.get("relevance") or ""
+    if citation_type == "historical" and not section:
+        section = "Incident summary"
+    text_excerpt = _build_citation_excerpt(item, match)
+    url = item.get("url") or _citation_url(
+        citation_type=citation_type,
+        document_id=document_id,
+        container=container,
+        source_blob=source_blob,
+    )
+    resolution_status, unresolved_reason = _classify_citation_resolution(
+        citation_type=citation_type,
+        document_title=document_title,
+        section=section,
+        text_excerpt=text_excerpt,
+        url=url,
+        container=container,
+        source_blob=source_blob,
+    )
 
     citation = {
         "type": citation_type,
+        "source": source,
+        "reference": reference,
         "document_id": document_id,
         "document_title": document_title,
         "section": section,
@@ -1509,9 +1540,125 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         "index_name": item.get("index_name") or (match or {}).get("index_name", ""),
         "chunk_index": item.get("chunk_index", (match or {}).get("chunk_index")),
         "score": item.get("score", (match or {}).get("score")),
+        "resolution_status": resolution_status,
+        "unresolved_reason": unresolved_reason,
     }
-    citation["url"] = item.get("url") or _document_url(container, source_blob)
+    citation["url"] = url
     return citation
+
+
+def _citation_identity_key(citation: dict) -> tuple[str, str, str, str]:
+    primary_id = (
+        str(citation.get("source_blob") or "").strip()
+        or str(citation.get("document_id") or "").strip()
+        or str(citation.get("url") or "").strip()
+        or str(citation.get("reference") or "").strip()
+        or str(citation.get("source") or "").strip()
+        or str(citation.get("document_title") or "").strip()
+    )
+    section = str(citation.get("section") or "").strip()
+    status = str(citation.get("resolution_status") or "").strip()
+    citation_type = str(citation.get("type") or "").strip()
+    return (citation_type, primary_id.lower(), section.lower(), status)
+
+
+def _build_citation_excerpt(item: dict, match: dict | None) -> str:
+    raw_excerpt = _clean_excerpt_text(
+        item.get("text_excerpt") or item.get("quote") or item.get("relevance") or ""
+    )
+    match_text = _clean_excerpt_text((match or {}).get("text", ""))
+
+    if raw_excerpt and len(raw_excerpt) >= 120:
+        return _trim_excerpt(raw_excerpt)
+
+    if match_text:
+        if raw_excerpt and len(raw_excerpt) >= 12:
+            anchor_idx = match_text.lower().find(raw_excerpt.lower())
+            if anchor_idx >= 0:
+                return _excerpt_window(match_text, anchor_idx, len(raw_excerpt))
+        return _trim_excerpt(match_text)
+
+    if raw_excerpt:
+        return _trim_excerpt(raw_excerpt)
+
+    return ""
+
+
+def _clean_excerpt_text(value: object) -> str:
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    return text
+
+
+def _trim_excerpt(text: str, max_chars: int = 300, min_break: int = 180) -> str:
+    clean = _clean_excerpt_text(text)
+    if len(clean) <= max_chars:
+        return clean
+
+    cut = clean[: max_chars + 1]
+    for marker in (". ", "; ", ": ", ", ", " "):
+        boundary = cut.rfind(marker)
+        if boundary >= min_break:
+            snippet = cut[: boundary + (1 if marker == " " else len(marker) - 1)].rstrip(" ,;:")
+            return f"{snippet}..."
+
+    return f"{clean[:max_chars].rstrip()}..."
+
+
+def _excerpt_window(text: str, anchor_idx: int, anchor_len: int, radius: int = 120) -> str:
+    start = max(0, anchor_idx - radius)
+    end = min(len(text), anchor_idx + anchor_len + radius)
+    snippet = text[start:end].strip()
+    if start > 0:
+        snippet = f"...{snippet}"
+    if end < len(text):
+        snippet = f"{snippet}..."
+    return _trim_excerpt(snippet)
+
+
+def _classify_citation_resolution(
+    *,
+    citation_type: str,
+    document_title: str,
+    section: str,
+    text_excerpt: str,
+    url: str,
+    container: str,
+    source_blob: str,
+) -> tuple[str, str]:
+    missing: list[str] = []
+
+    if not document_title:
+        missing.append("document title")
+    if not section:
+        missing.append("section")
+    if not text_excerpt:
+        missing.append("excerpt")
+    if not url and not (container and source_blob):
+        missing.append("link")
+
+    if not missing:
+        return "resolved", ""
+
+    reason = f"Missing {', '.join(missing)} for {citation_type or 'evidence'} citation"
+    return "unresolved", reason
+
+
+def _citation_url(*, citation_type: str, document_id: str, container: str, source_blob: str) -> str:
+    if citation_type == "historical":
+        incident_id = _extract_historical_incident_id(document_id or source_blob)
+        if incident_id:
+            return f"/incidents/{quote(incident_id, safe='')}"
+        return ""
+    return _document_url(container, source_blob)
+
+
+def _extract_historical_incident_id(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    stem = Path(text).stem
+    match = re.search(r"(INC-\d{4}-\d{4,})", stem, re.IGNORECASE)
+    return match.group(1).upper() if match else ""
 
 
 def _find_matching_hit(item: dict, flat_hits: list[dict]) -> dict | None:
@@ -1571,28 +1718,32 @@ def _document_url(container: str, source_blob: str) -> str:
 def _infer_known_document(item: dict) -> dict | None:
     text = " ".join(
         str(item.get(k, ""))
-        for k in ("document_id", "document_title", "reference", "source", "text_excerpt")
+        for k in ("document_id", "document_title", "reference", "source", "text_excerpt", "id", "title", "regulation")
     ).lower()
     if "sop-dev-001" in text:
         return {
+            "document_id": "SOP-DEV-001",
             "container": "blob-sop",
             "source_blob": "SOP-DEV-001-Deviation-Management.md",
             "document_title": "Deviation Management (SOP-DEV-001)",
         }
     if "sop-man-gr-001" in text or "granulator operation" in text:
         return {
+            "document_id": "SOP-MAN-GR-001",
             "container": "blob-sop",
             "source_blob": "SOP-MAN-GR-001-Granulator-Operation.md",
             "document_title": "Granulator Operation (SOP-MAN-GR-001)",
         }
     if "annex 15" in text or "eu gmp" in text:
         return {
+            "document_id": "GMP-Annex15-Excerpt",
             "container": "blob-gmp",
             "source_blob": "GMP-Annex15-Excerpt.md",
             "document_title": "EU GMP Annex 15",
         }
     if "metformin" in text or "b26041701" in text:
         return {
+            "document_id": "BPR-MET-500-v3.2",
             "container": "blob-bpr",
             "source_blob": "BPR-MET-500-v3.2-Process-Specification.md",
             "document_title": "BPR Metformin 500mg Process Specification",

@@ -6,6 +6,7 @@ param funcAppName string
 param storageAccountName string
 param appInsightsConnectionString string
 param appInsightsResourceId string
+param appInsightsWorkspaceId string
 
 // Runtime wiring — endpoints + keys from other modules
 param cosmosEndpoint string
@@ -52,6 +53,24 @@ var monitoringReaderRoleDefinitionId = subscriptionResourceId(
   'Microsoft.Authorization/roleDefinitions',
   '43d0d8ad-25c7-4714-9337-8ba259a9fe05'
 )
+
+var readerRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  'acdd72a7-3385-48ef-bd42-f606fba81ae7'
+)
+
+var logAnalyticsReaderRoleDefinitionId = subscriptionResourceId(
+  'Microsoft.Authorization/roleDefinitions',
+  '73c42c96-874c-492b-b04d-ab87d138a893'
+)
+
+resource appInsights 'Microsoft.Insights/components@2020-02-02' existing = {
+  name: last(split(appInsightsResourceId, '/'))
+}
+
+resource appInsightsWorkspace 'Microsoft.OperationalInsights/workspaces@2023-09-01' existing = {
+  name: last(split(appInsightsWorkspaceId, '/'))
+}
 
 resource appServicePlan 'Microsoft.Web/serverfarms@2023-12-01' = {
   name: 'asp-${funcAppName}'
@@ -106,6 +125,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING', value: foundryProjectConnectionString }
         { name: 'AZURE_AI_FOUNDRY_AGENTS_ENDPOINT', value: foundryProjectConnectionString }
         { name: 'AZURE_AI_AGENTS_TESTS_IS_TEST_RUN', value: 'True' }
+        { name: 'FOUNDRY_PROMPT_TRACE_ENABLED', value: '1' }
         // Foundry Hub connection ID for AzureAISearchTool in Research Agent
         { name: 'AZURE_AI_SEARCH_CONNECTION_ID', value: foundrySearchConnectionId }
         // Azure SignalR (T-030)
@@ -130,6 +150,26 @@ resource functionAppMonitoringReader 'Microsoft.Authorization/roleAssignments@20
   scope: resourceGroup()
   properties: {
     roleDefinitionId: monitoringReaderRoleDefinitionId
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource functionAppAppInsightsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appInsights.id, functionApp.id, 'reader')
+  scope: appInsights
+  properties: {
+    roleDefinitionId: readerRoleDefinitionId
+    principalId: functionApp.identity.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
+resource functionAppWorkspaceLogAnalyticsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(appInsightsWorkspace.id, functionApp.id, 'log-analytics-reader')
+  scope: appInsightsWorkspace
+  properties: {
+    roleDefinitionId: logAnalyticsReaderRoleDefinitionId
     principalId: functionApp.identity.principalId
     principalType: 'ServicePrincipal'
   }

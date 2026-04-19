@@ -307,18 +307,18 @@ def documents_from_blob(
 
 def documents_from_incidents(cosmos_client: CosmosClient) -> list[dict]:
     """
-    Generate text documents from closed Cosmos DB incidents for historical RAG.
+    Generate text documents from approved closed/completed Cosmos DB incidents for historical RAG.
     Each incident → one document with key fields as readable text.
     """
     db = cosmos_client.get_database_client(COSMOS_DB)
     container = db.get_container_client("incidents")
-    closed = [
+    approved_closed = [
         i for i in container.read_all_items()
-        if i.get("status") in ("closed", "resolved", "rejected")
+        if _is_valid_historical_incident(i)
     ]
 
     docs = []
-    for inc in closed:
+    for inc in approved_closed:
         ai = inc.get("ai_analysis", {})
         text = f"""Incident ID: {inc.get('id')}
 Equipment: {inc.get('equipment_id')} — {inc.get('title', '')}
@@ -336,6 +336,21 @@ Batch disposition: {ai.get('batch_disposition', '')}
         docs.append({"filename": f"{inc['id']}.txt", "text": text.strip()})
 
     return docs
+
+
+def _is_valid_historical_incident(incident: dict) -> bool:
+    status = str(incident.get("status") or "").strip().lower()
+    if status not in {"closed", "completed"}:
+        return False
+
+    if incident.get("approvedAt") or incident.get("approvedBy") or incident.get("approved_by"):
+        return True
+
+    final_decision = incident.get("finalDecision")
+    if isinstance(final_decision, dict) and str(final_decision.get("action") or "").lower() == "approved":
+        return True
+
+    return False
 
 
 # ---------------------------------------------------------------------------

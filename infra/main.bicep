@@ -88,6 +88,7 @@ module functions 'modules/functions.bicep' = {
     storageAccountName: storage.outputs.storageName
     appInsightsConnectionString: monitoring.outputs.appInsightsConnectionString
     appInsightsResourceId: monitoring.outputs.appInsightsId
+    appInsightsWorkspaceId: monitoring.outputs.workspaceId
     cosmosEndpoint: cosmos.outputs.cosmosEndpoint
     cosmosAccountName: cosmos.outputs.cosmosAccountName
     serviceBusNamespaceName: servicebus.outputs.serviceBusName

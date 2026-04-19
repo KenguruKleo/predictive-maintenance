@@ -17,6 +17,34 @@ function getStringParam(params: URLSearchParams, key: string): string {
   return params.get(key)?.trim() ?? "";
 }
 
+function buildEmptyTelemetryHints(options: {
+  hasFilters: boolean;
+  incidentStatus?: string;
+  businessEventCount: number;
+}): string[] {
+  const hints = [
+    "This view only renders backend-visible Foundry prompt traces captured in App Insights.",
+  ];
+
+  if (options.businessEventCount > 0) {
+    hints.push(
+      `This incident already has ${options.businessEventCount} business events, but those events are stored separately from prompt traces.`,
+    );
+  }
+
+  if (options.hasFilters) {
+    hints.push("Current filters can hide rows. Reset filters to confirm the incident truly has no prompt traces.");
+  }
+
+  if (["open", "ingested", "analyzing", "awaiting_agents"].includes(options.incidentStatus ?? "")) {
+    hints.push("The incident may not have reached the Foundry agent step yet, so no prompt traces exist to display.");
+  } else {
+    hints.push("Older incidents created before prompt trace capture was enabled will also appear empty here.");
+  }
+
+  return hints;
+}
+
 export default function IncidentTelemetryPage() {
   const { allowed, pending } = useRoleGuard(["qa-manager", "it-admin", "auditor"]);
   const { hasAnyRole } = useAuth();
@@ -53,6 +81,7 @@ export default function IncidentTelemetryPage() {
   const telemetryQuery = useIncidentTelemetry(activeIncidentId, filters);
   const incidentQuery = useIncident(activeIncidentId || "");
   const eventsQuery = useIncidentEvents(activeIncidentId || "");
+  const businessEventCount = eventsQuery.data?.length ?? 0;
 
   if (pending) {
     return <div className="loading">Checking telemetry access...</div>;
@@ -151,6 +180,17 @@ export default function IncidentTelemetryPage() {
         <div className="error-banner">Unable to load incident telemetry.</div>
       ) : (
         <>
+          {(() => {
+            const hasFilters = Boolean(filters.agent_name || filters.status || filters.round !== undefined);
+            const isEmpty = telemetryQuery.data.summary.total_items === 0;
+            const emptyHints = buildEmptyTelemetryHints({
+              hasFilters,
+              incidentStatus: incidentQuery.data?.status,
+              businessEventCount,
+            });
+
+            return (
+              <>
           <div className="telemetry-toolbar">
             <span className="telemetry-scope-pill">{telemetryQuery.data.scope.view}</span>
             <button type="button" className="btn btn--secondary btn--sm" onClick={handleCopyDiagnostics}>
@@ -165,7 +205,7 @@ export default function IncidentTelemetryPage() {
           <AgentRunSummary
             incident={incidentQuery.data}
             summary={telemetryQuery.data.summary}
-            businessEventCount={eventsQuery.data?.length ?? 0}
+            businessEventCount={businessEventCount}
           />
 
           <div className="telemetry-notice-card">
@@ -177,7 +217,29 @@ export default function IncidentTelemetryPage() {
             </ul>
           </div>
 
-          <IncidentTelemetryTimeline items={telemetryQuery.data.items} />
+          {isEmpty ? (
+            <div className="telemetry-empty-state">
+              <h2 className="section-heading">No Prompt Traces Recorded</h2>
+              <p className="telemetry-empty-state-copy">
+                App Insights returned zero backend-visible Foundry prompt traces for this incident, so there is no telemetry timeline to render.
+              </p>
+              <div className="telemetry-empty-state-meta">
+                <span>Status: {incidentQuery.data?.status ?? "unknown"}</span>
+                <span>Business events: {businessEventCount}</span>
+                <span>Last trace: none recorded</span>
+              </div>
+              <ul className="telemetry-limitations telemetry-limitations--compact">
+                {emptyHints.map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <IncidentTelemetryTimeline items={telemetryQuery.data.items} />
+          )}
+              </>
+            );
+          })()}
         </>
       )}
     </div>

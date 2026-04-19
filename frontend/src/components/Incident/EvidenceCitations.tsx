@@ -1,9 +1,11 @@
 import type { EvidenceCitation as Citation } from "../../types/incident";
 import {
   getCitationHref,
+  getCitationLinkLabel,
   getCitationSection,
   getCitationText,
   getCitationTitle,
+  isCitationResolved,
   labelize,
 } from "../../utils/analysis";
 
@@ -31,6 +33,8 @@ export default function EvidenceCitations({ citations }: Props) {
           const section = getCitationSection(c);
           const text = getCitationText(c);
           const href = getCitationHref(c);
+          const linkLabel = getCitationLinkLabel(c);
+          const resolved = isCitationResolved(c);
           return (
             <li key={i} className="evidence-item evidence-card">
               <span className="evidence-icon">{TYPE_LABELS[c.type ?? ""] ?? "Doc"}</span>
@@ -40,9 +44,10 @@ export default function EvidenceCitations({ citations }: Props) {
                   {section ? ` ${section}` : ""}
                 </div>
                 <div className="evidence-meta">
-                  {labelize(c.type || c.source || "document")}
+                  {resolved ? labelize(c.type || c.source || "document") : "Unresolved evidence"}
                   {typeof c.score === "number" ? ` | score ${c.score.toFixed(2)}` : ""}
                   {c.source_blob ? ` | ${c.source_blob}` : ""}
+                  {c.unresolved_reason ? ` | ${c.unresolved_reason}` : ""}
                 </div>
                 {text && <blockquote className="evidence-quote">{text}</blockquote>}
                 {href && (
@@ -52,7 +57,7 @@ export default function EvidenceCitations({ citations }: Props) {
                     target="_blank"
                     rel="noreferrer"
                   >
-                    Open document
+                    {linkLabel}
                   </a>
                 )}
               </div>

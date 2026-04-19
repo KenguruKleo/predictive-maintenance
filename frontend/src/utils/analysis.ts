@@ -57,27 +57,17 @@ export function getCapaActions(analysis?: AiAnalysis): string[] {
 
 export function getAllCitations(analysis?: AiAnalysis): EvidenceCitation[] {
   if (!analysis) return [];
-  const citations: EvidenceCitation[] = [];
-  const push = (item: EvidenceCitation | string, type?: EvidenceCitation["type"]) => {
-    if (typeof item === "string") {
-      citations.push({ type, reference: item, document_title: item });
-    } else {
-      citations.push(type && !item.type ? { ...item, type } : item);
-    }
-  };
-
-  (analysis.evidence_citations ?? []).forEach((c) => push(c));
-  (analysis.sop_refs ?? []).forEach((c) => push(c, "sop"));
-  (analysis.regulatory_refs ?? []).forEach((c) => push(c, "gmp"));
+  const citations = analysis.evidence_citations ?? [];
 
   const seen = new Set<string>();
   return citations.filter((c) => {
+    const primaryId =
+      c.document_id || c.source_blob || c.url || c.reference || c.source || c.document_title || "";
     const key = [
       c.type,
-      getCitationTitle(c),
+      primaryId,
       getCitationSection(c),
-      c.text_excerpt,
-      c.source_blob,
+      c.resolution_status,
     ].join("|");
     if (seen.has(key)) return false;
     seen.add(key);
@@ -86,6 +76,9 @@ export function getAllCitations(analysis?: AiAnalysis): EvidenceCitation[] {
 }
 
 export function getCitationTitle(citation: EvidenceCitation): string {
+  if (citation.resolution_status === "unresolved") {
+    return "Unresolved evidence";
+  }
   const known = inferKnownDocument(citation);
   if (known?.title) {
     return known.title;
@@ -93,10 +86,9 @@ export function getCitationTitle(citation: EvidenceCitation): string {
   return (
     citation.document_title ||
     citation.reference ||
-    (citation.type && citation.section ? `${citation.type.toUpperCase()} reference` : "") ||
     citation.source ||
     citation.document_id ||
-    "Evidence source"
+    "Document evidence"
   );
 }
 
@@ -105,10 +97,13 @@ export function getCitationSection(citation: EvidenceCitation): string {
 }
 
 export function getCitationText(citation: EvidenceCitation): string {
-  return citation.text_excerpt || citation.relevance || "";
+  return citation.text_excerpt || citation.unresolved_reason || citation.relevance || "";
 }
 
 export function getCitationHref(citation: EvidenceCitation): string {
+  if (citation.resolution_status === "unresolved") {
+    return "";
+  }
   if (citation.url) {
     if (citation.url.startsWith("http")) return citation.url;
     if (citation.url.startsWith("/api/")) {
@@ -124,6 +119,14 @@ export function getCitationHref(citation: EvidenceCitation): string {
     return `${API_BASE_URL}/documents/${known.container}/${encodeURI(known.sourceBlob)}`;
   }
   return "";
+}
+
+export function getCitationLinkLabel(citation: EvidenceCitation): string {
+  return citation.type === "historical" ? "Open incident" : "Open document";
+}
+
+export function isCitationResolved(citation: EvidenceCitation): boolean {
+  return citation.resolution_status !== "unresolved";
 }
 
 export function getParameterSummary(incident: Incident) {
