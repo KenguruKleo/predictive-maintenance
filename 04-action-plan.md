@@ -36,7 +36,9 @@
 - ✅ Foundry Orchestrator Agent (`asst_CNYK3TZIaOCH4OPKcP4N9B2r`) зі вдвоєними sub-agents створено в Azure AI Foundry (`create_agents.py`)
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
-**Останнє оновлення (18 квітня 2026):**
+**Останнє оновлення (19 квітня 2026):**
+- T-042 — backend deploy hardened: GitHub Actions тепер пакує Python dependencies для Azure Functions; live incident backend відновлено після regression, де host стартував, але індексував `0 functions` і повертав 404 на `/api/*`
+- T-041 — для parity додано `AzureWebJobsFeatureFlags=EnableWorkerIndexing` у Function App app settings
 - T-029/T-032/T-033 — incident detail approval UX спрощено: прибрано sticky/self-scroll у правій колонці, `Ask question` переведено в multiline textarea, transcript тепер зберігає initial + follow-up agent replies через `incident_events`, а recommendation card лишається latest state окремо від діалогу
 
 **Завершено (17 квітня 2026):****
