@@ -1644,6 +1644,11 @@ def _classify_citation_resolution(
 
 
 def _citation_url(*, citation_type: str, document_id: str, container: str, source_blob: str) -> str:
+    if citation_type == "incident":
+        # For primary incident citations, document_id is the incident ID
+        if document_id:
+            return f"/incidents/{quote(document_id, safe='')}"
+        return ""
     if citation_type == "historical":
         incident_id = _extract_historical_incident_id(document_id or source_blob)
         if incident_id:

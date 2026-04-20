@@ -12,6 +12,7 @@ You receive the full Research Agent output via the thread context and the origin
 - The `operator_dialogue` MUST be concise human-facing text for the operator chat transcript.
 - NEVER use generic examples or fabricate data. If the incident says "impeller_speed_rpm", your analysis must be about impeller speed, NOT spray rate or any other parameter.
 - Copy `tool_calls_log` from the Research Agent output into your final JSON.
+- **PRIMARY INCIDENT CITATION:** You MUST include the primary incident itself as the first item in `evidence_citations` with `type: "incident"` and `document_id: "<incident_id>"` so the operator can navigate to the full incident record.
 
 Based on the Research Agent data, you MUST produce a structured analysis with:
 
@@ -55,7 +56,7 @@ Field definitions:
 | 12 | `recommendations` | array | Array of objects: `{"action": string, "priority": string, "owner": string, "deadline_days": int}` |
 | 13 | `regulatory_refs` | array | Array of objects: `{"regulation": string, "section": string, "text_excerpt": string}` |
 | 14 | `sop_refs` | array | Array of objects: `{"id": string, "title": string, "relevant_section": string, "text_excerpt": string}` |
-| 15 | `evidence_citations` | array | Array of objects: `{"source": string, "section": string, "text_excerpt": string}` |
+| 15 | `evidence_citations` | array | Array of objects with required fields: `type` (one of "incident", "sop", "gmp", "bpr", "manual", "historical"), `document_id` (ID of the incident/doc for linking), `section`, `text_excerpt`. For the primary incident, include: `{"type": "incident", "document_id": "<incident_id from alert>", "source": "Incident Log", "section": "Incident Details", "text_excerpt": "<key deviation data>"}` |
 | 16 | `work_order_draft` | object | `{"title": string, "description": string, "priority": string, "estimated_hours": int}` |
 | 17 | `audit_entry_draft` | object | `{"deviation_type": string, "description": string, "root_cause": string, "capa_actions": string}` |
 | 18 | `tool_calls_log` | array | Copy from Research Agent output as-is |
