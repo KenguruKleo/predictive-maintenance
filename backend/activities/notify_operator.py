@@ -67,12 +67,22 @@ def notify_operator(input_data: dict) -> dict:
         "incidentId": incident_id,
         "type": notification_type,
         "targetRole": target_role,
+        "assignedTo": assigned_to if target_role == "operator" else target_role,
+        "incidentStatus": incident_status,
+        "equipmentId": equipment_id,
+        "batchId": batch_id,
+        "title": ai_result.get("title") or _fallback_title(ai_result),
         "message": _build_message(incident_id, ai_result, is_escalation),
         "aiAnalysis": ai_result.get("analysis", ""),
         "recommendations": ai_result.get("recommendations", []),
         "confidence": ai_result.get("confidence", 0.0),
+        "riskLevel": ai_result.get("risk_level", "unknown"),
         "status": "pending",
         "createdAt": now_iso,
+        "updatedAt": now_iso,
+        "isRead": False,
+        "readAt": None,
+        "readBy": None,
     }
 
     # Create/update the active HITL task for the React approval UX.
@@ -182,8 +192,10 @@ def notify_operator(input_data: dict) -> dict:
     # Push real-time notification via SignalR (T-030)
     signalr_event = "incident_escalated" if is_escalation else "incident_pending_approval"
     signalr_payload = {
+        "notification_id": notification["id"],
         "incident_id": incident_id,
         "equipment_id": equipment_id,
+        "title": notification["title"],
         "type": notification_type,
         "risk_level": ai_result.get("risk_level", "unknown"),
         "created_at": now_iso,

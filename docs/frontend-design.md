@@ -102,6 +102,12 @@
 ### AppShell — загальний layout
 
 ```
+
+**Header notification center:**
+- `🔔` badge показує кількість unread notifications для поточного користувача
+- клік відкриває dropdown тільки з unread items; кожен item веде в `/incidents/{id}`
+- після відкриття incident detail фронтенд викликає `POST /api/incidents/{id}/notifications/read`, і unread marker для цього incident зникає
+- browser/system notifications — optional enhancement: permission запитується тільки по user gesture з dropdown, а системний alert показується тільки коли tab hidden / unfocused
 ┌──────────────────────────────────────────────────────────────────────┐
 │ HEADER                                                                │
 │ 🛡️ Sentinel Intelligence    Plant-01 ▾     Ivan Petrenko [Operator]  │
@@ -190,6 +196,11 @@ INC-2026-0044                     17 Apr, 15:55
 - уникати emoji у статусах; вони рендеряться іншим font stack і візуально “ламають” рядок
 
 Клік на інцидент → відкриває Incident Card у main area.
+
+**Unread state для sidebar:**
+- якщо для incident існує хоча б одна unread notification, item отримує accent background + unread dot
+- bell badge count і sidebar highlight будуються з `GET /api/notifications/summary`, а не з localStorage
+- local cache допускається тільки як React Query cache; джерело правди — Cosmos `notifications`
 
 ---
 
@@ -661,15 +672,24 @@ React → `GET /api/negotiate` → отримує URL + accessToken → `@micros
 | SignalR Event | Payload | UI Reaction |
 |---|---|---|
 | `incident_created` | `{ incident_id, equipment_id, severity }` | Toast notification + new card in sidebar + new card in Operations |
-| `incident_pending_approval` | `{ incident_id, equipment_id, risk_level }` | Sidebar item → 🟠, Operations card → "ACTION REQUIRED" |
+| `incident_pending_approval` | `{ notification_id, incident_id, equipment_id, title, risk_level }` | Toast + bell unread badge increment + sidebar unread highlight + Operations card → "ACTION REQUIRED" |
 | `incident_status_changed` | `{ incident_id, old_status, new_status }` | Update sidebar + update Incident Card header |
 | `agent_step_completed` | `{ incident_id, step, result_summary }` | Update sidebar progress ("AI analyzing... step 3/4") |
-| `incident_escalated` | `{ incident_id, escalated_to, reason }` | Sidebar item → 🟡, toast for qa-manager |
+| `incident_escalated` | `{ notification_id, incident_id, escalated_to, reason }` | Sidebar item → 🟡, bell unread badge increment, toast for qa-manager |
 | `chat_response` | `{ incident_id, message, updated_analysis }` | Append to chat panel + refresh AI Analysis section |
 
 ### Reconnect
 - `withAutomaticReconnect([0, 2000, 5000, 10000, 30000])` — aggressive reconnect
 - На reconnect — refetch active incidents (stale data prevention)
+
+### Unread notification state
+
+- Backend API:
+   - `GET /api/notifications?status=unread&limit=8` — dropdown feed
+   - `GET /api/notifications/summary` — unread count + unread incident IDs
+   - `POST /api/incidents/{id}/notifications/read` — acknowledge all visible notifications for the incident
+- Read semantics: incident вважається "переглянутим" після відкриття detail page, не просто після відкриття dropdown
+- Browser alerts: `Notification.requestPermission()` викликається тільки по кліку користувача; після `granted` system notification показується лише коли document hidden/unfocused
 
 ---
 

@@ -241,6 +241,12 @@ README.md
 - [x] Missing local App Insights query dependency no longer prevents the whole Functions host from starting; `/api/incidents/{id}/agent-telemetry` now degrades locally instead of crashing host startup
 - [ ] Backend guardrail that guarantees mock auth is accepted only in local/development environments is still pending
 
+## Next notification coverage
+
+- [ ] Add a smoke flow for `incident_pending_approval` → bell badge increment → unread sidebar highlight
+- [ ] Add a smoke flow for dropdown click → incident detail route → unread marker cleared via `POST /api/incidents/{id}/notifications/read`
+- [ ] Decide whether browser/system notifications should be mocked or skipped in Playwright (recommended: skip system-level assertion, cover in manual browser check)
+
 ### Local backend startup note
 
 - Azure Functions Core Tools may prepend other workspace folders to `sys.path`; locally this caused `utils.auth` imports to resolve to `/workspace/nursefly-web/python/utils.py` and crash on `boto3`.

@@ -4,9 +4,27 @@ import Header from "./Header";
 import Sidebar from "./Sidebar";
 import AppFooter from "./AppFooter";
 import CommandPalette from "./CommandPalette";
+import ToastStack from "./ToastStack";
+import { useSignalR } from "../../hooks/useSignalR";
+import { useNotifications, useNotificationSummary } from "../../hooks/useNotifications";
 
 export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const {
+    connected,
+    toasts,
+    dismissToast,
+    browserPermission,
+    requestBrowserNotifications,
+  } = useSignalR();
+  const { data: notificationFeed, isLoading: notificationsLoading } = useNotifications({
+    status: "unread",
+    limit: 8,
+  });
+  const { data: notificationSummary } = useNotificationSummary();
+
+  const unreadCount = notificationSummary?.unread_count ?? notificationFeed?.unread_count ?? 0;
+  const unreadIncidentIds = notificationSummary?.unread_incident_ids ?? [];
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -21,14 +39,22 @@ export default function AppShell() {
 
   return (
     <div className="app-shell">
-      <Header onOpenPalette={() => setPaletteOpen(true)} />
+      <Header
+        onOpenPalette={() => setPaletteOpen(true)}
+        notifications={notificationFeed?.items ?? []}
+        unreadCount={unreadCount}
+        notificationsLoading={notificationsLoading}
+        browserNotificationPermission={browserPermission}
+        onRequestBrowserNotifications={requestBrowserNotifications}
+      />
       <div className="app-body">
-        <Sidebar />
+        <Sidebar unreadIncidentIds={unreadIncidentIds} />
         <main className="app-main">
           <Outlet />
         </main>
       </div>
-      <AppFooter />
+      <AppFooter connected={connected} />
+      <ToastStack toasts={toasts} onDismiss={dismissToast} />
       {paletteOpen && (
         <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       )}

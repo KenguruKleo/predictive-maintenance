@@ -14,6 +14,8 @@ Usage:
 
     roles = get_caller_roles(req)
     require_any_role(roles, ["Operator", "QAManager"])  # raises AuthError on 403
+
+    caller_id = get_caller_id(req)
 """
 
 import json
@@ -55,6 +57,7 @@ _VALID_ISSUERS = [
 JWKS_CACHE_TTL_SECONDS = 3600  # re-fetch JWKS once per hour
 
 USE_LOCAL_MOCK_AUTH = os.getenv("USE_LOCAL_MOCK_AUTH", "false").lower() == "true"
+_DEMO_USER_ID = "ivan.petrenko"
 
 # ---------------------------------------------------------------------------
 # JWKS in-process cache (survives across warm invocations)
@@ -108,7 +111,29 @@ def get_caller_roles(req: func.HttpRequest) -> list[str]:
         return []
 
     token = auth_header[len("Bearer "):]
-    return _verify_and_decode_roles(token)
+    payload = _verify_and_decode_payload(token)
+    return [str(role) for role in payload.get("roles", []) if str(role).strip()]
+
+
+def get_caller_id(req: func.HttpRequest) -> str:
+    """Return the best available caller identifier for role-scoped data filters."""
+    if USE_LOCAL_MOCK_AUTH:
+        caller_id = req.headers.get("X-Mock-User-Id", "").strip() or req.headers.get("X-Mock-User", "").strip()
+        if caller_id:
+            return caller_id
+        return _DEMO_USER_ID if get_caller_roles(req) else ""
+
+    auth_header = req.headers.get("Authorization", "")
+    if not auth_header.startswith("Bearer "):
+        return ""
+
+    token = auth_header[len("Bearer "):]
+    payload = _verify_and_decode_payload(token)
+    for claim_name in ("preferred_username", "upn", "oid", "sub"):
+        claim_value = str(payload.get(claim_name) or "").strip()
+        if claim_value:
+            return claim_value
+    return ""
 
 
 def require_any_role(roles: list[str], allowed: list[str]) -> None:
@@ -135,10 +160,10 @@ def get_primary_role(roles: list[str]) -> str:
 # Internal — JWT signature verification
 # ---------------------------------------------------------------------------
 
-def _verify_and_decode_roles(token: str) -> list[str]:
+def _verify_and_decode_payload(token: str) -> dict:
     """
     Fully verify the JWT: signature (RS256 via JWKS), audience, issuer, expiry.
-    Returns the 'roles' list from the payload on success.
+    Returns the decoded payload on success.
     Raises AuthError(401) on any validation failure.
     """
     try:
@@ -165,7 +190,7 @@ def _verify_and_decode_roles(token: str) -> list[str]:
         raise AuthError(401, "Unknown token signing key")
 
     try:
-        payload = jwt.decode(
+        return jwt.decode(
             token,
             public_key,
             algorithms=["RS256"],
@@ -173,7 +198,6 @@ def _verify_and_decode_roles(token: str) -> list[str]:
             issuer=_VALID_ISSUERS,
             options={"verify_iss": True, "require": ["exp", "aud"]},
         )
-        return payload.get("roles", [])
 
     except jwt.ExpiredSignatureError:
         raise AuthError(401, "Token expired")

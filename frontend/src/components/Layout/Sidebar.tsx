@@ -8,6 +8,103 @@ const MIN_WIDTH = 180;
 const MAX_WIDTH = 420;
 const DEFAULT_WIDTH = 240;
 
+type NavIconProps = React.SVGProps<SVGSVGElement>;
+
+function OperationsIcon(props: NavIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="4" y="4" width="16" height="16" rx="2.5" />
+      <path d="M9 8.5h6" />
+      <path d="M9 12h6" />
+      <path d="M9 15.5h4" />
+      <circle cx="7" cy="8.5" r="0.85" fill="currentColor" stroke="none" />
+      <circle cx="7" cy="12" r="0.85" fill="currentColor" stroke="none" />
+      <circle cx="7" cy="15.5" r="0.85" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function HistoryAuditIcon(props: NavIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M4 9V7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
+      <path d="M4 9h16" />
+      <path d="M8.5 13h7" />
+      <path d="M8.5 16.5h4.5" />
+    </svg>
+  );
+}
+
+function ManagerDashboardIcon(props: NavIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <rect x="4" y="4" width="16" height="16" rx="2.5" />
+      <path d="M8 15.5V11" />
+      <path d="M12 15.5V8" />
+      <path d="M16 15.5V13" />
+      <path d="M7 18h10" />
+    </svg>
+  );
+}
+
+function TelemetryIcon(props: NavIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M5 15a7 7 0 0 1 14 0" />
+      <path d="M12 15l3.5-3.5" />
+      <path d="M8 18.5h8" />
+      <circle cx="12" cy="15" r="1.25" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+function TemplatesIcon(props: NavIconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M8 4.5h6l3 3V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z" />
+      <path d="M14 4.5v4h4" />
+      <path d="M9 11h6" />
+      <path d="M9 14.5h6" />
+      <path d="M9 18h4" />
+    </svg>
+  );
+}
+
 function useSidebarResize() {
   const [width, setWidth] = useState<number>(() => {
     const saved = localStorage.getItem("sidebar-width");
@@ -55,13 +152,13 @@ const NAV_GROUPS = [
       {
         to: "/",
         label: "Operations",
-        icon: "📋",
+        icon: OperationsIcon,
         roles: ["operator", "qa-manager", "it-admin"],
       },
       {
         to: "/history",
         label: "History & Audit",
-        icon: "📂",
+        icon: HistoryAuditIcon,
         roles: ["*"],
       },
     ],
@@ -72,26 +169,30 @@ const NAV_GROUPS = [
       {
         to: "/manager",
         label: "Manager Dashboard",
-        icon: "📊",
+        icon: ManagerDashboardIcon,
         roles: ["qa-manager", "it-admin"],
       },
       {
         to: "/telemetry",
         label: "Telemetry",
-        icon: "🧭",
+        icon: TelemetryIcon,
         roles: ["qa-manager", "auditor", "it-admin"],
       },
       {
         to: "/templates",
         label: "Templates",
-        icon: "📄",
+        icon: TemplatesIcon,
         roles: ["it-admin"],
       },
     ],
   },
 ] as const;
 
-export default function Sidebar() {
+interface Props {
+  unreadIncidentIds?: string[];
+}
+
+export default function Sidebar({ unreadIncidentIds = [] }: Props) {
   const { roles } = useAuth();
   const { dragging, onMouseDown } = useSidebarResize();
 
@@ -142,19 +243,25 @@ export default function Sidebar() {
           return (
             <div key={group.label} className="sidebar-nav-group">
               <div className="sidebar-nav-group-label">{group.label}</div>
-              {visibleItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.to === "/"}
-                  className={({ isActive }) =>
-                    `sidebar-nav-item ${isActive ? "active" : ""}`
-                  }
-                >
-                  <span className="sidebar-nav-icon">{item.icon}</span>
-                  {item.label}
-                </NavLink>
-              ))}
+              {visibleItems.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.to === "/"}
+                    className={({ isActive }) =>
+                      `sidebar-nav-item ${isActive ? "active" : ""}`
+                    }
+                  >
+                    <span className="sidebar-nav-icon" aria-hidden="true">
+                      <Icon aria-hidden="true" focusable="false" />
+                    </span>
+                    <span className="sidebar-nav-label">{item.label}</span>
+                  </NavLink>
+                );
+              })}
             </div>
           );
         })}
@@ -170,7 +277,11 @@ export default function Sidebar() {
           <div className="sidebar-empty">No active incidents</div>
         )}
         {activeIncidents.map((inc) => (
-          <ActiveIncidentItem key={inc.id} incident={inc} />
+          <ActiveIncidentItem
+            key={inc.id}
+            incident={inc}
+            isUnread={unreadIncidentIds.includes(inc.id)}
+          />
         ))}
         {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} style={{ height: 1 }} />

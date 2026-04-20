@@ -107,6 +107,11 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 - [x] Latest recommendation card stays separate from the transcript, while operator questions and agent replies remain visible as chronological dialog bubbles
 - [x] `npm run lint` and `npm run build` pass in `frontend/`
 
+## Progress (20 квітня 2026)
+
+- [x] Opening the incident detail page now acknowledges the incident's unread notifications for operator / QA-manager flows
+- [x] Approval UX is now tied to the notification center flow: bell/dropdown item opens the incident detail, then clears the unread marker after the page is opened
+
 ---
 
 ## Definition of Done
@@ -118,3 +123,4 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 - [ ] LOW_CONFIDENCE banner shown when confidence < 0.7
 - [ ] Panel hidden for closed/rejected incidents
 - [ ] Non-operator roles see read-only decision package (no action buttons)
+- [x] Notification-center click path lands in the same approval surface and clears unread state for that incident

@@ -1,8 +1,10 @@
-import { useSignalR } from "../../hooks/useSignalR";
 import { useInfiniteActiveIncidents } from "../../hooks/useIncidents";
 
-export default function AppFooter() {
-  const { connected } = useSignalR();
+interface Props {
+  connected: boolean;
+}
+
+export default function AppFooter({ connected }: Props) {
   const { data } = useInfiniteActiveIncidents(1);
   const total = data?.pages[0]?.total ?? null;
 

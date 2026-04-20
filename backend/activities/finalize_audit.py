@@ -12,7 +12,9 @@ from datetime import datetime, timezone
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
+from shared.history_index import sync_historical_incident
 from shared.incident_store import patch_incident_by_id
+from shared.incident_store import get_incident_by_id
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +47,18 @@ def finalize_audit(input_data: dict) -> dict:
             {"op": "set", "path": "/finalDecision", "value": decision},
         ],
     )
+
+    try:
+        updated_incident = get_incident_by_id(db, incident_id)
+        sync_result = sync_historical_incident(updated_incident)
+        logger.info("Incident %s history index sync result: %s", incident_id, sync_result)
+    except Exception as exc:  # noqa: BLE001
+        logger.error(
+            "Failed to sync incident %s to history index: %s",
+            incident_id,
+            exc,
+            exc_info=True,
+        )
 
     # Write final audit record to incident_events
     events = db.get_container_client("incident_events")

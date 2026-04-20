@@ -37,7 +37,7 @@
 
 [02:30–04:00]  LIVE DEMO — робочий додаток (← working implementation)
                Реальний flow: SCADA signal → agents → decision package
-               → human approval → audit trail
+               → notification bell/unread highlight → human approval → audit trail
                Один конкретний сценарій: Granulator GR-204, vibration spike
 
 [04:00–04:30]  ARCHITECTURE SLIDE — один слайд (← T-001)
@@ -97,7 +97,11 @@ We built Sentinel Intelligence to change that."
 [02:30–04:00] LIVE DEMO
 Narrator: "Let me show you how it works.
 A vibration spike on Granulator GR-204 triggers our system...
-[demo narration — TBD after implementation]"
+[demo narration — TBD after implementation]
+Notice the notification bell in the header: the operator gets a real-time alert,
+the unread counter increments, and the new incident is highlighted in the left rail.
+Opening the incident takes the operator directly into the approval package and
+clears the unread marker once the package is viewed."
 
 [04:00–04:30] ARCHITECTURE
 Narrator: "Built on Track A — GitHub, Azure, and Azure AI Foundry.

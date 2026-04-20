@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-032 (React frontend core — incident detail/timeline) · T-033 (Approval UX — static rail + dialog transcript) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-043 (Agent telemetry admin delivery — App Insights traces → admin API/UI slice) · T-044 (Local Playwright E2E — auth bypass + smoke setup)
+**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-030 (SignalR extension — notification center + unread state + browser alerts) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + mark-read on detail open) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-043 (Agent telemetry admin delivery — App Insights traces → admin API/UI slice) · T-044 (Local Playwright E2E — auth bypass + smoke setup + notifications flow)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -36,7 +36,9 @@
 - ✅ Foundry Orchestrator Agent (`asst_CNYK3TZIaOCH4OPKcP4N9B2r`) зі вдвоєними sub-agents створено в Azure AI Foundry (`create_agents.py`)
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
-**Останнє оновлення (19 квітня 2026):**
+**Останнє оновлення (19-20 квітня 2026):**
+- T-030/T-032/T-033 — notification UX implementation started: backend now exposes Cosmos-backed unread notification APIs (`GET /api/notifications`, `GET /api/notifications/summary`, `POST /api/incidents/{id}/notifications/read`), SignalR payloads include stable notification IDs, frontend renders a header bell with unread badge/dropdown, live toast stack, browser-alert opt-in, unread highlight in the left incident rail, and marks incident notifications as read when the detail page opens
+- T-045 — live `idx-incident-history` was manually rebuilt from approved closed Cosmos incidents (`INC-2026-0005`, `INC-2026-0006`, `INC-2026-0013`), and the same historical query now returns hits through both `search_utils.search_index()` and the deployed `mcp-search` REST endpoint; backend auto-sync-on-close was also implemented in `finalize_audit` and deployed, but full end-to-end live proof is currently blocked by a separate Durable approval issue (`INC-2026-0019` reached `pending_approval`, while `/decision` reported `No active orchestrator found`)
 - T-045 — first implementation slice shipped for evidence/document quality: frontend incident detail now renders only normalized `evidence_citations`, backend normalization adds canonical dedupe, resolved/unresolved citation state, contextful excerpt backfill, and historical incident deep links, while `documents_from_incidents()` now indexes only approved closed/completed precedents; focused pytest coverage and frontend production build passed
 - T-045 — created a follow-up backlog task for evidence/document quality after reviewing `INC-2026-0013`: make `evidence_citations` the only UI source of truth, enforce a strict backend citation contract, dedupe by canonical document identity, improve excerpt quality, and fix historical incident evidence/link semantics without editing legacy test data
 - T-044 — local backend startup for E2E was hardened: `backend/function_app.py` now forces the repo backend path ahead of unrelated workspace paths so `utils.auth` no longer resolves to a foreign `utils.py`, and `http_agent_telemetry` now lazy-loads App Insights query dependencies so a missing local `azure.monitor.query` package degrades only that admin endpoint instead of crashing the whole Functions host
@@ -99,7 +101,7 @@
 |---|---|---|---|---|---|
 | T-010 | **[Cartoon / анімація «До і Після»](./tasks/T-010-cartoon-animation.md)** | Deliverables | 🟠 HIGH | 🔜 TODO | T-002 |
 | T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
-| T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
+| T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service + unread notification center contract | Gap #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
 | T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
 | T-044 | **[Local Playwright E2E mode](./tasks/T-044-playwright-local-e2e.md)** — dev-only auth mode + local backend proxy + smoke tests без Entra login | Quality / DX | 🟠 HIGH | 🟡 IN PROGRESS | — |

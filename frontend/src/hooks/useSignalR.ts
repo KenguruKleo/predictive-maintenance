@@ -7,6 +7,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE_URL } from "../authConfig";
 import { IS_E2E_AUTH } from "../authRuntime";
+import type { BrowserNotificationPermission } from "../types/notification";
 
 export interface Toast {
   id: string;
@@ -15,10 +16,18 @@ export interface Toast {
   timestamp: number;
 }
 
+function getBrowserNotificationPermission(): BrowserNotificationPermission {
+  if (typeof window === "undefined" || !("Notification" in window)) {
+    return "unsupported";
+  }
+  return Notification.permission;
+}
+
 export function useSignalR() {
   const connectionRef = useRef<HubConnection | null>(null);
   const [connected, setConnected] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [browserPermission, setBrowserPermission] = useState<BrowserNotificationPermission>(() => getBrowserNotificationPermission());
   const queryClient = useQueryClient();
 
   const addToast = useCallback(
@@ -44,14 +53,60 @@ export function useSignalR() {
   const invalidateLiveIncidentViews = useCallback((incidentId?: string) => {
     queryClient.invalidateQueries({ queryKey: ["incidents"] });
     queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    queryClient.invalidateQueries({ queryKey: ["notifications-summary"] });
     if (incidentId) {
       queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incident-events", incidentId] });
     }
   }, [queryClient]);
 
+  const requestBrowserNotifications = useCallback(async (): Promise<BrowserNotificationPermission> => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return "unsupported";
+    }
+
+    const permission = await Notification.requestPermission();
+    setBrowserPermission(permission);
+    return permission;
+  }, []);
+
+  const maybeShowBrowserNotification = useCallback(
+    (title: string, body: string, tag: string, incidentId?: string) => {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        return;
+      }
+      if (Notification.permission !== "granted") {
+        return;
+      }
+      if (document.visibilityState === "visible" && document.hasFocus()) {
+        return;
+      }
+
+      try {
+        const notification = new Notification(title, {
+          body,
+          tag,
+        });
+        notification.onclick = () => {
+          window.focus();
+          if (incidentId) {
+            window.location.assign(`/incidents/${encodeURIComponent(incidentId)}`);
+          }
+          notification.close();
+        };
+        window.setTimeout(() => notification.close(), 8000);
+      } catch {
+        // Browser notifications are optional enhancement only.
+      }
+    },
+    [],
+  );
+
   useEffect(() => {
     if (IS_E2E_AUTH) return;
+
+    setBrowserPermission(getBrowserNotificationPermission());
 
     let cancelled = false;
 
@@ -73,11 +128,23 @@ export function useSignalR() {
             `New incident: ${payload.equipment_id} — ${payload.severity}`,
             "warning",
           );
+          maybeShowBrowserNotification(
+            `New incident: ${payload.equipment_id}`,
+            `${payload.severity} incident requires review.`,
+            payload.notification_id ?? payload.incident_id,
+            payload.incident_id,
+          );
         });
 
         connection.on("incident_pending_approval", (payload) => {
           invalidateLiveIncidentViews(payload.incident_id);
           addToast(`Incident ready for review: ${payload.equipment_id}`, "info");
+          maybeShowBrowserNotification(
+            `Decision package ready: ${payload.equipment_id}`,
+            payload.title ?? `Incident ${payload.incident_id} is awaiting review.`,
+            payload.notification_id ?? payload.incident_id,
+            payload.incident_id,
+          );
         });
 
         connection.on("incident_status_changed", (payload) => {
@@ -93,6 +160,12 @@ export function useSignalR() {
           addToast(
             `Incident escalated: ${payload.incident_id}`,
             "error",
+          );
+          maybeShowBrowserNotification(
+            `Incident escalated: ${payload.incident_id}`,
+            "QA manager attention required.",
+            payload.notification_id ?? payload.incident_id,
+            payload.incident_id,
           );
         });
 
@@ -128,7 +201,13 @@ export function useSignalR() {
       cancelled = true;
       connectionRef.current?.stop();
     };
-  }, [queryClient, addToast, invalidateLiveIncidentViews]);
+  }, [queryClient, addToast, invalidateLiveIncidentViews, maybeShowBrowserNotification]);
 
-  return { connected, toasts, dismissToast };
+  return {
+    connected,
+    toasts,
+    dismissToast,
+    browserPermission,
+    requestBrowserNotifications,
+  };
 }

@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
+**Статус:** 🟡 IN PROGRESS  
 **Блокує:** T-033 (real-time UX)  
 **Залежить від:** T-031 (backend API)
 
@@ -11,7 +11,7 @@
 
 ## Мета
 
-Azure SignalR Service для real-time push notifications до React UI (оператор бачить новий incident без refresh).
+Azure SignalR Service для real-time push notifications до React UI: оператор бачить новий incident без refresh, header bell показує unread count, а browser/system alerts працюють як progressive enhancement після дозволу користувача.
 
 ---
 
@@ -28,10 +28,10 @@ Groups (підписки):
 - incident:{id}      → incident_status_changed, agent_step_completed
 
 Events (server → client):
-- "incident_pending_approval"  payload: { incident_id, equipment_id, risk_level, created_at }
+- "incident_pending_approval"  payload: { notification_id, incident_id, equipment_id, title, risk_level, created_at }
 - "incident_status_changed"    payload: { incident_id, old_status, new_status, timestamp }
 - "agent_step_completed"       payload: { incident_id, step, result_summary }
-- "incident_escalated"         payload: { incident_id, escalated_to, reason }
+- "incident_escalated"         payload: { notification_id, incident_id, escalated_to, reason }
 ```
 
 ---
@@ -41,9 +41,28 @@ Events (server → client):
 ```
 GET /api/negotiate       → returns { url, accessToken } for React client
 POST /api/notify         → internal (called by Durable activities, not public)
+GET /api/notifications   → unread notification dropdown feed for current caller
+GET /api/notifications/summary → unread count + incident IDs for sidebar highlight
+POST /api/incidents/{id}/notifications/read → mark all visible incident notifications as read
 ```
 
 ---
+
+## Notification UX contract
+
+- SignalR remains the live invalidation/push channel; Cosmos `notifications` is the source of truth for unread/read state.
+- Header bell dropdown reads unread items from `GET /api/notifications?status=unread`.
+- Sidebar highlighting is driven by `GET /api/notifications/summary` unread incident IDs.
+- Opening `/incidents/{id}` triggers `POST /api/incidents/{id}/notifications/read` and clears the unread marker for that incident.
+- Browser/system notifications are optional enhancement only: request permission from a user gesture, then show alerts only when the tab is hidden or unfocused.
+
+## Progress (20 квітня 2026)
+
+- [x] Notification documents now persist read-state fields (`isRead`, `readAt`, `readBy`) in Cosmos
+- [x] SignalR approval payloads now include `notification_id` and `title` for frontend reconciliation / browser alerts
+- [x] Backend unread APIs implemented for feed, summary, and incident-level mark-read
+- [x] Frontend hook invalidates notification queries on live SignalR events
+- [x] Browser alert opt-in added as progressive enhancement from the notification bell dropdown
 
 ## negotiate Function
 
@@ -109,3 +128,7 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 - [x] React `useSignalR` hook connects successfully
 - [x] Toast notification appears in UI when new incident created (test: POST /api/alerts)
 - [x] Incident list updates automatically when status changes (no page refresh needed)
+- [x] Header bell shows unread count and unread dropdown items from backend notification feed
+- [x] Sidebar highlights incidents with unread notifications
+- [x] Opening incident detail marks the related incident notifications as read
+- [ ] Browser/system notifications verified manually in a secure context with permission granted

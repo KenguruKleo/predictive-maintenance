@@ -3,12 +3,26 @@ import { Link } from "react-router-dom";
 import { APP_ROLE_OPTIONS, IS_E2E_AUTH, setE2EPrimaryRole } from "../../authRuntime";
 import type { AppRole } from "../../authRuntime";
 import { useAuth } from "../../hooks/useAuth";
+import type { BrowserNotificationPermission, NotificationItem } from "../../types/notification";
+import NotificationCenter from "./NotificationCenter";
 
 interface Props {
   onOpenPalette?: () => void;
+  notifications: NotificationItem[];
+  unreadCount: number;
+  notificationsLoading?: boolean;
+  browserNotificationPermission: BrowserNotificationPermission;
+  onRequestBrowserNotifications?: () => Promise<BrowserNotificationPermission>;
 }
 
-export default function Header({ onOpenPalette }: Props) {
+export default function Header({
+  onOpenPalette,
+  notifications,
+  unreadCount,
+  notificationsLoading,
+  browserNotificationPermission,
+  onRequestBrowserNotifications,
+}: Props) {
   const { displayName, roles, logout } = useAuth();
 
   const handleRolePreviewChange = (event: ChangeEvent<HTMLSelectElement>) => {
@@ -46,6 +60,13 @@ export default function Header({ onOpenPalette }: Props) {
             </select>
           </label>
         ) : null}
+        <NotificationCenter
+          notifications={notifications}
+          unreadCount={unreadCount}
+          isLoading={notificationsLoading}
+          browserNotificationPermission={browserNotificationPermission}
+          onRequestBrowserNotifications={onRequestBrowserNotifications}
+        />
         <span className="user-name">{displayName}</span>
         {roles.map((role) => (
           <span key={role} className="role-badge">

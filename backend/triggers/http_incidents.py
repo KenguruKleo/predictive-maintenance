@@ -16,7 +16,7 @@ from urllib.parse import parse_qs, urlparse
 import azure.functions as func
 
 from shared.cosmos_client import get_container
-from utils.auth import AuthError, get_caller_roles, get_primary_role, require_any_role
+from utils.auth import AuthError, get_caller_id, get_caller_roles, get_primary_role, require_any_role
 
 logger = logging.getLogger(__name__)
 
@@ -227,23 +227,6 @@ def _slim_incident(doc: dict) -> dict:
         "assigned_to": wf.get("assigned_to"),
         "current_step": wf.get("current_step"),
     }
-
-
-def _get_caller_id(req: func.HttpRequest) -> str:
-    """Extract caller identity, preserving local mock auth fallback behavior."""
-    caller_id = req.headers.get("X-Mock-User-Id", "").strip() or req.headers.get("X-Mock-User", "").strip()
-    if caller_id:
-        return caller_id
-
-    roles = get_caller_roles(req)
-    if roles:
-        return _DEMO_USER_ID
-
-    return ""
-
-
-# Fallback demo user ID for operator filter when running without auth
-_DEMO_USER_ID = "ivan.petrenko"
 
 
 def _json(data) -> func.HttpResponse:

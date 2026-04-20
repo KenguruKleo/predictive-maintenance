@@ -50,6 +50,10 @@ from openai import AzureOpenAI
 # ---------------------------------------------------------------------------
 
 ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(ROOT / "backend"))
+
+from shared.history_index import build_history_source_documents
+from shared.history_index import is_historical_incident_eligible
 
 SEARCH_ENDPOINT = os.getenv(
     "AZURE_SEARCH_ENDPOINT",
@@ -312,45 +316,12 @@ def documents_from_incidents(cosmos_client: CosmosClient) -> list[dict]:
     """
     db = cosmos_client.get_database_client(COSMOS_DB)
     container = db.get_container_client("incidents")
-    approved_closed = [
-        i for i in container.read_all_items()
-        if _is_valid_historical_incident(i)
-    ]
-
-    docs = []
-    for inc in approved_closed:
-        ai = inc.get("ai_analysis", {})
-        text = f"""Incident ID: {inc.get('id')}
-Equipment: {inc.get('equipment_id')} — {inc.get('title', '')}
-Status: {inc.get('status')} | Severity: {inc.get('severity')} | Date: {inc.get('reported_at', '')[:10]}
-Deviation type: {inc.get('deviation_type')}
-Description: {inc.get('description', '')}
-Root cause: {ai.get('root_cause_hypothesis', '')}
-Classification: {ai.get('classification', '')}
-Risk level: {ai.get('risk_level', '')}
-Recommendation: {ai.get('recommendation', '')}
-CAPA: {ai.get('capa_suggestion', '')}
-Regulatory reference: {ai.get('regulatory_reference', '')}
-Batch disposition: {ai.get('batch_disposition', '')}
-"""
-        docs.append({"filename": f"{inc['id']}.txt", "text": text.strip()})
-
-    return docs
+    approved_closed = [i for i in container.read_all_items() if _is_valid_historical_incident(i)]
+    return build_history_source_documents(approved_closed)
 
 
 def _is_valid_historical_incident(incident: dict) -> bool:
-    status = str(incident.get("status") or "").strip().lower()
-    if status not in {"closed", "completed"}:
-        return False
-
-    if incident.get("approvedAt") or incident.get("approvedBy") or incident.get("approved_by"):
-        return True
-
-    final_decision = incident.get("finalDecision")
-    if isinstance(final_decision, dict) and str(final_decision.get("action") or "").lower() == "approved":
-        return True
-
-    return False
+    return is_historical_incident_eligible(incident)
 
 
 # ---------------------------------------------------------------------------
@@ -434,15 +405,16 @@ def process_index(
         filename = doc["filename"]
         text = doc["text"]
         doc_id = extract_document_id(filename)
-        equipment_ids = extract_equipment_ids(text)
+        equipment_ids = doc.get("equipment_ids") or extract_equipment_ids(text)
 
         # Derive title from first non-empty heading or filename
-        title = doc_id
-        for line in text.split("\n"):
-            line = line.strip().lstrip("#").strip()
-            if line:
-                title = line[:120]
-                break
+        title = doc.get("document_title") or doc_id
+        if not doc.get("document_title"):
+            for line in text.split("\n"):
+                line = line.strip().lstrip("#").strip()
+                if line:
+                    title = line[:120]
+                    break
 
         chunks = chunk_text(text, chunking_strategy)
         print(f"  {filename}: {len(chunks)} chunk(s)")

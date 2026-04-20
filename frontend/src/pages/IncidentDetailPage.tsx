@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
+import { useMarkIncidentNotificationsRead } from "../hooks/useNotifications";
 import IncidentInfo from "../components/Incident/IncidentInfo";
 import ParameterExcursion from "../components/Incident/ParameterExcursion";
 import DecisionPackage from "../components/Incident/DecisionPackage";
@@ -18,6 +20,18 @@ export default function IncidentDetailPage() {
   const { data: events = [], error: eventsError } = useIncidentEvents(id!);
   if (eventsError) console.warn("[EventTimeline] events fetch failed:", eventsError);
   const { hasAnyRole } = useAuth();
+  const { mutate: markIncidentNotificationsRead } = useMarkIncidentNotificationsRead();
+  const acknowledgedIncidentIdsRef = useRef<Set<string>>(new Set());
+
+  const canAcknowledgeNotifications = hasAnyRole("operator", "qa-manager");
+
+  useEffect(() => {
+    if (!id || !canAcknowledgeNotifications) return;
+    if (acknowledgedIncidentIdsRef.current.has(id)) return;
+
+    acknowledgedIncidentIdsRef.current.add(id);
+    markIncidentNotificationsRead(id);
+  }, [id, canAcknowledgeNotifications, markIncidentNotificationsRead]);
 
   if (isLoading) return <div className="loading">Loading incident...</div>;
   if (error || !incident)

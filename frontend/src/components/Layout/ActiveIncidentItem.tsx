@@ -4,6 +4,7 @@ import StatusBadge from "../IncidentList/StatusBadge";
 
 interface Props {
   incident: Incident;
+  isUnread?: boolean;
 }
 
 function formatSidebarDate(dateStr?: string): string {
@@ -17,7 +18,7 @@ function formatSidebarDate(dateStr?: string): string {
   return `${day} ${mon}, ${hh}:${mm}`;
 }
 
-export default function ActiveIncidentItem({ incident }: Props) {
+export default function ActiveIncidentItem({ incident, isUnread = false }: Props) {
   const { id } = useParams();
   const isActive = id === incident.id;
   // Removed unused cfg and step variables after UI deduplication
@@ -27,11 +28,14 @@ export default function ActiveIncidentItem({ incident }: Props) {
   return (
     <Link
       to={`/incidents/${incident.id}`}
-      className={`sidebar-incident-item ${isActive ? "active" : ""}`}
+      className={`sidebar-incident-item ${isActive ? "active" : ""} ${isUnread ? "sidebar-incident-item--unread" : ""}`}
     >
       <div className="sidebar-incident-header">
-        <span className="sidebar-incident-number">
+        <span className="sidebar-incident-number-wrap">
+          {isUnread && <span className="sidebar-incident-unread-dot" aria-hidden="true" />}
+          <span className="sidebar-incident-number">
           {incident.incident_number ?? incident.id?.slice(0, 12)}
+          </span>
         </span>
         {dateLabel && (
           <span className="sidebar-incident-date">{dateLabel}</span>

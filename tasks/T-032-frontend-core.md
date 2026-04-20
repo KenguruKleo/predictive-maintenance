@@ -11,7 +11,7 @@
 
 ## Мета
 
-React + Vite + TypeScript web app. Мінімальний working UI для demo: список інцидентів, детальний вигляд, статус timeline. Deploy на Azure Static Web Apps.
+React + Vite + TypeScript web app. Мінімальний working UI для demo: список інцидентів, notification bell, unread sidebar cues, toast stack, детальний вигляд, статус timeline. Deploy на Azure Static Web Apps.
 
 ---
 
@@ -120,6 +120,14 @@ frontend/
 - [x] Event-driven conversation metadata (`round`, `message_kind`) is available to the incident detail transcript UI
 - [x] `npm run lint` and `npm run build` pass in `frontend/`
 
+## Progress (20 квітня 2026)
+
+- [x] `AppShell` now owns a single shared SignalR connection and renders a visible toast stack for live updates
+- [x] Header notification bell implemented with unread badge and unread dropdown feed
+- [x] Sidebar items now show unread highlight/dot for incidents with unread notifications
+- [x] Incident detail page marks incident notifications as read on open for operator / QA manager flows
+- [x] `npm run build` passes with the notification center slice enabled
+
 ---
 
 ## Definition of Done
@@ -129,6 +137,9 @@ frontend/
 - [ ] Clicking incident → detail view з AI analysis, parameter excursion, evidence citations
 - [ ] Event timeline показує chronological audit log
 - [ ] SignalR connection встановлюється, real-time оновлення працюють
+- [x] Header bell показує unread count і unread dropdown без full refresh
+- [x] Toast notifications видимі в UI, а не тільки в hook state
+- [x] Left sidebar виділяє incidents з unread notifications
 - [ ] Azure Static Web App provisioned via `infra/modules/static-web-app.bicep` (додати до `infra/main.bicep`)
 - [x] `npm run build` успішно
 - [ ] Deploy на Azure Static Web Apps
