@@ -231,6 +231,52 @@ def test_normalize_evidence_citations_builds_historical_incident_link() -> None:
     assert citations[0]["resolution_status"] == "resolved"
 
 
+def test_normalize_evidence_citations_appends_historical_fallback_from_rag_context() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "source": "SOP-DEV-001",
+                    "section": "§4.2",
+                    "text_excerpt": "Immediate investigation is required.",
+                }
+            ]
+        },
+        {
+            "idx-sop-documents": [
+                {
+                    "document_id": "SOP-DEV-001",
+                    "document_title": "Deviation Management (SOP-DEV-001)",
+                    "source": "SOP-DEV-001-Deviation-Management.md",
+                    "chunk_index": 0,
+                    "text": "Immediate investigation is required for critical equipment deviations.",
+                    "score": 0.99,
+                }
+            ],
+            "idx-incident-history": [
+                {
+                    "document_id": "INC-2026-0006",
+                    "document_title": "Spray Rate Deviation on GR-204",
+                    "source": "INC-2026-0006.txt",
+                    "chunk_index": 0,
+                    "text": (
+                        "Incident ID: INC-2026-0006 Equipment: GR-204 Status: closed "
+                        "Root cause: flowmeter calibration drift. Recommendation: verify calibration and inspect tubing."
+                    ),
+                    "score": 0.88,
+                }
+            ],
+        },
+        current_incident_id="INC-2026-0022",
+    )
+
+    assert [citation["type"] for citation in citations] == ["sop", "historical"]
+    assert citations[1]["document_id"] == "INC-2026-0006"
+    assert citations[1]["document_title"] == "Spray Rate Deviation on GR-204"
+    assert citations[1]["url"] == "/incidents/INC-2026-0006"
+    assert citations[1]["resolution_status"] == "resolved"
+
+
 def test_trace_enabled_reads_runtime_env(monkeypatch) -> None:
     monkeypatch.setenv("FOUNDRY_PROMPT_TRACE_ENABLED", "1")
     assert _trace_enabled() is True

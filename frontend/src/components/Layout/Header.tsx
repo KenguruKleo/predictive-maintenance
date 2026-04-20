@@ -14,6 +14,7 @@ interface Props {
   browserNotificationPermission: BrowserNotificationPermission;
   onRequestBrowserNotifications?: () => Promise<BrowserNotificationPermission>;
   onClearAllNotifications?: () => Promise<unknown>;
+  onNotificationClick?: (incidentId: string) => Promise<unknown>;
   clearAllNotificationsPending?: boolean;
 }
 
@@ -52,6 +53,7 @@ export default function Header({
   browserNotificationPermission,
   onRequestBrowserNotifications,
   onClearAllNotifications,
+  onNotificationClick,
   clearAllNotificationsPending = false,
 }: Props) {
   const { displayName, roles, logout } = useAuth();
@@ -181,6 +183,7 @@ export default function Header({
           browserNotificationPermission={browserNotificationPermission}
           onRequestBrowserNotifications={onRequestBrowserNotifications}
           onClearAllNotifications={onClearAllNotifications}
+          onNotificationClick={onNotificationClick}
           clearAllPending={clearAllNotificationsPending}
           dismissVersion={notificationDismissVersion}
           onOpen={handleNotificationCenterOpen}

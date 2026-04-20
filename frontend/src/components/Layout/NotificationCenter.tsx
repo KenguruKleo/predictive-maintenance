@@ -10,6 +10,7 @@ interface Props {
   browserNotificationPermission: BrowserNotificationPermission;
   onRequestBrowserNotifications?: () => Promise<BrowserNotificationPermission>;
   onClearAllNotifications?: () => Promise<unknown>;
+  onNotificationClick?: (incidentId: string) => Promise<unknown>;
   clearAllPending?: boolean;
   dismissVersion?: number;
   onOpen?: () => void;
@@ -82,6 +83,7 @@ export default function NotificationCenter({
   browserNotificationPermission,
   onRequestBrowserNotifications,
   onClearAllNotifications,
+  onNotificationClick,
   clearAllPending = false,
   dismissVersion = 0,
   onOpen,
@@ -129,6 +131,11 @@ export default function NotificationCenter({
       }
       return nextValue;
     });
+  };
+
+  const handleNotificationClick = (incidentId: string) => {
+    setOpen(false);
+    void onNotificationClick?.(incidentId);
   };
 
   return (
@@ -205,7 +212,7 @@ export default function NotificationCenter({
                   key={notification.id}
                   to={`/incidents/${encodeURIComponent(notification.incident_id)}`}
                   className={`notification-item notification-item--${presentationKind}`}
-                  onClick={() => setOpen(false)}
+                  onClick={() => handleNotificationClick(notification.incident_id)}
                 >
                   <div className="notification-item-header">
                     <span className="notification-item-title">

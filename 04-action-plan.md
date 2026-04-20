@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-029 (Human Approval — transcript events + /decision flow) · T-030 (SignalR extension — notification center + unread state + browser alerts) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + mark-read on detail open) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
+**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-030 (SignalR extension — notification center + unread state + browser alerts) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + mark-read on detail open) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -37,7 +37,7 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (19-20 квітня 2026):**
-- T-029 — `http_decision.py` hardened with RBAC (`Operator` / `QAManager`) and auth-backed caller identity, a focused pytest slice was added (`tests/test_http_decision.py`), and the change was deployed; live unauthorized smoke now returns `401 Authentication required`, while full bearer-token proof from the current CLI session is blocked by missing tenant consent for `api://38843d08-f211-4445-bcef-a07d383f2ee6/.default`
+- T-029 — `http_decision.py` hardened with RBAC (`Operator` / `QAManager`) and auth-backed caller identity, a focused pytest slice was added (`tests/test_http_decision.py`), and the change was deployed; live unauthorized smoke returns `401 Authentication required`, while the live authorized path is now confirmed via the deployed frontend because both `rejected` and `more_info` actions succeeded against the protected `/api/incidents/{id}/decision` endpoint after Entra role assignment and delegated token setup were corrected. T-029 is now treated as closed; the remaining SignalR status-change delivery follow-up lives under T-030.
 - T-029 — investigated the previous live blocker on `INC-2026-0019`: Cosmos showed `pending_approval` while Durable status was `null` (no active instance). `scripts/recover_live_incident.py --skip-more-info-replay --yes` re-queued the alert, recreated `durable-INC-2026-0019`, and `/decision` succeeded on the recovered live instance, so the observed issue is currently treated as a stale approval task / missing Durable instance rather than an instance-id mismatch
 - T-030/T-032/T-033 — notification UX implementation started: backend now exposes Cosmos-backed unread notification APIs (`GET /api/notifications`, `GET /api/notifications/summary`, `POST /api/incidents/{id}/notifications/read`), SignalR payloads include stable notification IDs, frontend renders a header bell with unread badge/dropdown, live toast stack, browser-alert opt-in, unread highlight in the left incident rail, and marks incident notifications as read when the detail page opens
 - T-045 — live `idx-incident-history` was manually rebuilt from approved closed Cosmos incidents (`INC-2026-0005`, `INC-2026-0006`, `INC-2026-0013`), and the same historical query now returns hits through both `search_utils.search_index()` and the deployed `mcp-search` REST endpoint; backend auto-sync-on-close was also implemented in `finalize_audit` and deployed, but fresh end-to-end live proof now depends on bearer-token approval validation after the T-029 RBAC hardening, not on the older stale `INC-2026-0019` Durable state
@@ -69,7 +69,7 @@
 - ✅ T-031 — Backend API: 9 REST endpoints (incidents, equipment, batches, templates, stats); role-based filtering; all 11 HTTP triggers deployed
 - ✅ T-035 — RBAC: App Registrations (API + SPA), 5 Entra ID roles, JWKS JWT signature verification (`auth.py`), security tests passed
 
-**Наступний крок:** T-034 (frontend manager/auditor/IT views) → T-029 live e2e validation → T-001 architecture presentation → T-002 final video
+**Наступний крок:** T-034 (frontend manager/auditor/IT views) → T-030 SignalR verification/polish → T-001 architecture presentation → T-002 final video
 
 ---
 
@@ -92,7 +92,7 @@
 | T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry sub-agent (Connected Agents) + template fill; confidence gate в `run_foundry_agents.py` | Gap #4, #5 | 🔴 CRITICAL | ✅ DONE | T-024 |
 | T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS (placeholder impl in `run_execution_agent.py`, full Foundry Agent spec pending) | — | 🔴 CRITICAL | 🟡 IN PROGRESS | T-028 |
 | T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-sentinel-db, mcp-qms, mcp-cmms (stdio) | — | 🔴 CRITICAL | ✅ DONE | T-025–T-027 |
-| T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-030, T-033 |
+| T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent | Gap #5 | 🔴 CRITICAL | ✅ DONE | — |
 | T-031 | **[Backend API Functions](./tasks/T-031-backend-api.md)** — incidents CRUD, templates, equipment, batches endpoints | Gap #5 | 🔴 CRITICAL | ✅ DONE | T-032 |
 | T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-033 |
 | T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | finals |

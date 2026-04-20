@@ -6,14 +6,18 @@ import AppFooter from "./AppFooter";
 import CommandPalette from "./CommandPalette";
 import ToastStack from "./ToastStack";
 import { useSignalR } from "../../hooks/useSignalR";
+import { useAuth } from "../../hooks/useAuth";
 import {
   useMarkAllNotificationsRead,
+  useMarkIncidentNotificationsRead,
   useNotifications,
   useNotificationSummary,
 } from "../../hooks/useNotifications";
+import { IS_E2E_AUTH } from "../../authRuntime";
 
 export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const { account, rolesHydrated } = useAuth();
   const {
     connected,
     toasts,
@@ -21,12 +25,18 @@ export default function AppShell() {
     browserPermission,
     requestBrowserNotifications,
   } = useSignalR();
+  const notificationsEnabled = rolesHydrated && (IS_E2E_AUTH || Boolean(account));
   const { data: notificationFeed, isLoading: notificationsLoading } = useNotifications({
     status: "unread",
     limit: 8,
+  }, {
+    enabled: notificationsEnabled,
   });
-  const { data: notificationSummary } = useNotificationSummary();
+  const { data: notificationSummary } = useNotificationSummary({
+    enabled: notificationsEnabled,
+  });
   const markAllNotificationsRead = useMarkAllNotificationsRead();
+  const markIncidentNotificationsRead = useMarkIncidentNotificationsRead();
 
   const unreadCount = notificationSummary?.unread_count ?? notificationFeed?.unread_count ?? 0;
   const unreadIncidentIds = notificationSummary?.unread_incident_ids ?? [];
@@ -52,6 +62,7 @@ export default function AppShell() {
         browserNotificationPermission={browserPermission}
         onRequestBrowserNotifications={requestBrowserNotifications}
         onClearAllNotifications={() => markAllNotificationsRead.mutateAsync()}
+        onNotificationClick={(incidentId) => markIncidentNotificationsRead.mutateAsync(incidentId)}
         clearAllNotificationsPending={markAllNotificationsRead.isPending}
       />
       <div className="app-body">

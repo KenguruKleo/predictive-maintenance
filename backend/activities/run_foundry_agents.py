@@ -1451,7 +1451,52 @@ def _normalize_evidence_citations(
         seen.add(key)
         normalized.append(citation)
 
+    _append_historical_citation_fallback(
+        normalized,
+        flat_hits,
+        seen,
+        current_incident_id=current_incident_id,
+    )
+
     return normalized
+
+
+def _append_historical_citation_fallback(
+    normalized: list[dict],
+    flat_hits: list[dict],
+    seen: set[tuple],
+    *,
+    current_incident_id: str = "",
+) -> None:
+    if any(str(citation.get("type") or "") == "historical" for citation in normalized):
+        return
+
+    for hit in flat_hits:
+        if hit.get("index_name") != "idx-incident-history":
+            continue
+
+        citation = _normalize_single_citation(
+            {
+                "type": "historical",
+                "document_id": hit.get("document_id", ""),
+                "document_title": hit.get("document_title", ""),
+                "source_blob": hit.get("source", ""),
+                "chunk_index": hit.get("chunk_index"),
+                "score": hit.get("score"),
+                "text_excerpt": hit.get("text", ""),
+            },
+            flat_hits,
+        )
+        if _citation_points_to_incident(citation, current_incident_id):
+            continue
+
+        key = _citation_identity_key(citation)
+        if key in seen:
+            continue
+
+        seen.add(key)
+        normalized.append(citation)
+        return
 
 
 def _flatten_rag_hits(rag_context: dict) -> list[dict]:

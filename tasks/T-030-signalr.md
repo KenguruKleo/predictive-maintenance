@@ -63,6 +63,7 @@ POST /api/incidents/{id}/notifications/read → mark all visible incident notifi
 - [x] Backend unread APIs implemented for feed, summary, and incident-level mark-read
 - [x] Frontend hook invalidates notification queries on live SignalR events
 - [x] Browser alert opt-in added as progressive enhancement from the notification bell dropdown
+- [ ] Decision-driven status change notifications (`approved`, `rejected`, `more_info`) still need to be emitted and manually verified from the protected `/api/incidents/{id}/decision` flow; this follow-up was moved here from T-029
 
 ## negotiate Function
 
@@ -131,4 +132,5 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 - [x] Header bell shows unread count and unread dropdown items from backend notification feed
 - [x] Sidebar highlights incidents with unread notifications
 - [x] Opening incident detail marks the related incident notifications as read
+- [ ] Decision-driven status changes emit a verified SignalR status notification for `approved`, `rejected`, and `more_info`
 - [ ] Browser/system notifications verified manually in a secure context with permission granted

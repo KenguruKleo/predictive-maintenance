@@ -26,7 +26,7 @@ SEARCH_ENDPOINT = os.getenv(
     "AZURE_SEARCH_ENDPOINT",
     "https://srch-sentinel-intel-dev-erzrpo.search.windows.net",
 )
-SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY", "")
+SEARCH_KEY = os.getenv("AZURE_SEARCH_KEY", "") or os.getenv("AZURE_SEARCH_ADMIN_KEY", "")
 
 OPENAI_ENDPOINT = os.getenv(
     "AZURE_OPENAI_ENDPOINT",

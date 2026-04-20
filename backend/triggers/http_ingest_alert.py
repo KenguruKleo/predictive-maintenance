@@ -14,6 +14,7 @@ import azure.functions as func
 
 from shared.cosmos_client import get_container
 from shared.servicebus_client import publish_alert
+from shared.signalr_client import notify_signalr_sync
 from utils.id_generator import generate_incident_id
 from utils.severity import classify_severity
 from utils.validation import sanitize_string_fields, validate_alert_payload
@@ -127,6 +128,14 @@ def ingest_alert(req: func.HttpRequest) -> func.HttpResponse:
         _write_registered_event(payload, now)
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not write incident_registered event for %s: %s", incident_id, exc)
+
+    # Create an initial open-state notification and live toast so operators
+    # see the incident immediately, before it reaches pending approval.
+    try:
+        _write_open_notification(payload, now)
+        _push_open_signalr(payload, now)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not create open notification for %s: %s", incident_id, exc)
 
     # ------------------------------------------------------------------
     # 8. Publish to Service Bus → Durable orchestrator (T-024) will pick up
@@ -261,6 +270,49 @@ def _write_registered_event(payload: dict, now: str) -> None:
         container.create_item(event, enable_automatic_id_generation=False)
     except CosmosResourceExistsError:
         pass  # already written (retry scenario)
+
+
+def _write_open_notification(payload: dict, now: str) -> None:
+    incident_id = payload.get("incident_id") or payload.get("id", "")
+    notification = {
+        "id": f"notif-{incident_id}-open-{now}",
+        "incidentId": incident_id,
+        "type": "incident_created",
+        "targetRole": "operator",
+        "assignedTo": None,
+        "incidentStatus": "open",
+        "equipmentId": payload.get("equipmentId") or payload.get("equipment_id", ""),
+        "title": payload.get("title") or _build_incident_title(payload),
+        "message": "New incident opened; AI analysis has started.",
+        "riskLevel": str(payload.get("severity") or "unknown"),
+        "status": "pending",
+        "createdAt": now,
+        "updatedAt": now,
+        "isRead": False,
+        "readAt": None,
+        "readBy": None,
+    }
+
+    container = get_container("notifications")
+    container.create_item(notification, enable_automatic_id_generation=False)
+
+
+def _push_open_signalr(payload: dict, now: str) -> None:
+    incident_id = payload.get("incident_id") or payload.get("id", "")
+    notify_signalr_sync(
+        hub="deviationHub",
+        event="incident_created",
+        payload={
+            "notification_id": f"notif-{incident_id}-open-{now}",
+            "incident_id": incident_id,
+            "equipment_id": payload.get("equipmentId") or payload.get("equipment_id", ""),
+            "severity": payload.get("severity", "unknown"),
+            "title": payload.get("title") or _build_incident_title(payload),
+            "created_at": now,
+        },
+        target_role="operator",
+        incident_id=incident_id,
+    )
 
 
 def _get_equipment(equipment_id: str) -> dict | None:

@@ -1,11 +1,11 @@
-# T-029 · Human Approval Mechanism (waitForExternalEvent + SignalR + Decision API)
+# T-029 · Human Approval Mechanism (waitForExternalEvent + Decision API)
 
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🟡 IN PROGRESS  
-**Блокує:** T-033 (approval UX), demo flow  
-**Залежить від:** T-024 (Durable orchestrator), T-030 (SignalR), T-031 (backend API)
+**Статус:** ✅ DONE  
+**Блокує:** —  
+**Залежить від:** T-024 (Durable orchestrator), T-031 (backend API)
 
 ---
 
@@ -109,13 +109,15 @@ backend/
 - [x] Focused backend coverage was added in `tests/test_http_decision.py`; `python -m pytest tests/test_http_decision.py tests/test_notifications_api.py` passes locally
 - [x] Live stale-state issue for `INC-2026-0019` was diagnosed: incident stayed in `pending_approval` while Durable status returned `null`; `scripts/recover_live_incident.py --skip-more-info-replay --yes` recreated a fresh `durable-INC-2026-0019` instance and `/decision` succeeded on that recovered instance
 - [x] Post-deploy unauthorized smoke check now returns `401 Authentication required` from the live Function App, confirming the RBAC hardening is active in Azure
-- [ ] Full bearer-token approval proof in Azure is still blocked from the current CLI session because `az account get-access-token --scope api://38843d08-f211-4445-bcef-a07d383f2ee6/.default` requires tenant consent for the Azure CLI app
+- [x] Live authorized proof is now confirmed in Azure through the deployed frontend: both `rejected` and `more_info` operator actions succeeded via the same protected `POST /api/incidents/{id}/decision` endpoint after Entra role assignment and delegated token setup were corrected
+- [x] T-029 is now treated as closed; the remaining SignalR status-change notification follow-up was moved into T-030 so this task stays scoped to the protected decision API + Durable resume flow
 
 ## Definition of Done
 
-- [ ] `POST /decision` з valid operator token → 202 Accepted, Durable instance resumes
+- [x] `POST /decision` з valid operator token → 202 Accepted, Durable instance resumes
 - [x] `POST /decision` з невалідною роллю → 403 Forbidden
-- [ ] `action: "more_info"` → incident status → `awaiting_agents`, orchestrator loops
-- [ ] `action: "rejected"` → incident status → `rejected`, orchestrator closes
+- [x] `action: "more_info"` → incident status → `awaiting_agents`, orchestrator loops
+- [x] `action: "rejected"` → incident status → `rejected`, orchestrator closes
 - [x] Decision записується в `incident_events` collection
-- [ ] SignalR notification відправляється при зміні статусу
+
+> SignalR delivery for decision-driven status changes is tracked in [T-030](./T-030-signalr.md).

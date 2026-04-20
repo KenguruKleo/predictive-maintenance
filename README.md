@@ -279,26 +279,36 @@ python scripts/simulate_alerts.py --local --fresh --all
 Once the orchestrator is waiting, send a decision:
 
 ```bash
-SYSTEM_KEY=$(az functionapp keys list \
-  --name func-sentinel-intel-dev-erzrpo \
-  -g ODL-GHAZ-2177134 \
-  --query "systemKeys.durabletask_extension" -o tsv)
+az login --tenant "baf5b083-4c53-493a-8af7-a6ae9812014c"
+
+TOKEN=$(az account get-access-token \
+  --scope "api://38843d08-f211-4445-bcef-a07d383f2ee6/access_as_user" \
+  --query accessToken -o tsv)
 
 # Approve
-curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision?code=${FUNCTION_KEY}" \
+curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"action": "approved", "user_id": "operator@example.com", "comments": "Approved for CAPA execution"}'
+  -d '{"action": "approved", "comments": "Approved for CAPA execution"}'
 
 # Reject
-curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision?code=${FUNCTION_KEY}" \
+curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"action": "rejected", "user_id": "operator@example.com", "reason": "False positive"}'
+  -d '{"action": "rejected", "reason": "False positive"}'
 
 # Request more info
-curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision?code=${FUNCTION_KEY}" \
+curl -X POST "https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api/incidents/INC-2026-NNNN/decision" \
+  -H "Authorization: Bearer ${TOKEN}" \
   -H "Content-Type: application/json" \
-  -d '{"action": "more_info", "user_id": "operator@example.com", "question": "What was the batch temperature at the time of deviation?"}'
+  -d '{"action": "more_info", "question": "What was the batch temperature at the time of deviation?"}'
 ```
+
+Notes:
+
+- The deployed `decision` endpoint now derives caller identity and role from the Entra bearer token; do not send `user_id` or role fields in the request body.
+- Do not use `az login --scope "api://38843d08-f211-4445-bcef-a07d383f2ee6/.default"` for this flow. With Azure CLI that can fail with `AADSTS650057 invalid resource` because `/.default` expects pre-configured delegated permissions on the Azure CLI client.
+- If `az account get-access-token --scope "api://38843d08-f211-4445-bcef-a07d383f2ee6/access_as_user"` returns a consent error, grant user/admin consent for the API delegated scope in Microsoft Entra ID before retrying.
 
 ---
 

@@ -27,6 +27,7 @@ import urllib.parse
 import urllib.request
 
 logger = logging.getLogger(__name__)
+DEFAULT_HUB = "deviationHub"
 
 
 def _parse_connection_string(conn_str: str) -> tuple[str, str]:
@@ -140,3 +141,68 @@ def notify_signalr_sync(
             success = False
 
     return success
+
+
+def add_connection_to_group_sync(
+    connection_id: str,
+    group_name: str,
+    *,
+    hub: str = DEFAULT_HUB,
+) -> bool:
+    """Add a connected SignalR client to a named group."""
+    if not connection_id or not group_name:
+        return False
+
+    conn_str = os.getenv("AzureSignalRConnectionString", "")
+    if not conn_str:
+        logger.warning(
+            "AzureSignalRConnectionString not configured — SignalR group registration skipped"
+        )
+        return False
+
+    endpoint, access_key = _parse_connection_string(conn_str)
+    if not endpoint or not access_key:
+        logger.warning("Invalid SignalR connection string — group registration skipped")
+        return False
+
+    group = urllib.parse.quote(group_name, safe="")
+    encoded_connection_id = urllib.parse.quote(connection_id, safe="")
+    url = (
+        f"{endpoint}/api/v1/hubs/{hub}/groups/{group}"
+        f"/connections/{encoded_connection_id}"
+    )
+
+    token = _generate_jwt(url, access_key)
+    req = urllib.request.Request(
+        url,
+        data=b"",
+        headers={"Authorization": f"Bearer {token}"},
+        method="PUT",
+    )
+
+    try:
+        with urllib.request.urlopen(req, timeout=10):
+            logger.debug(
+                "SignalR group registration succeeded: connection=%s group=%s",
+                connection_id,
+                group_name,
+            )
+            return True
+    except urllib.error.HTTPError as exc:
+        if exc.code == 409:
+            logger.debug(
+                "SignalR group registration already exists: connection=%s group=%s",
+                connection_id,
+                group_name,
+            )
+            return True
+        logger.error(
+            "SignalR group registration failed to %s: HTTP %d %s",
+            url,
+            exc.code,
+            exc.reason,
+        )
+    except Exception:
+        logger.exception("SignalR group registration unexpected error to %s", url)
+
+    return False

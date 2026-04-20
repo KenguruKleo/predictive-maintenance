@@ -4,7 +4,10 @@ import {
   HubConnectionBuilder,
   LogLevel,
 } from "@microsoft/signalr";
+import { InteractionStatus } from "@azure/msal-browser";
+import { useMsal } from "@azure/msal-react";
 import { useQueryClient } from "@tanstack/react-query";
+import client from "../api/client";
 import { API_BASE_URL } from "../authConfig";
 import { IS_E2E_AUTH } from "../authRuntime";
 import type { BrowserNotificationPermission } from "../types/notification";
@@ -24,11 +27,14 @@ function getBrowserNotificationPermission(): BrowserNotificationPermission {
 }
 
 export function useSignalR() {
+  const { accounts, inProgress, instance } = useMsal();
   const connectionRef = useRef<HubConnection | null>(null);
+  const registeredConnectionIdRef = useRef<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [browserPermission, setBrowserPermission] = useState<BrowserNotificationPermission>(() => getBrowserNotificationPermission());
   const queryClient = useQueryClient();
+  const authReady = IS_E2E_AUTH || (inProgress === InteractionStatus.None && Boolean(instance.getActiveAccount() ?? accounts[0]));
 
   const addToast = useCallback(
     (message: string, type: Toast["type"] = "info") => {
@@ -49,6 +55,29 @@ export function useSignalR() {
   const dismissToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
+
+  const registerConnectionGroups = useCallback(async (connectionId?: string | null) => {
+    if (!connectionId || !authReady || registeredConnectionIdRef.current === connectionId) {
+      return;
+    }
+
+    try {
+      await client.post("/signalr/register", { connection_id: connectionId });
+      registeredConnectionIdRef.current = connectionId;
+    } catch {
+      // SignalR registration is best-effort; query refetch still keeps UI consistent.
+      registeredConnectionIdRef.current = null;
+    }
+  }, [authReady]);
+
+  useEffect(() => {
+    const connectionId = connectionRef.current?.connectionId;
+    if (!connected || !connectionId || !authReady) {
+      return;
+    }
+
+    void registerConnectionGroups(connectionId);
+  }, [authReady, connected, registerConnectionGroups]);
 
   const invalidateLiveIncidentViews = useCallback((incidentId?: string) => {
     queryClient.invalidateQueries({ queryKey: ["incidents"] });
@@ -173,14 +202,17 @@ export function useSignalR() {
           invalidateLiveIncidentViews(payload.incident_id);
         });
 
-        connection.onreconnected(() => {
+        connection.onreconnected((connectionId) => {
           setConnected(true);
+          registeredConnectionIdRef.current = null;
+          void registerConnectionGroups(connectionId);
           queryClient.invalidateQueries({ queryKey: ["incidents"] });
           queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
         });
 
         connection.onreconnecting(() => setConnected(false));
         connection.onclose(() => {
+          registeredConnectionIdRef.current = null;
           if (!cancelled) setConnected(false);
         });
 
@@ -201,7 +233,7 @@ export function useSignalR() {
       cancelled = true;
       connectionRef.current?.stop();
     };
-  }, [queryClient, addToast, invalidateLiveIncidentViews, maybeShowBrowserNotification]);
+  }, [queryClient, addToast, invalidateLiveIncidentViews, maybeShowBrowserNotification, registerConnectionGroups]);
 
   return {
     connected,

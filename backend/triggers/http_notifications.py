@@ -27,7 +27,6 @@ ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
 ACTIONABLE_NOTIFICATION_STATUSES = {"pending_approval", "escalated"}
 INFORMATIONAL_NOTIFICATION_STATUSES = {"awaiting_agents"}
 SUPPRESSED_NOTIFICATION_STATUSES = {
-    "open",
     "ingested",
     "analyzing",
     "approved",
@@ -380,6 +379,8 @@ def _get_notification_presentation_kind(current_status: str) -> str:
 
 
 def _build_notification_message(current_status: str, *, doc: dict) -> str:
+    if current_status == "open":
+        return "New incident opened; AI analysis has started."
     if current_status == "pending_approval":
         return "Decision required: review the recommendation and record your decision."
     if current_status == "escalated":
