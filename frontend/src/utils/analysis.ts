@@ -76,20 +76,24 @@ export function getAllCitations(analysis?: AiAnalysis): EvidenceCitation[] {
 }
 
 export function getCitationTitle(citation: EvidenceCitation): string {
-  if (citation.resolution_status === "unresolved") {
-    return "Unresolved evidence";
-  }
   const known = inferKnownDocument(citation);
   if (known?.title) {
     return known.title;
   }
-  return (
+  const title =
     citation.document_title ||
     citation.reference ||
     citation.source ||
     citation.document_id ||
-    "Document evidence"
-  );
+    "";
+
+  if (title) {
+    return title;
+  }
+
+  return citation.resolution_status === "unresolved"
+    ? "Unresolved evidence"
+    : "Document evidence";
 }
 
 export function getCitationSection(citation: EvidenceCitation): string {
@@ -101,9 +105,6 @@ export function getCitationText(citation: EvidenceCitation): string {
 }
 
 export function getCitationHref(citation: EvidenceCitation): string {
-  if (citation.resolution_status === "unresolved") {
-    return "";
-  }
   if (citation.url) {
     if (citation.url.startsWith("http")) return citation.url;
     if (citation.url.startsWith("/api/")) {
@@ -122,6 +123,9 @@ export function getCitationHref(citation: EvidenceCitation): string {
 }
 
 export function getCitationLinkLabel(citation: EvidenceCitation): string {
+  if (citation.resolution_status === "unresolved") {
+    return "Open source document";
+  }
   return citation.type === "historical" ? "Open incident" : "Open document";
 }
 

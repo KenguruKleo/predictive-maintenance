@@ -223,6 +223,7 @@ Cost Controls:
 - Немає confidence thresholds
 - Немає evidence gating (рекомендація без джерела → не допускається)
 - Немає hallucination controls
+- Немає окремо описаного verification-pass для document identity та citation section claims
 - Немає prompt-injection defenses
 - Немає agent observability
 - Немає model versioning/rollback
@@ -238,6 +239,8 @@ Confidence & Evidence:
 Hallucination Controls:
   - Grounded generation тільки (RAG, не free generation)
   - Source verification: agent повинен підтвердити що джерело існує в Azure AI Search
+  - Separate document/citation verification layer: після agent output backend незалежно перевіряє `document_id`, title, link, section claim, excerpt anchor
+  - Якщо document match є, але section claim не підтверджується authoritative chunk, система показує citation як `unresolved`, але не піднімає неперевірену section у summary fields
   - Structured output schema (JSON з обов'язковими полями evidence)
 
 Prompt Injection:
@@ -410,7 +413,7 @@ Monitoring setup:
 | #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🎨 DESIGNED | GitHub Actions CI/CD (T-042) + Bicep IaC (T-041) + Track A явно в архітектурі | [T-041](./tasks/T-041-bicep-iac.md), [T-042](./tasks/T-042-cicd.md) |
 | #2 Security | 🔴 HIGH | 🎨 DESIGNED | Entra ID + Key Vault + Managed Identities + VNet + 5 RBAC roles | [T-035](./tasks/T-035-rbac.md), [T-038](./tasks/T-038-security.md) |
 | #3 Reliability | 🔴 HIGH | 🎨 DESIGNED | Azure Service Bus DLQ + Durable Functions retry + fallback mode + timeout escalation | [T-022](./tasks/T-022-service-bus.md), [T-039](./tasks/T-039-reliability.md) |
-| #4 RAI | 🟠 HIGH | 🔧 IN PROGRESS | Confidence gate path already exists; App Insights prompt and response traces are now implemented for the backend-visible Foundry flow, while Cosmos `incident_events` still only carries business audit / transcript events; Content Safety, prompt-injection guard, admin retrieval UX, and dashboards remain pending | [T-040](./tasks/T-040-rai.md), [T-043](./tasks/T-043-agent-telemetry-admin-view.md) |
+| #4 RAI | 🟠 HIGH | 🔧 IN PROGRESS | Confidence gate path already exists; separate document/citation verification and unresolved-evidence downgrade are now explicit architecture controls for anti-hallucination behavior; App Insights prompt and response traces are implemented for the backend-visible Foundry flow, while Content Safety, prompt-injection guard, admin retrieval UX, and dashboards remain pending | [T-040](./tasks/T-040-rai.md), [T-043](./tasks/T-043-agent-telemetry-admin-view.md) |
 | #5 UX | 🟠 MEDIUM | 🎨 DESIGNED | React + Vite operator dashboard + approval UX + SignalR real-time + 5 role views | [T-032](./tasks/T-032-frontend-core.md), [T-033](./tasks/T-033-frontend-approval.md) |
 | #6 IaC | 🟡 MEDIUM | 🎨 DESIGNED | Bicep `infra/main.bicep` + modules для всіх 12 ресурсів | [T-041](./tasks/T-041-bicep-iac.md) |
 

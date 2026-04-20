@@ -35,14 +35,15 @@ def notify_operator(input_data: dict) -> dict:
     batch_id: str = input_data.get("batch_id", "")
     product: str = input_data.get("product", "")
     production_stage: str = input_data.get("production_stage", "")
-    assigned_to: str = input_data.get("assigned_to", "ivan.petrenko")
+    assigned_to = _resolve_operator_assignee(input_data) if target_role == "operator" else target_role
     response_round: int = int(input_data.get("response_round", 0) or 0)
     now_iso = datetime.now(timezone.utc).isoformat()
     due_at_iso = (datetime.now(timezone.utc) + timedelta(hours=24)).isoformat()
 
-    notification_type = "escalation" if is_escalation else "approval_required"
-    incident_status = "escalated" if is_escalation else "pending_approval"
-    current_step = "awaiting_qa_manager_decision" if is_escalation else "awaiting_operator_decision"
+    is_qa_review = target_role == "qa-manager"
+    notification_type = "escalation" if is_qa_review else "approval_required"
+    incident_status = "escalated" if is_qa_review else "pending_approval"
+    current_step = "awaiting_qa_manager_decision" if is_qa_review else "awaiting_operator_decision"
 
     approval_task = {
         "id": f"approval-{incident_id}",
@@ -190,7 +191,7 @@ def notify_operator(input_data: dict) -> dict:
     )
 
     # Push real-time notification via SignalR (T-030)
-    signalr_event = "incident_escalated" if is_escalation else "incident_pending_approval"
+    signalr_event = "incident_escalated" if is_qa_review else "incident_pending_approval"
     signalr_payload = {
         "notification_id": notification["id"],
         "incident_id": incident_id,
@@ -223,6 +224,14 @@ def _build_message(incident_id: str, ai_result: dict, is_escalation: bool) -> st
         f"{prefix} — Incident {incident_id} requires your decision.\n"
         f"Analysis summary: {analysis[:300]}"
     )
+
+
+def _resolve_operator_assignee(input_data: dict) -> str:
+    for key in ("assigned_to", "assignedTo", "requested_by", "requestedBy"):
+        value = str(input_data.get(key) or "").strip()
+        if value:
+            return value
+    return ""
 
 
 def _fallback_title(ai_result: dict) -> str:

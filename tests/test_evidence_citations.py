@@ -470,6 +470,189 @@ def test_normalize_agent_result_omits_unverified_section_from_regulatory_referen
     assert normalized["regulatory_refs"][0]["resolution_status"] == "unresolved"
 
 
+def test_normalize_agent_result_skips_generic_ghost_labels_in_regulatory_reference() -> None:
+    result = {
+        "incident_id": "INC-2026-0025",
+        "title": "Spray Rate Deviation",
+        "recommendation": "Hold the batch pending review.",
+        "operator_dialogue": "Hold the batch pending review.",
+        "regulatory_reference": "sop §4.2; gmp §15; EU GMP",
+        "evidence_citations": [
+            {
+                "type": "sop",
+                "source": "sop",
+                "section": "§4.2",
+                "text_excerpt": "Spray Rate: Affects binder distribution.",
+            },
+            {
+                "type": "gmp",
+                "source": "gmp",
+                "section": "Annex 15 §6.3",
+                "text_excerpt": "Critical deviations must be investigated and documented to ensure product quality.",
+            },
+            {
+                "type": "gmp",
+                "source": "GMP-Annex15-Excerpt",
+                "reference": "EU GMP",
+                "section": "Annex 15 §6.3",
+                "text_excerpt": "The impact on product quality shall be assessed based on duration, magnitude, and product sensitivity.",
+            },
+        ],
+    }
+    rag_context = {
+        "idx-sop-documents": [
+            {
+                "document_id": "SOP-DEV-001-Deviation-Management",
+                "document_title": "SOP-DEV-001 — GMP Deviation Management Procedure",
+                "source": "SOP-DEV-001-Deviation-Management.md",
+                "chunk_index": 6,
+                "section_heading": "4.2 Process Parameter Excursions — Granulation",
+                "section_key": "4.2",
+                "section_path": "SOP-DEV-001 — GMP Deviation Management Procedure > 4. Deviation Classification > 4.2 Process Parameter Excursions — Granulation",
+                "text": "### 4.2 Process Parameter Excursions — Granulation Spray Rate: Affects binder distribution. Low spray rate increases risk of ungranulated fines.",
+                "score": 1.0,
+            }
+        ],
+        "idx-gmp-policies": [
+            {
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "source": "GMP-Annex15-Excerpt.md",
+                "chunk_index": 2,
+                "section_heading": "§6.1 General Principles",
+                "section_key": "6.1",
+                "section_path": "EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts) > §6 — Process Validation > §6.1 General Principles",
+                "text": "### §6.1 General Principles Process validation shall establish scientific evidence that a manufacturing process can reproducibly produce medicinal product meeting predetermined specifications.",
+                "score": 0.9,
+            }
+        ],
+    }
+
+    normalized = _normalize_agent_result(result, rag_context, more_info_round=0)
+
+    assert normalized["regulatory_reference"] == "SOP-DEV-001 §4.2; EU GMP Annex 15"
+    assert normalized["regulatory_refs"][0]["section"] == "§6.3"
+    assert normalized["regulatory_refs"][1]["section"] == ""
+    assert all("§15" not in str(item.get("section") or "") for item in normalized["regulatory_refs"])
+
+
+def test_normalize_agent_result_does_not_reingest_existing_regulatory_refs_when_gmp_citations_exist() -> None:
+    result = {
+        "incident_id": "INC-2026-0025",
+        "title": "Spray Rate Deviation",
+        "recommendation": "Hold the batch pending review.",
+        "operator_dialogue": "Hold the batch pending review.",
+        "regulatory_reference": "sop §4.2; gmp §15; EU GMP",
+        "evidence_citations": [
+            {
+                "type": "sop",
+                "source": "sop",
+                "section": "§4.2",
+                "text_excerpt": "Spray Rate: Affects binder distribution.",
+            },
+            {
+                "type": "gmp",
+                "source": "gmp",
+                "section": "Annex 15 §6.3",
+                "text_excerpt": "Critical deviations must be investigated and documented to ensure product quality.",
+            },
+            {
+                "type": "gmp",
+                "source": "GMP-Annex15-Excerpt",
+                "reference": "EU GMP",
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "section": "Annex 15 §6.3",
+                "section_heading": "§6.1 General Principles",
+                "section_key": "6.1",
+                "section_path": "EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts) > §6 — Process Validation > §6.1 General Principles",
+                "text_excerpt": "### §6.1 General Principles Process validation shall establish scientific evidence that a manufacturing process can reproducibly produce medicinal product meeting predetermined specifications.",
+                "url": "/api/documents/blob-gmp/GMP-Annex15-Excerpt.md",
+            },
+        ],
+        "regulatory_refs": [
+            {
+                "type": "gmp",
+                "source": "gmp",
+                "reference": "",
+                "document_id": "",
+                "document_title": "gmp",
+                "section": "§15",
+                "section_heading": "Annex 15 §6.3",
+                "section_key": "15",
+                "section_path": "Annex 15 §6.3",
+                "text_excerpt": "Critical deviations must be investigated and documented to ensure product quality.",
+                "url": "",
+                "resolution_status": "unresolved",
+                "unresolved_reason": "Missing link for gmp citation",
+                "regulation": "gmp",
+            },
+            {
+                "type": "gmp",
+                "source": "GMP-Annex15-Excerpt",
+                "reference": "EU GMP",
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "section": "",
+                "section_heading": "§6.1 General Principles",
+                "section_key": "6.1",
+                "section_path": "EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts) > §6 — Process Validation > §6.1 General Principles",
+                "text_excerpt": "### §6.1 General Principles Process validation shall establish scientific evidence that a manufacturing process can reproducibly produce medicinal product meeting predetermined specifications.",
+                "url": "/api/documents/blob-gmp/GMP-Annex15-Excerpt.md",
+                "resolution_status": "unresolved",
+                "unresolved_reason": "Missing authoritative section match for gmp citation",
+                "regulation": "EU GMP",
+            },
+        ],
+    }
+    rag_context = {
+        "idx-sop-documents": [
+            {
+                "document_id": "SOP-DEV-001-Deviation-Management",
+                "document_title": "SOP-DEV-001 — GMP Deviation Management Procedure",
+                "source": "SOP-DEV-001-Deviation-Management.md",
+                "chunk_index": 6,
+                "section_heading": "4.2 Process Parameter Excursions — Granulation",
+                "section_key": "4.2",
+                "section_path": "SOP-DEV-001 — GMP Deviation Management Procedure > 4. Deviation Classification > 4.2 Process Parameter Excursions — Granulation",
+                "text": "### 4.2 Process Parameter Excursions — Granulation Spray Rate: Affects binder distribution. Low spray rate increases risk of ungranulated fines.",
+                "score": 1.0,
+            }
+        ],
+        "idx-gmp-policies": [
+            {
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "source": "GMP-Annex15-Excerpt.md",
+                "chunk_index": 2,
+                "section_heading": "§6.1 General Principles",
+                "section_key": "6.1",
+                "section_path": "EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts) > §6 — Process Validation > §6.1 General Principles",
+                "text": "### §6.1 General Principles Process validation shall establish scientific evidence that a manufacturing process can reproducibly produce medicinal product meeting predetermined specifications.",
+                "score": 0.9,
+            },
+            {
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "source": "GMP-Annex15-Excerpt.md",
+                "chunk_index": 0,
+                "section_heading": "Annex 15",
+                "section_key": "15",
+                "section_path": "Annex 15",
+                "text": "# EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts)",
+                "score": 0.5,
+            }
+        ],
+    }
+
+    normalized = _normalize_agent_result(result, rag_context, more_info_round=0)
+
+    assert normalized["regulatory_reference"] == "SOP-DEV-001 §4.2; EU GMP Annex 15 §6.1"
+    assert len(normalized["regulatory_refs"]) == 2
+    assert all(item.get("regulation") != "GMP-Annex15-Excerpt" for item in normalized["regulatory_refs"])
+    assert all("§15" not in str(item.get("section") or "") for item in normalized["regulatory_refs"])
+
+
 def test_trace_enabled_reads_runtime_env(monkeypatch) -> None:
     monkeypatch.setenv("FOUNDRY_PROMPT_TRACE_ENABLED", "1")
     assert _trace_enabled() is True

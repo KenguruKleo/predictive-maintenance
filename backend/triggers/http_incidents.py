@@ -143,7 +143,7 @@ def _build_query(roles, caller_id, status_filter, severity_filter, date_from, da
 
     primary_role = get_primary_role(roles)
     if primary_role == "Operator":
-        where_clauses.append("c.workflow_state.assigned_to = @caller_id")
+        where_clauses.append(_operator_visibility_clause())
         params.append({"name": "@caller_id", "value": caller_id})
     elif primary_role == "MaintenanceTech":
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
@@ -181,7 +181,7 @@ def _build_count_query(roles, caller_id, status_filter, severity_filter, date_fr
 
     primary_role = get_primary_role(roles)
     if primary_role == "Operator":
-        where_clauses.append("c.workflow_state.assigned_to = @caller_id")
+        where_clauses.append(_operator_visibility_clause())
         params.append({"name": "@caller_id", "value": caller_id})
     elif primary_role == "MaintenanceTech":
         where_clauses.append("c.status IN ('approved', 'closed', 'executed', 'completed')")
@@ -227,6 +227,15 @@ def _slim_incident(doc: dict) -> dict:
         "assigned_to": wf.get("assigned_to"),
         "current_step": wf.get("current_step"),
     }
+
+
+def _operator_visibility_clause() -> str:
+    return (
+        "(NOT IS_DEFINED(c.workflow_state.assigned_to) "
+        "OR IS_NULL(c.workflow_state.assigned_to) "
+        "OR c.workflow_state.assigned_to = '' "
+        "OR c.workflow_state.assigned_to = @caller_id)"
+    )
 
 
 def _json(data) -> func.HttpResponse:

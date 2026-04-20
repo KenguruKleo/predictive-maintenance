@@ -53,7 +53,7 @@ POST /api/incidents/{id}/notifications/read → mark all visible incident notifi
 - SignalR remains the live invalidation/push channel; Cosmos `notifications` is the source of truth for unread/read state.
 - Header bell dropdown reads unread items from `GET /api/notifications?status=unread`.
 - Sidebar highlighting is driven by `GET /api/notifications/summary` unread incident IDs.
-- Opening `/incidents/{id}` triggers `POST /api/incidents/{id}/notifications/read` and clears the unread marker for that incident.
+- Opening `/incidents/{id}` alone does not clear unread state anymore; acknowledgment happens only on explicit user interaction from the bell dropdown or the left active-incident rail.
 - Browser/system notifications are optional enhancement only: request permission from a user gesture, then show alerts only when the tab is hidden or unfocused.
 
 ## Progress (20 квітня 2026)
@@ -66,10 +66,16 @@ POST /api/incidents/{id}/notifications/read → mark all visible incident notifi
 - [x] Live notification scope was finalized around actionable / awareness states only: `incident_created`, `incident_pending_approval`, and `incident_escalated` are surfaced, while terminal or self-initiated decision outcomes (`approved`, `rejected`, `more_info`) are intentionally not bell notifications
 - [x] SignalR delivery reliability was hardened for the live app: authenticated connections now register into role groups via `POST /api/signalr/register`, registration retries after MSAL auth becomes ready, and notification feed queries recover on focus/reconnect after early auth timing failures
 - [x] Bell UX polish shipped: unread feed is deduplicated by incident, click-through marks items read optimistically, and rejected / approved read-only decision summaries no longer hide operator comments
+- [x] Left-rail acknowledgment UX was refined: unread incidents keep a stronger visible attention state until the user explicitly clicks the bell item or the incident itself in the active rail, even if that incident was already open when the update arrived
 
 ## Remaining non-blocking follow-up
 
 - Manual secure-context popup smoke can be exercised during demo prep in [T-002](./T-002-final-video.md); it is not blocking implementation closure for T-030
+
+## Live hotfix note (20 квітня 2026)
+
+- Multi-user bell visibility bug was fixed in production after investigating `INC-2026-0025`: backend unread state is now caller-scoped, notification visibility uses the full caller role set instead of only `primary role`, and the old operator fallback assignee `ivan.petrenko` was removed from new approval notifications/tasks/incidents.
+- Existing active Cosmos records polluted by that demo assignee were backfilled so already-open pending operator incidents recover notification visibility without waiting for a fresh re-ingest.
 
 ## negotiate Function
 
@@ -137,6 +143,6 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 - [x] Incident list updates automatically when status changes (no page refresh needed)
 - [x] Header bell shows unread count and unread dropdown items from backend notification feed
 - [x] Sidebar highlights incidents with unread notifications
-- [x] Opening incident detail marks the related incident notifications as read
+- [x] Explicit bell-item click or active-rail incident click marks the related incident notifications as read
 - [x] Notification center scope is aligned to the final UX contract: actionable / awareness events are pushed live, while terminal or self-originated decision outcomes are intentionally suppressed from the bell feed
 - [x] Browser/system notifications are implemented as optional enhancement behind explicit user permission; final demo-time popup smoke remains tracked separately outside this implementation task

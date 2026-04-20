@@ -70,6 +70,24 @@ def _coerce_decision(value: object) -> dict:
     return decision
 
 
+def _normalize_review_role(value: object, default: str = "operator") -> str:
+    normalized = str(value or "").strip().lower().replace("_", "-")
+    if normalized == "qamanager":
+        return "qa-manager"
+    if normalized in {"operator", "qa-manager"}:
+        return normalized
+    return default
+
+
+def _get_followup_review_role(active_review_role: str, decision: dict) -> str:
+    active_role = _normalize_review_role(active_review_role)
+    if active_role == "qa-manager":
+        return active_role
+
+    decision_role = _normalize_review_role(decision.get("role"), default=active_role)
+    return "qa-manager" if decision_role == "qa-manager" else "operator"
+
+
 @bp.orchestration_trigger(context_name="context")
 def incident_orchestrator(context: df.DurableOrchestrationContext):
     """Main stateful workflow triggered by a Service Bus message."""
@@ -117,6 +135,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
     # ── Step 4: HITL wait loop ─────────────────────────────────────────────
     more_info_rounds = 0
     decision: dict | None = None
+    active_review_role = "operator"
 
     while True:
         deadline = context.current_utc_datetime + timedelta(hours=24)
@@ -138,6 +157,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                     "role": "qa-manager",
                 },
             )
+            active_review_role = "qa-manager"
             decision = _coerce_decision((yield context.wait_for_external_event("operator_decision")))
         else:
             timeout_task.cancel()
@@ -146,6 +166,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
         action: str = decision.get("action", "rejected")
 
         if action == "more_info" and more_info_rounds < MAX_MORE_INFO_ROUNDS:
+            active_review_role = _get_followup_review_role(active_review_role, decision)
             more_info_rounds += 1
             context_data["operator_questions"].append(
                 {
@@ -170,6 +191,8 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
                 {
                     "incident_id": incident_id,
                     "ai_result": ai_result,
+                    "role": active_review_role,
+                    "assigned_to": decision.get("user_id", ""),
                     "response_round": more_info_rounds,
                     "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
                     "product": context_data.get("product", ""),

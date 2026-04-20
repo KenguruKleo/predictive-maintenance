@@ -106,7 +106,9 @@ backend/
 ## Progress (20 квітня 2026)
 
 - [x] `backend/triggers/http_decision.py` now enforces RBAC via `get_caller_roles()` / `require_any_role()` and derives caller identity from auth instead of trusting body-supplied `user_id`
+- [x] The decision endpoint now also checks the incident’s active workflow owner before accepting a choice, so QA cannot act on operator-owned pending incidents and operators cannot act on QA-owned escalations
 - [x] Focused backend coverage was added in `tests/test_http_decision.py`; `python -m pytest tests/test_http_decision.py tests/test_notifications_api.py` passes locally
+- [x] QA-owned follow-up notifications now keep escalation semantics after `more_info`, preventing the notification center / SignalR path from falling back to operator-only `pending_approval` behavior
 - [x] Live stale-state issue for `INC-2026-0019` was diagnosed: incident stayed in `pending_approval` while Durable status returned `null`; `scripts/recover_live_incident.py --skip-more-info-replay --yes` recreated a fresh `durable-INC-2026-0019` instance and `/decision` succeeded on that recovered instance
 - [x] Post-deploy unauthorized smoke check now returns `401 Authentication required` from the live Function App, confirming the RBAC hardening is active in Azure
 - [x] Live authorized proof is now confirmed in Azure through the deployed frontend: both `rejected` and `more_info` operator actions succeeded via the same protected `POST /api/incidents/{id}/decision` endpoint after Entra role assignment and delegated token setup were corrected

@@ -3,7 +3,7 @@
 ← [04 · План дій](../04-action-plan.md) · [01 · Вимоги §9](../01-requirements.md#9-deliverables-по-фазах)
 
 | Поле | Значення |
-|---|---|
+| --- | --- |
 | **ID** | T-002 |
 | **Пріоритет** | 🔴 CRITICAL |
 | **Статус** | 🔜 TODO |
@@ -21,7 +21,7 @@
 
 ## Структура відео (5 хв = 300 сек)
 
-```
+```text
 [00:00–00:30]  HOOK — Проблема одним реченням + драматична цифра
                "In GMP manufacturing, one deviation event = 30–60 minutes
                of manual work, audit risk, and potential line shutdown"
@@ -37,6 +37,7 @@
 
 [02:30–04:00]  LIVE DEMO — робочий додаток (← working implementation)
                Реальний flow: SCADA signal → agents → decision package
+               → evidence verification state (verified vs unresolved)
                → notification bell/unread highlight → human approval → audit trail
                Один конкретний сценарій: Granulator GR-204, vibration spike
 
@@ -54,7 +55,7 @@
 ## Технічні вимоги
 
 | Параметр | Значення |
-|---|---|
+| --- | --- |
 | Тривалість | ≤ 5:10 хвилин (hard limit) |
 | Мова | **English** |
 | Субтитри | Обов'язкові (judges можуть дивитись без звуку) |
@@ -67,7 +68,7 @@
 ## Інструменти для запису
 
 | Роль | Інструмент | Нотатки |
-|---|---|---|
+| --- | --- | --- |
 | Screen record + narration | OBS / Loom / QuickTime | Для live demo секції |
 | Монтаж | DaVinci Resolve (безкоштовно) / Camtasia | |
 | Субтитри | Auto-captions у DaVinci / Whisper | |
@@ -80,7 +81,7 @@
 
 > Тут пишемо повний narration script перед записом
 
-```
+```text
 [00:00–00:30] HOOK
 Narrator: "In GMP pharmaceutical manufacturing, when equipment deviates from
 validated limits, operators face a 30-to-60-minute manual process:
@@ -97,7 +98,16 @@ We built Sentinel Intelligence to change that."
 [02:30–04:00] LIVE DEMO
 Narrator: "Let me show you how it works.
 A vibration spike on Granulator GR-204 triggers our system...
-[demo narration — TBD after implementation]
+[demo narration]
+The Research and Document agents prepare the recommendation package,
+but the system does one more check before showing evidence to the operator.
+Each citation is validated against the retrieved source document,
+its link, and the claimed section.
+Verified evidence is shown separately from unresolved evidence,
+so the operator can trust what is grounded and immediately spot what still needs QA review.
+In this case, the system keeps the EU GMP Annex 15 document visible,
+but if the model claimed the wrong section, that citation is marked unresolved
+instead of being presented as a verified fact.
 Notice the notification bell in the header: the operator gets a real-time alert,
 the unread counter increments, and the new incident is highlighted in the left rail.
 Opening the incident takes the operator directly into the approval package and

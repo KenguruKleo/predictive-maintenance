@@ -13,11 +13,12 @@ Endpoints:
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Iterable
 
 import azure.functions as func
 
 from shared.cosmos_client import get_container
-from utils.auth import AuthError, get_caller_id, get_caller_roles, get_primary_role, require_any_role
+from utils.auth import AuthError, get_caller_id, get_caller_roles, require_any_role
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,6 @@ def list_notifications(req: func.HttpRequest) -> func.HttpResponse:
     except AuthError as exc:
         return _error(exc.status_code, exc.message)
 
-    primary_role = get_primary_role(roles)
     caller_id = get_caller_id(req)
 
     try:
@@ -68,7 +68,7 @@ def list_notifications(req: func.HttpRequest) -> func.HttpResponse:
     unread_only = status_param != "all"
 
     try:
-        notifications = _load_visible_notifications(primary_role, caller_id, incident_id=incident_id)
+        notifications = _load_visible_notifications(roles, caller_id, incident_id=incident_id)
         unread_count = sum(1 for item in notifications if not item["is_read"])
         items = notifications if not unread_only else [item for item in notifications if not item["is_read"]]
 
@@ -91,11 +91,10 @@ def get_notifications_summary(req: func.HttpRequest) -> func.HttpResponse:
     except AuthError as exc:
         return _error(exc.status_code, exc.message)
 
-    primary_role = get_primary_role(roles)
     caller_id = get_caller_id(req)
 
     try:
-        notifications = _load_visible_notifications(primary_role, caller_id)
+        notifications = _load_visible_notifications(roles, caller_id)
         unread_items = [item for item in notifications if not item["is_read"]]
 
         by_type: dict[str, int] = {}
@@ -128,7 +127,6 @@ def mark_all_notifications_read(req: func.HttpRequest) -> func.HttpResponse:
     except AuthError as exc:
         return _error(exc.status_code, exc.message)
 
-    primary_role = get_primary_role(roles)
     caller_id = get_caller_id(req)
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -142,7 +140,7 @@ def mark_all_notifications_read(req: func.HttpRequest) -> func.HttpResponse:
 
         updated_docs, updated_ids, updated_incident_ids = _mark_visible_notifications_read(
             docs,
-            primary_role,
+            roles,
             caller_id,
             now_iso=now_iso,
         )
@@ -176,7 +174,6 @@ def mark_incident_notifications_read(req: func.HttpRequest) -> func.HttpResponse
     if not incident_id:
         return _error(400, "incident_id is required")
 
-    primary_role = get_primary_role(roles)
     caller_id = get_caller_id(req)
     now_iso = datetime.now(timezone.utc).isoformat()
 
@@ -190,7 +187,7 @@ def mark_incident_notifications_read(req: func.HttpRequest) -> func.HttpResponse
 
         updated_docs, updated_ids, _updated_incident_ids = _mark_visible_notifications_read(
             docs,
-            primary_role,
+            roles,
             caller_id,
             now_iso=now_iso,
         )
@@ -208,7 +205,7 @@ def mark_incident_notifications_read(req: func.HttpRequest) -> func.HttpResponse
 
 
 def _load_visible_notifications(
-    primary_role: str,
+    roles: str | Iterable[str],
     caller_id: str,
     *,
     incident_id: str = "",
@@ -227,7 +224,7 @@ def _load_visible_notifications(
         enable_cross_partition_query=True,
     ))
 
-    visible_docs = [doc for doc in docs if _is_visible_to_caller(doc, primary_role, caller_id)]
+    visible_docs = [doc for doc in docs if _is_visible_to_caller(doc, roles, caller_id)]
     incident_map = _load_incident_map(_collect_incident_ids(visible_docs))
 
     items = []
@@ -260,6 +257,7 @@ def _normalize_notification(
         or ""
     )
 
+    is_read = _notification_is_read(doc, caller_id=caller_id)
     return {
         "id": str(doc.get("id") or ""),
         "incident_id": incident_id,
@@ -282,13 +280,18 @@ def _normalize_notification(
         "risk_level": str(doc.get("riskLevel") or doc.get("risk_level") or ""),
         "created_at": str(doc.get("createdAt") or doc.get("created_at") or ""),
         "updated_at": str(doc.get("updatedAt") or doc.get("updated_at") or ""),
-        "is_read": _notification_is_read(doc),
-        "read_at": doc.get("readAt") or doc.get("read_at"),
-        "read_by": doc.get("readBy") or doc.get("read_by"),
+        "is_read": is_read,
+        "read_at": (doc.get("readAt") or doc.get("read_at")) if is_read else None,
+        "read_by": caller_id if is_read and caller_id else ((doc.get("readBy") or doc.get("read_by")) if is_read else None),
     }
 
 
-def _notification_is_read(doc: dict) -> bool:
+def _notification_is_read(doc: dict, *, caller_id: str = "") -> bool:
+    readers = _get_notification_readers(doc)
+    if caller_id and readers:
+        return caller_id in readers
+    if readers:
+        return False
     if doc.get("isRead") is True:
         return True
     read_at = doc.get("readAt") or doc.get("read_at")
@@ -432,7 +435,7 @@ def _dedupe_notifications_by_incident(items: list[dict]) -> list[dict]:
 
 def _mark_visible_notifications_read(
     docs: list[dict],
-    primary_role: str,
+    roles: str | Iterable[str],
     caller_id: str,
     *,
     now_iso: str,
@@ -442,14 +445,20 @@ def _mark_visible_notifications_read(
     updated_incident_ids: list[str] = []
 
     for doc in docs:
-        if not _is_visible_to_caller(doc, primary_role, caller_id):
+        if not _is_visible_to_caller(doc, roles, caller_id):
             continue
-        if _notification_is_read(doc):
+        if _notification_is_read(doc, caller_id=caller_id):
             continue
+
+        readers = _get_notification_readers(doc)
+        if caller_id and caller_id not in readers:
+            readers.append(caller_id)
+        if readers:
+            doc["readByUsers"] = readers
 
         doc["isRead"] = True
         doc["readAt"] = now_iso
-        doc["readBy"] = caller_id or primary_role
+        doc["readBy"] = caller_id or _coerce_roles(roles)[0] if _coerce_roles(roles) else ""
         doc["updatedAt"] = now_iso
         if str(doc.get("status") or "").strip().lower() == "unread":
             doc["status"] = "read"
@@ -467,19 +476,44 @@ def _mark_visible_notifications_read(
     return updated_docs, updated_ids, updated_incident_ids
 
 
-def _is_visible_to_caller(doc: dict, primary_role: str, caller_id: str) -> bool:
-    if primary_role == "ITAdmin":
-        return True
-
+def _is_visible_to_caller(doc: dict, roles: str | Iterable[str], caller_id: str) -> bool:
+    caller_roles = _coerce_roles(roles)
+    caller_role_targets = {
+        normalized_target
+        for role in caller_roles
+        for normalized_target in ROLE_TARGETS.get(role, set())
+    }
     target_role = _normalize_role_value(doc.get("targetRole") or doc.get("target_role"))
-    if target_role not in ROLE_TARGETS.get(primary_role, set()):
+    if target_role and target_role not in caller_role_targets:
         return False
 
-    if primary_role == "Operator":
+    if target_role == "operator":
         assigned_to = str(doc.get("assignedTo") or doc.get("assigned_to") or "").strip()
         return not assigned_to or not caller_id or assigned_to == caller_id
 
-    return True
+    return bool(caller_roles)
+
+
+def _coerce_roles(roles: str | Iterable[str]) -> list[str]:
+    if isinstance(roles, str):
+        return [roles] if roles else []
+    return [str(role) for role in roles if str(role).strip()]
+
+
+def _get_notification_readers(doc: dict) -> list[str]:
+    raw_readers = doc.get("readByUsers") or doc.get("read_by_users") or []
+    readers: list[str] = []
+    if isinstance(raw_readers, list):
+        for value in raw_readers:
+            normalized = str(value or "").strip()
+            if normalized and normalized not in readers:
+                readers.append(normalized)
+
+    legacy_reader = str(doc.get("readBy") or doc.get("read_by") or "").strip()
+    if legacy_reader and legacy_reader not in readers:
+        readers.append(legacy_reader)
+
+    return readers
 
 
 def _normalize_role_value(value: object) -> str:

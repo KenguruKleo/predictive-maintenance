@@ -109,8 +109,14 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 
 ## Progress (20 квітня 2026)
 
-- [x] Opening the incident detail page now acknowledges the incident's unread notifications for operator / QA-manager flows
-- [x] Approval UX is now tied to the notification center flow: bell/dropdown item opens the incident detail, then clears the unread marker after the page is opened
+- [x] Approval UX now preserves unread attention when a new update arrives on an already open incident; the operator must explicitly acknowledge it from the bell or the left incident rail
+- [x] Bell/dropdown click path still clears the unread marker for that incident, and re-clicking the same incident in the left rail now works as an explicit acknowledge action too
+
+## Progress (21 квітня 2026)
+
+- [x] Approval actions are now gated by the active decision owner from `incident.workflow_state`: operators only see buttons on operator-owned reviews, QA managers only on QA-owned escalations/follow-ups, and non-owning roles stay read-only
+- [x] Read-only users still retain the decision summary / transcript surface when it exists, but the composer and approve/reject/more-info buttons are hidden unless the caller owns the active review step
+- [x] `npm run build` passes in `frontend/`
 
 ---
 
@@ -122,5 +128,5 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 - [ ] Clicking [❓ Need More Info] → inline multiline composer focuses, question submits, re-analysis starts
 - [ ] LOW_CONFIDENCE banner shown when confidence < 0.7
 - [ ] Panel hidden for closed/rejected incidents
-- [ ] Non-operator roles see read-only decision package (no action buttons)
+- [x] Non-operator roles see read-only decision package (no action buttons)
 - [x] Notification-center click path lands in the same approval surface and clears unread state for that incident

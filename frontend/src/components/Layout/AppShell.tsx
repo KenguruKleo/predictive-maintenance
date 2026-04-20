@@ -66,7 +66,10 @@ export default function AppShell() {
         clearAllNotificationsPending={markAllNotificationsRead.isPending}
       />
       <div className="app-body">
-        <Sidebar unreadIncidentIds={unreadIncidentIds} />
+        <Sidebar
+          unreadIncidentIds={unreadIncidentIds}
+          onIncidentAcknowledge={(incidentId) => markIncidentNotificationsRead.mutateAsync(incidentId)}
+        />
         <main className="app-main">
           <Outlet />
         </main>

@@ -9,9 +9,10 @@ import StatusBadge from "../IncidentList/StatusBadge";
 interface Props {
   incident: Incident;
   events: IncidentEvent[];
+  canMakeDecision: boolean;
 }
 
-export default function ApprovalPanel({ incident, events }: Props) {
+export default function ApprovalPanel({ incident, events, canMakeDecision }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showQuestionComposer, setShowQuestionComposer] = useState(false);
   const decision = useSubmitDecision(incident.id);
@@ -135,7 +136,7 @@ export default function ApprovalPanel({ incident, events }: Props) {
         </div>
       )}
 
-      {isPending && (
+      {isPending && canMakeDecision && (
         <>
           <div className="decision-buttons decision-buttons--triple">
             <button
@@ -169,9 +170,9 @@ export default function ApprovalPanel({ incident, events }: Props) {
       {shouldShowChat && (
         <AgentChat
           events={events}
-          onSend={isPending ? handleAskAgent : undefined}
-          readOnly={!isPending}
-          showComposer={isPending && showQuestionComposer}
+          onSend={canMakeDecision && isPending ? handleAskAgent : undefined}
+          readOnly={!canMakeDecision || !isPending}
+          showComposer={canMakeDecision && isPending && showQuestionComposer}
           title="Conversation transcript"
           emptyState={
             isPending

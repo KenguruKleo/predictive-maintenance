@@ -50,6 +50,28 @@ def test_qamanager_sees_escalation_notifications() -> None:
     assert _is_visible_to_caller(doc, "QAManager", "qa.manager") is True
 
 
+def test_multi_role_user_keeps_operator_visibility_even_with_itadmin_role() -> None:
+    doc = {
+        "id": "notif-multi-1",
+        "incidentId": "INC-3A",
+        "targetRole": "operator",
+        "assignedTo": "ivan.petrenko",
+    }
+
+    assert _is_visible_to_caller(doc, ["ITAdmin", "Operator"], "ivan.petrenko") is True
+
+
+def test_itadmin_only_user_does_not_consume_operator_notification() -> None:
+    doc = {
+        "id": "notif-admin-1",
+        "incidentId": "INC-3B",
+        "targetRole": "operator",
+        "assignedTo": "ivan.petrenko",
+    }
+
+    assert _is_visible_to_caller(doc, ["ITAdmin"], "admin.user") is False
+
+
 def test_normalize_notification_defaults_legacy_items_to_unread() -> None:
     normalized = _normalize_notification({
         "id": "notif-legacy-1",
@@ -197,6 +219,17 @@ def test_notification_is_read_when_timestamp_or_flag_present() -> None:
     assert _notification_is_read({"status": "pending"}) is False
 
 
+def test_notification_is_read_is_scoped_to_the_current_user() -> None:
+    doc = {
+        "readByUsers": ["qa.manager"],
+        "readBy": "qa.manager",
+        "isRead": True,
+    }
+
+    assert _notification_is_read(doc, caller_id="qa.manager") is True
+    assert _notification_is_read(doc, caller_id="ivan.petrenko") is False
+
+
 def test_mark_visible_notifications_read_updates_only_visible_unread_items() -> None:
     now_iso = "2026-04-20T10:00:00+00:00"
     visible_unread = {
@@ -222,7 +255,7 @@ def test_mark_visible_notifications_read_updates_only_visible_unread_items() -> 
 
     updated_docs, updated_ids, updated_incident_ids = _mark_visible_notifications_read(
         [visible_unread, hidden_unread, visible_read],
-        "Operator",
+        ["Operator"],
         "ivan.petrenko",
         now_iso=now_iso,
     )
@@ -233,6 +266,7 @@ def test_mark_visible_notifications_read_updates_only_visible_unread_items() -> 
     assert visible_unread["isRead"] is True
     assert visible_unread["readAt"] == now_iso
     assert visible_unread["readBy"] == "ivan.petrenko"
+    assert visible_unread["readByUsers"] == ["ivan.petrenko"]
     assert visible_unread["status"] == "read"
     assert "isRead" not in hidden_unread
 
@@ -268,7 +302,6 @@ def test_mark_all_notifications_read_returns_updated_summary(monkeypatch) -> Non
 
     monkeypatch.setattr(http_notifications, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_notifications, "require_any_role", lambda roles, allowed: None)
-    monkeypatch.setattr(http_notifications, "get_primary_role", lambda roles: "Operator")
     monkeypatch.setattr(http_notifications, "get_caller_id", lambda req: "ivan.petrenko")
     monkeypatch.setattr(http_notifications, "get_container", lambda name: FakeContainer())
 
@@ -283,3 +316,4 @@ def test_mark_all_notifications_read_returns_updated_summary(monkeypatch) -> Non
     assert len(upserted) == 1
     assert upserted[0]["isRead"] is True
     assert upserted[0]["readBy"] == "ivan.petrenko"
+    assert upserted[0]["readByUsers"] == ["ivan.petrenko"]

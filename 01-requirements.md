@@ -97,7 +97,7 @@
 |---|---|---|
 | **Value & KPI Impact** | 10 | Чіткі business pain points, evidence-based KPI quantification, вимірюваний вплив на regulated process. |
 | **Innovation** | 10 | Диференційоване рішення (не basic chatbot/anomaly detector). Thoughtful multi-agent design tied to regulated workflow. |
-| **AI Fit** | 10 | AI добре підходить до задачі. Confidence thresholds, evidence gating, hallucination controls, prompt-injection defenses, agent observability. Responsible AI явний. |
+| **AI Fit** | 10 | AI добре підходить до задачі. Confidence thresholds, evidence gating, окрема verification-перевірка документів і citations, hallucination controls, prompt-injection defenses, agent observability. Responsible AI явний. |
 | **UX Simplicity** | 10 | Конкретний operator interface показаний. Approval ergonomics та explainability. Sample decision package з rationale/evidence. |
 | **Build–Scale–Reuse** | 10 | MVP чітко звужений (один тип активу, один клас відхилення, невеликий SOP/CAPA set). Reusable patterns та MCP assets. Production-scale constraints визначені. |
 
@@ -127,8 +127,9 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 |---|---|---|
 | **Agent Design** | Multi-agent orchestration, clear agent roles | ✅ Добре |
 | **Grounding / RAG** | Validated SOP/BPR, CAPA history retrieval | ✅ Добре |
+| **Document & Citation Verification** | Separate post-generation check validates document identity, section claim, and deep link against authoritative retrieved chunks before evidence is shown to user | ⚠️ Частково — backend citation normalization and unresolved-evidence downgrade exist, but the scenario still needs to be demonstrated consistently in UX / demo artifacts |
 | **Model Lifecycle** | Evaluation, governed deployment, versioning/rollback | ⚠️ Частково (згадано, не деталізовано) |
-| **Responsible AI** | Confidence thresholds, evidence gating | ❌ Відсутній |
+| **Responsible AI** | Confidence thresholds, evidence gating, separate document/citation verification | ⚠️ Частково — confidence gate path and citation verification path exist, але Content Safety / prompt-injection guard ще не завершені |
 | **AI Observability** | Agent monitoring, output tracing | ⚠️ Частково — incident-scoped App Insights prompt and response traces are now implemented in backend; Cosmos `incident_events` covers only business audit / transcript; dashboards, alerts, and admin retrieval UX are still pending |
 | **Prompt Injection Defense** | Content safety, input validation | ❌ Відсутній |
 
@@ -214,6 +215,7 @@ Hackathon явно перевіряє **Azure Well-Architected Framework**:
 - [x] **App Insights + Log Analytics** — задеплоєно, traces доступні
 - [x] **Mock data** — equipment (3), batches (2), incidents (3), templates (2) у `data/mock/`
 - [x] **Конкретний equipment scenario** — GR-204, Granulator, Plant-01, Line-2
+- [x] **Окрема verification-перевірка документів і citations** — backend нормалізує `evidence_citations` проти authoritative AI Search chunks; якщо секція не підтверджується, citation лишається visible як `unresolved`, але не піднімається в summary як verified fact
 
 ### 🎨 Спроектовано (архітектура описана, реалізація не завершена)
 - [ ] **Entra ID / Managed Identities** — архітектура в §8.1, реалізація T-035, T-038

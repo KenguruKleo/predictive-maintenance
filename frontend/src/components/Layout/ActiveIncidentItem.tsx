@@ -5,6 +5,7 @@ import StatusBadge from "../IncidentList/StatusBadge";
 interface Props {
   incident: Incident;
   isUnread?: boolean;
+  onAcknowledge?: (incidentId: string) => Promise<unknown>;
 }
 
 function formatSidebarDate(dateStr?: string): string {
@@ -18,7 +19,7 @@ function formatSidebarDate(dateStr?: string): string {
   return `${day} ${mon}, ${hh}:${mm}`;
 }
 
-export default function ActiveIncidentItem({ incident, isUnread = false }: Props) {
+export default function ActiveIncidentItem({ incident, isUnread = false, onAcknowledge }: Props) {
   const { id } = useParams();
   const isActive = id === incident.id;
   // Removed unused cfg and step variables after UI deduplication
@@ -29,6 +30,10 @@ export default function ActiveIncidentItem({ incident, isUnread = false }: Props
     <Link
       to={`/incidents/${incident.id}`}
       className={`sidebar-incident-item ${isActive ? "active" : ""} ${isUnread ? "sidebar-incident-item--unread" : ""}`}
+      onClick={() => {
+        if (!isUnread) return;
+        void onAcknowledge?.(incident.id);
+      }}
     >
       <div className="sidebar-incident-header">
         <span className="sidebar-incident-number-wrap">
@@ -48,6 +53,7 @@ export default function ActiveIncidentItem({ incident, isUnread = false }: Props
         )}
       </div>
       <div className={`sidebar-incident-status sidebar-incident-status--${incident.status}`}>
+        {isUnread && <span className="sidebar-incident-attention">Needs attention</span>}
         <StatusBadge status={incident.status} />
       </div>
     </Link>

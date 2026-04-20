@@ -381,7 +381,8 @@ Sensor Signal → Alert (already automated anomaly detection)
 │  Reliability (Gap #3 ✅): Service Bus DLQ · Durable retry ·         │
 │    Fallback mode · Circuit breaker · Timeout escalation             │
 │  RAI (Gap #4 ✅): Confidence gate 0.7 · Azure Content Safety ·      │
-│    Evidence-grounded output · Prompt injection guard                │
+│    Evidence-grounded output · Separate document/citation            │
+│    verification · Prompt injection guard                            │
 │  Observability: Azure Monitor · App Insights · Log Analytics ·      │
 │    Cosmos `incident_events` for business audit / transcript         │
 │  Track A (Gap #1 ✅): GitHub repo · GitHub Actions CI/CD ·          │
@@ -487,6 +488,22 @@ Sensor Signal → Alert (already automated anomaly detection)
   "capa_steps": ["Stop granulator", "Inspect bearing", "Run validation batch before restart"]
 }
 ```
+
+- **Окремий anti-hallucination verification pass (hackathon AI Fit requirement):**
+
+| Що перевіряємо | Хто виконує | Навіщо |
+|---|---|---|
+| Наявність документа | backend normalization layer після відповіді агента | Рекомендація не може посилатись на неіснуючий SOP / GMP doc |
+| Відповідність `document_id` / title / link | backend verification, незалежно від reasoning агента | Щоб generic labels типу `sop` / `gmp` не потрапляли в decision package |
+| Section claim (`§4.2`, `§6.3`) | authoritative chunk match у Azure AI Search | Щоб модель не видавала paragraph/section hallucination як verified evidence |
+| Excerpt anchor | authoritative chunk text | Щоб зберігати тільки ті цитати, які реально можна простежити до retrieved evidence |
+
+- **Ключовий принцип:** reasoning і verification — це два різні кроки. Agent може запропонувати гіпотезу та citations, але фінальний decision package проходить окрему server-side перевірку документів і цитат перед записом у Cosmos та показом в UI.
+- **Expected behavior:**
+  - якщо документ знайдено і section підтверджено — citation вважається verified evidence;
+  - якщо документ знайдено, але section claim не підтверджується authoritative chunk — citation лишається видимою як `unresolved`, але неперевірена section claim не піднімається в summary fields;
+  - якщо документ / link не підтверджено — citation не повинна рахуватись як verified evidence для trust/explainability шару.
+- **Сценарій для hackathon review:** модель може повернути `EU GMP Annex 15 §6.3`, але якщо authoritative hit реально якіриться тільки на `§6.1 General Principles`, то оператор бачить документ `EU GMP Annex 15` і excerpt як evidence, але секція позначається `unresolved` і не потрапляє в top-level `regulatory_reference` як перевірений факт.
 
 - **RAI gate — confidence < 0.7:**
 
@@ -1163,6 +1180,7 @@ This closes the gap between business audit trail and AI runtime observability wi
 | 2026-04-17 | v2.6 | **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent переведені в sub-agents Foundry Orchestrator Agent (`AgentTool`). Durable: 2 activities (`run_research_agent` + `run_document_agent`) → 1 activity `run_foundry_agents`. `more_info` loop: Durable накопичує `operator_questions`, Foundry керує internal iterations через `max_iterations`. §8.1 схема, §8.2 таблиця, §8.3 Orchestrator Agent, §8.9 діаграма, §8.10b ADR-002, §8.11 Functions map — оновлено. T-024, T-025, T-026, 04-action-plan оновлено. | — |
 | 2026-04-19 | v2.7 | **Agent Observability:** `run_foundry_agents` now emits structured incident-scoped App Insights traces for the backend-visible Foundry path. Added §8.14 prompt trace contract, incident retrieval model, and explicit note that the current SDK does not expose connected sub-agent run steps directly. | Gap #3, Gap #4 |
 | 2026-04-19 | v2.8 | **Telemetry storage alignment:** architecture docs updated to reflect the real split between Cosmos `incident_events` (business audit / transcript) and App Insights `FOUNDRY_PROMPT_TRACE` records (deep agent diagnostics). Cosmos inventory aligned to 8 deployed containers, and the recommended admin frontend path is now an App-Insights-backed `GET /api/incidents/{id}/agent-telemetry` endpoint with optional Cosmos projection. | T-043 |
+| 2026-04-20 | v2.9 | **RAI evidence verification:** §8.1 і §8.3 тепер явно описують окремий post-generation verification pass для document identity та citation section claims. Це фіксує anti-hallucination control як окрему архітектурну вимогу hackathon AI Fit, а не як внутрішню implementation detail. | Gap #4 |
 
 ---
 

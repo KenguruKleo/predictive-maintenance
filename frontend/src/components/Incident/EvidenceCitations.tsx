@@ -36,16 +36,27 @@ export default function EvidenceCitations({ citations }: Props) {
           const linkLabel = getCitationLinkLabel(c);
           const resolved = isCitationResolved(c);
           const typeLabel = TYPE_LABELS[c.type ?? ""] ?? labelize(c.type || c.source || "document");
+          const statusLabel = resolved ? "Verified evidence" : "Unresolved evidence";
           return (
-            <li key={i} className="evidence-item evidence-card">
+            <li
+              key={i}
+              className={`evidence-item evidence-card${resolved ? "" : " evidence-item-unresolved"}`}
+            >
               <span className="evidence-icon">{TYPE_LABELS[c.type ?? ""] ?? "Doc"}</span>
               <div className="evidence-body">
-                <div className="evidence-ref">
-                  {title}
-                  {section ? ` ${section}` : ""}
+                <div className="evidence-headline">
+                  <div className="evidence-ref">
+                    {title}
+                    {section ? ` ${section}` : ""}
+                  </div>
+                  <span
+                    className={`evidence-status evidence-status-${resolved ? "verified" : "unresolved"}`}
+                  >
+                    {statusLabel}
+                  </span>
                 </div>
                 <div className="evidence-meta">
-                  {resolved ? typeLabel : "Unresolved evidence"}
+                  {typeLabel}
                   {typeof c.score === "number" ? ` | score ${c.score.toFixed(2)}` : ""}
                   {c.source_blob ? ` | ${c.source_blob}` : ""}
                   {c.unresolved_reason ? ` | ${c.unresolved_reason}` : ""}

@@ -1,8 +1,6 @@
-import { useEffect, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
-import { useMarkIncidentNotificationsRead } from "../hooks/useNotifications";
 import IncidentInfo from "../components/Incident/IncidentInfo";
 import ParameterExcursion from "../components/Incident/ParameterExcursion";
 import DecisionPackage from "../components/Incident/DecisionPackage";
@@ -14,34 +12,48 @@ import ErrorBoundary from "../components/ErrorBoundary";
 import Breadcrumb from "../components/Layout/Breadcrumb";
 import type { ParameterExcursion as ParamExcursion } from "../types/incident";
 
+function getActiveDecisionRole(
+  targetRole?: string,
+  currentStep?: string,
+  status?: string,
+): "operator" | "qa-manager" {
+  const normalizedRole = String(targetRole || "").trim().toLowerCase().replace(/_/g, "-");
+  if (normalizedRole === "qa-manager" || normalizedRole === "qamanager") return "qa-manager";
+  if (normalizedRole === "operator") return "operator";
+
+  const normalizedStep = String(currentStep || "").trim().toLowerCase();
+  if (normalizedStep === "awaiting_qa_manager_decision" || status === "escalated") {
+    return "qa-manager";
+  }
+  return "operator";
+}
+
 export default function IncidentDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: incident, isLoading, error } = useIncident(id!);
   const { data: events = [], error: eventsError } = useIncidentEvents(id!);
   if (eventsError) console.warn("[EventTimeline] events fetch failed:", eventsError);
-  const { hasAnyRole } = useAuth();
-  const { mutate: markIncidentNotificationsRead } = useMarkIncidentNotificationsRead();
-  const acknowledgedIncidentIdsRef = useRef<Set<string>>(new Set());
-
-  const canAcknowledgeNotifications = hasAnyRole("operator", "qa-manager");
-
-  useEffect(() => {
-    if (!id || !canAcknowledgeNotifications) return;
-    if (acknowledgedIncidentIdsRef.current.has(id)) return;
-
-    acknowledgedIncidentIdsRef.current.add(id);
-    markIncidentNotificationsRead(id);
-  }, [id, canAcknowledgeNotifications, markIncidentNotificationsRead]);
+  const { hasAnyRole, hasRole } = useAuth();
 
   if (isLoading) return <div className="loading">Loading incident...</div>;
   if (error || !incident)
     return <div className="error-banner">Incident not found.</div>;
 
-  const showApproval =
-    hasAnyRole("operator", "qa-manager") &&
-    (incident.status === "pending_approval" ||
-      incident.status === "escalated" ||
-      incident.status === "awaiting_agents");
+  const activeDecisionRole = getActiveDecisionRole(
+    incident.workflow_state?.target_role,
+    incident.workflow_state?.current_step,
+    incident.status,
+  );
+  const isDecisionState =
+    incident.status === "pending_approval" ||
+    incident.status === "escalated" ||
+    incident.status === "awaiting_agents";
+  const canSubmitDecision = isDecisionState && (
+    (hasRole("operator") && activeDecisionRole === "operator") ||
+    (hasRole("qa-manager") && activeDecisionRole === "qa-manager")
+  );
+
+  const showApproval = canSubmitDecision;
 
   const showReadonlyChat =
     !showApproval &&
@@ -150,7 +162,7 @@ export default function IncidentDetailPage() {
 
           {(showApproval || showReadonlyChat || showDecisionSummary) && (
             <ErrorBoundary inline section="Approval Panel">
-              <ApprovalPanel incident={incident} events={events} />
+              <ApprovalPanel incident={incident} events={events} canMakeDecision={canSubmitDecision} />
             </ErrorBoundary>
           )}
 

@@ -29,8 +29,8 @@ import azure.functions as func
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
 
 from shared.cosmos_client import get_cosmos_client
-from shared.incident_store import patch_incident_by_id
-from utils.auth import AuthError, get_caller_id, get_caller_roles, get_primary_role, require_any_role
+from shared.incident_store import get_incident_by_id, patch_incident_by_id
+from utils.auth import AuthError, get_caller_id, get_caller_roles, require_any_role
 from utils.validation import sanitize_string_fields
 
 logger = logging.getLogger(__name__)
@@ -68,11 +68,17 @@ async def http_decision(
     except AuthError as exc:
         return _error(exc.status_code, exc.message)
 
+    caller_workflow_roles = {
+        WORKFLOW_ROLE_BY_APP_ROLE[role]
+        for role in roles
+        if role in WORKFLOW_ROLE_BY_APP_ROLE
+    }
+    if not caller_workflow_roles:
+        return _error(403, "Access denied. No decision workflow role is assigned to the caller.")
+
     caller_id = get_caller_id(req).strip()
     if not caller_id:
         return _error(401, "Authentication required")
-
-    primary_role = get_primary_role(roles)
 
     # Parse body
     try:
@@ -106,7 +112,19 @@ async def http_decision(
             caller_id,
         )
 
-    workflow_role = WORKFLOW_ROLE_BY_APP_ROLE.get(primary_role, str(body.get("role", "operator") or "operator"))
+    try:
+        workflow_role = _get_target_workflow_role(incident_id)
+    except CosmosResourceNotFoundError:
+        return _error(404, f"Incident '{incident_id}' not found")
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("Failed to load incident decision routing for %s: %s", incident_id, exc)
+        return _error(500, "Failed to determine the active decision owner for this incident")
+
+    if workflow_role not in caller_workflow_roles:
+        return _error(
+            403,
+            f"Access denied. Incident is currently awaiting {workflow_role} decision.",
+        )
 
     instance_id = f"durable-{incident_id}"
 
@@ -160,6 +178,30 @@ def _error(status_code: int, message: str) -> func.HttpResponse:
         status_code=status_code,
         mimetype="application/json",
     )
+
+
+def _normalize_workflow_role(value: object) -> str:
+    normalized = str(value or "").strip().lower().replace("_", "-")
+    if normalized == "qamanager":
+        return "qa-manager"
+    return normalized
+
+
+def _get_target_workflow_role(incident_id: str) -> str:
+    client = get_cosmos_client()
+    db = client.get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    workflow_state = incident.get("workflow_state") or {}
+
+    target_role = _normalize_workflow_role(workflow_state.get("target_role"))
+    if target_role:
+        return target_role
+
+    current_step = str(workflow_state.get("current_step") or "").strip().lower()
+    incident_status = str(incident.get("status") or "").strip().lower()
+    if current_step == "awaiting_qa_manager_decision" or incident_status == "escalated":
+        return "qa-manager"
+    return "operator"
 
 
 def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:

@@ -12,6 +12,8 @@
 
 Закрити Gap #4: Confidence gate + Azure Content Safety + Prompt injection guard + Agent output observability.
 
+Окремо зафіксувати для хакатонної оцінки, що hallucination control не зводиться лише до prompt/RAG: після генерації має існувати незалежний verification pass, який перевіряє документи та citations перед тим, як вони потрапляють у decision package.
+
 ---
 
 ## Checklist
@@ -22,6 +24,13 @@
   - `confidence < 0.70` → `risk_level = "LOW_CONFIDENCE"`, warning prepended to recommendation
 - [ ] Frontend показує red banner якщо `confidence_flag == "LOW_CONFIDENCE"`
 - [ ] LOW_CONFIDENCE incidents auto-escalated до qa-manager (not assigned to operator alone)
+
+### Grounding / Citation Verification
+- [ ] Існує окремий post-generation verification pass для `evidence_citations`, `sop_refs`, `regulatory_refs`, `regulatory_reference`
+- [ ] Для кожної citation перевіряється окремо: document identity, deep link, section claim, excerpt anchor
+- [ ] Якщо document match є, але section claim не підтверджується authoritative chunk, citation лишається visible як `unresolved`, але section не потрапляє в top-level summary fields
+- [ ] Generic placeholders типу `sop`, `gmp` або synthetic section values типу `§15` не потрапляють у decision summary
+- [ ] UI чітко відрізняє verified evidence від unresolved evidence, а verified evidence threshold не рахує непідтверджені citations
 
 ### Content Safety
 ```python
@@ -75,9 +84,33 @@ def sanitize_string_fields(body: dict) -> dict:
 
 ---
 
+## Сценарій для hackathon demo / review
+
+**Scenario:** `GR-204` spray rate excursion during wet granulation for `Metformin HCl 500mg Tablets`.
+
+1. Research Agent retrieves:
+    - `SOP-DEV-001 §4.2 Process Parameter Excursions — Granulation`
+    - `EU GMP Annex 15` excerpts from Azure AI Search
+2. Document Agent drafts recommendation and citations.
+3. Verification layer runs **окремо від reasoning агента** and checks:
+    - чи існує cited document у knowledge base;
+    - чи збігається document identity / link;
+    - чи section claim реально відповідає authoritative chunk;
+    - чи excerpt можна простежити до retrieved evidence.
+4. Якщо модель заявляє `EU GMP Annex 15 §6.3`, але authoritative chunk реально відповідає лише `§6.1 General Principles`, то system behavior має бути таким:
+    - документ `EU GMP Annex 15` залишається у visible evidence;
+    - citation status = `unresolved` для section claim;
+    - top-level summary не повинен показувати непідтверджену секцію як verified fact.
+5. Reviewer / judge повинен побачити, що система не приховує evidence, але й не маскує hallucinated citation як достовірне джерело.
+
+---
+
 ## Definition of Done
 
 - [ ] Confidence gate tested: confidence=0.5 → LOW_CONFIDENCE shown in UI
+- [ ] Hackathon scenario вище відтворюється на fixture або live incident payload і показує separate verification pass
+- [ ] Unverified section claims не потрапляють у `regulatory_reference` / summary fields як verified fact
+- [ ] Verified vs unresolved evidence visibly different in stored payload / UI contract
 - [ ] Content Safety check runs on agent output (verified in App Insights logs)
 - [ ] Prompt injection attempt in POST /api/alerts `description` field → 400 response
 - [ ] App Insights dashboard or API endpoint shows per-incident agent traces with durations and confidence metrics

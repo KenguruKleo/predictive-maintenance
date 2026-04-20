@@ -109,7 +109,10 @@ def run_foundry_agents(input_data: dict) -> dict:
     if more_info_round == 0:
         _write_analysis_started_event(incident_id)
 
-    orchestrator_agent_id = os.environ.get("ORCHESTRATOR_AGENT_ID", "") or "asst_CNYK3TZIaOCH4OPKcP4N9B2r"
+    # HACKATHON: fallback to the provisioned agent ID so local runs work without a
+    # full env-var setup. Remove the fallback before a production deployment.
+    _FALLBACK_AGENT_ID = "asst_CNYK3TZIaOCH4OPKcP4N9B2r"
+    orchestrator_agent_id = os.environ.get("ORCHESTRATOR_AGENT_ID", "").strip() or _FALLBACK_AGENT_ID
     if not orchestrator_agent_id:
         raise EnvironmentError(
             "ORCHESTRATOR_AGENT_ID env var is not set. "
@@ -740,7 +743,6 @@ def _build_agents_client() -> AgentsClient:
         "AZURE_AI_FOUNDRY_AGENTS_ENDPOINT",
         os.environ.get("AZURE_AI_FOUNDRY_PROJECT_CONNECTION_STRING", ""),
     )
-    os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
     return AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
 
@@ -1054,6 +1056,12 @@ def _build_regulatory_reference_summary(
 
     for item in [*(sop_refs or []), *(regulatory_refs or [])]:
         label = _reference_label(item)
+        if not label:
+            continue
+
+        if _should_skip_reference_summary_item(item, label):
+            continue
+
         section = str(item.get("relevant_section") or item.get("section") or "").strip()
         summary = f"{label} {section}".strip() if section else label
         if not summary:
@@ -1072,23 +1080,73 @@ def _build_regulatory_reference_summary(
 def _reference_label(item: dict) -> str:
     citation_type = str(item.get("type") or "")
     if citation_type == "sop":
-        return str(
-            item.get("source")
-            or item.get("id")
-            or item.get("document_id")
-            or item.get("document_title")
-            or item.get("title")
-            or ""
-        ).strip()
+        candidates = [
+            item.get("source"),
+            item.get("document_title"),
+            item.get("title"),
+            item.get("id"),
+            item.get("document_id"),
+        ]
+    else:
+        candidates = [
+            item.get("document_title"),
+            item.get("regulation"),
+            item.get("reference"),
+            item.get("source"),
+            item.get("document_id"),
+        ]
 
-    return str(
-        item.get("regulation")
-        or item.get("reference")
-        or item.get("document_title")
-        or item.get("source")
-        or item.get("document_id")
-        or ""
-    ).strip()
+    fallback = ""
+    for candidate in candidates:
+        label = _display_reference_label(candidate)
+        if not label:
+            continue
+        if not fallback:
+            fallback = label
+        if _is_generic_reference_label(label):
+            continue
+        return label
+
+    return "" if _is_generic_reference_label(fallback) else fallback
+
+
+def _display_reference_label(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    for separator in (" — ", " · "):
+        prefix, found, _suffix = text.partition(separator)
+        if found and prefix.strip():
+            return prefix.strip()
+
+    return text
+
+
+def _is_generic_reference_label(value: str) -> bool:
+    normalized = _normalize_text(value)
+    return normalized in {
+        "sop",
+        "gmp",
+        "bpr",
+        "manual",
+        "historical",
+        "document",
+        "incident",
+        "evidence",
+    }
+
+
+def _should_skip_reference_summary_item(item: dict, label: str) -> bool:
+    if _is_generic_reference_label(label):
+        return True
+
+    if str(item.get("resolution_status") or "") != "unresolved":
+        return False
+
+    has_link = bool(str(item.get("url") or "").strip())
+    has_document = bool(str(item.get("document_id") or "").strip())
+    return not has_link and not has_document
 
 
 def _reference_section_display(citation: dict) -> str:
@@ -1548,24 +1606,30 @@ def _normalize_evidence_citations(
 ) -> list[dict]:
     flat_hits = _flatten_rag_hits(rag_context)
     raw_items: list[dict] = []
+    has_type_from_evidence: set[str] = set()
 
     for item in result.get("evidence_citations", []) or []:
         if isinstance(item, dict):
             raw_items.append(item)
+            item_type = str(item.get("type") or "").strip()
+            if item_type:
+                has_type_from_evidence.add(item_type)
         elif isinstance(item, str):
             raw_items.append({"source": item})
 
-    for item in result.get("sop_refs", []) or []:
-        if isinstance(item, dict):
-            raw_items.append({"type": "sop", **item})
-        elif isinstance(item, str):
-            raw_items.append({"type": "sop", "source": item, "document_id": item})
+    if "sop" not in has_type_from_evidence:
+        for item in result.get("sop_refs", []) or []:
+            if isinstance(item, dict):
+                raw_items.append({"type": "sop", **item})
+            elif isinstance(item, str):
+                raw_items.append({"type": "sop", "source": item, "document_id": item})
 
-    for item in result.get("regulatory_refs", []) or []:
-        if isinstance(item, dict):
-            raw_items.append({"type": "gmp", **item})
-        elif isinstance(item, str):
-            raw_items.append({"type": "gmp", "source": item, "document_title": item})
+    if "gmp" not in has_type_from_evidence:
+        for item in result.get("regulatory_refs", []) or []:
+            if isinstance(item, dict):
+                raw_items.append({"type": "gmp", **item})
+            elif isinstance(item, str):
+                raw_items.append({"type": "gmp", "source": item, "document_title": item})
 
     normalized: list[dict] = []
     seen: set[tuple] = set()
@@ -1794,9 +1858,13 @@ def _normalize_section_key(value: object) -> str:
     if not text:
         return ""
 
-    match = re.search(r"(?<!\w)§?\s*(\d+(?:\.\d+)*)(?!\w)", text)
-    if match:
-        return match.group(1).lower()
+    explicit_matches = re.findall(r"§\s*(\d+(?:\.\d+)*)", text)
+    if explicit_matches:
+        return explicit_matches[-1].lower()
+
+    matches = re.findall(r"(?<!\w)(\d+(?:\.\d+)*)(?!\w)", text)
+    if matches:
+        return matches[-1].lower()
 
     return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:80]
 
@@ -2066,6 +2134,13 @@ def _document_url(container: str, source_blob: str) -> str:
 
 
 def _infer_known_document(item: dict) -> dict | None:
+    # HACKATHON ONLY — hardcoded fallback for mock documents whose metadata may not
+    # be fully populated in the search index during the demo.
+    # PRODUCTION NOTE: remove this function; the search index must be the sole source
+    # of document metadata. If a document isn't matched via _find_matching_hit, the
+    # root cause is missing/incomplete index data, not a missing code mapping.
+    if os.getenv("KNOWN_DOCUMENT_FALLBACK_DISABLED", "").strip().lower() in {"1", "true", "yes"}:
+        return None
     text = " ".join(
         str(item.get(k, ""))
         for k in ("document_id", "document_title", "reference", "source", "text_excerpt", "id", "title", "regulation")

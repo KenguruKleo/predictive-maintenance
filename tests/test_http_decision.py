@@ -103,6 +103,7 @@ def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
     recorded: dict = {}
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "auth.operator")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
     monkeypatch.setattr(
         http_decision,
         "_record_decision",
@@ -151,6 +152,7 @@ def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
 def test_http_decision_returns_404_when_no_active_orchestrator(monkeypatch) -> None:
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["QAManager"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "qa.manager")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "qa-manager")
 
     req = FakeRequest(
         {"action": "rejected", "reason": "Rejected by QA."},
@@ -164,6 +166,38 @@ def test_http_decision_returns_404_when_no_active_orchestrator(monkeypatch) -> N
     assert response.status_code == 404
     assert "No active orchestrator found" in payload["error"]
     assert "OrchestrationRuntimeStatus.Completed" in payload["error"]
+
+
+def test_http_decision_forbids_qamanager_on_operator_owned_incident(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["QAManager"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "qa.manager")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+
+    req = FakeRequest(
+        {"action": "approved", "reason": "QA should not decide this one."},
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+
+    response = asyncio.run(HTTP_DECISION(req, FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))))
+
+    assert response.status_code == 403
+    assert json.loads(response.get_body())["error"] == "Access denied. Incident is currently awaiting operator decision."
+
+
+def test_http_decision_forbids_operator_on_qamanager_owned_incident(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "qa-manager")
+
+    req = FakeRequest(
+        {"action": "approved", "reason": "Operator should not decide escalated incidents."},
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+
+    response = asyncio.run(HTTP_DECISION(req, FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))))
+
+    assert response.status_code == 403
+    assert json.loads(response.get_body())["error"] == "Access denied. Incident is currently awaiting qa-manager decision."
 
 
 def test_record_decision_updates_approval_task_incident_and_event(monkeypatch) -> None:

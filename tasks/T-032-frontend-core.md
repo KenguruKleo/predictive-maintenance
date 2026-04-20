@@ -125,7 +125,8 @@ frontend/
 - [x] `AppShell` now owns a single shared SignalR connection and renders a visible toast stack for live updates
 - [x] Header notification bell implemented with unread badge and unread dropdown feed
 - [x] Sidebar items now show unread highlight/dot for incidents with unread notifications
-- [x] Incident detail page marks incident notifications as read on open for operator / QA manager flows
+- [x] Unread incidents now keep a stronger visible attention state in the left rail, including when the incident is already open
+- [x] Notification acknowledgment moved from automatic detail-page open to explicit user interaction via the bell dropdown or a click on the left active-incident item
 - [x] `npm run build` passes with the notification center slice enabled
 
 ---

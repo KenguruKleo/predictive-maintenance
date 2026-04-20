@@ -190,9 +190,10 @@ const NAV_GROUPS = [
 
 interface Props {
   unreadIncidentIds?: string[];
+  onIncidentAcknowledge?: (incidentId: string) => Promise<unknown>;
 }
 
-export default function Sidebar({ unreadIncidentIds = [] }: Props) {
+export default function Sidebar({ unreadIncidentIds = [], onIncidentAcknowledge }: Props) {
   const { roles } = useAuth();
   const { dragging, onMouseDown } = useSidebarResize();
 
@@ -281,6 +282,7 @@ export default function Sidebar({ unreadIncidentIds = [] }: Props) {
             key={inc.id}
             incident={inc}
             isUnread={unreadIncidentIds.includes(inc.id)}
+            onAcknowledge={onIncidentAcknowledge}
           />
         ))}
         {/* Infinite scroll sentinel */}
