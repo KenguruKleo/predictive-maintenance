@@ -15,7 +15,11 @@ const STATUS_MAP: Record<IncidentStatus, { label: string; className: string }> =
   closed: { label: "Closed", className: "badge badge--closed" },
 };
 
-export default function StatusBadge({ status }: { status: IncidentStatus }) {
-  const cfg = STATUS_MAP[status] ?? { label: status ?? "Unknown", className: "badge badge--closed" };
+export default function StatusBadge({ status }: { status: IncidentStatus | (string & {}) | null | undefined }) {
+  const normalizedStatus = String(status ?? "Unknown");
+  const cfg = STATUS_MAP[normalizedStatus as IncidentStatus] ?? {
+    label: normalizedStatus.replace(/_/g, " "),
+    className: "badge badge--closed",
+  };
   return <span className={cfg.className}>{cfg.label}</span>;
 }

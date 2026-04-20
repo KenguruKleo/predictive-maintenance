@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { BrowserNotificationPermission, NotificationItem } from "../../types/notification";
+import StatusBadge from "../IncidentList/StatusBadge";
 
 interface Props {
   notifications: NotificationItem[];
@@ -13,6 +14,8 @@ interface Props {
   dismissVersion?: number;
   onOpen?: () => void;
 }
+
+type NotificationPresentationKind = "actionable" | "informational";
 
 function BellIcon() {
   return (
@@ -39,6 +42,37 @@ function formatNotificationDate(value?: string): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
+}
+
+function getPresentationKind(notification: NotificationItem): NotificationPresentationKind {
+  if (notification.presentation_kind === "actionable" || notification.presentation_kind === "informational") {
+    return notification.presentation_kind;
+  }
+
+  return notification.incident_status === "awaiting_agents" ? "informational" : "actionable";
+}
+
+function buildNotificationSubtitle(notifications: NotificationItem[], unreadCount: number): string {
+  if (unreadCount === 0) {
+    return "No active notifications";
+  }
+
+  const actionableCount = notifications.filter((notification) => getPresentationKind(notification) === "actionable").length;
+  const informationalCount = notifications.length - actionableCount;
+  const parts: string[] = [];
+
+  if (actionableCount > 0) {
+    parts.push(`${actionableCount} decision${actionableCount === 1 ? "" : "s"} pending`);
+  }
+  if (informationalCount > 0) {
+    parts.push(`${informationalCount} update${informationalCount === 1 ? "" : "s"}`);
+  }
+
+  const summary = parts.join(", ") || `${unreadCount} active notification${unreadCount === 1 ? "" : "s"}`;
+  if (notifications.length < unreadCount && notifications.length > 0) {
+    return `Latest ${notifications.length} of ${unreadCount}: ${summary}`;
+  }
+  return summary;
 }
 
 export default function NotificationCenter({
@@ -82,6 +116,10 @@ export default function NotificationCenter({
   }, [open]);
 
   const unreadLabel = useMemo(() => (unreadCount > 9 ? "9+" : String(unreadCount)), [unreadCount]);
+  const subtitle = useMemo(
+    () => buildNotificationSubtitle(notifications, unreadCount),
+    [notifications, unreadCount],
+  );
 
   const handleBellClick = () => {
     setOpen((value) => {
@@ -116,7 +154,7 @@ export default function NotificationCenter({
             <div>
               <div className="notification-dropdown-title">Unread notifications</div>
               <div className="notification-dropdown-subtitle">
-                {unreadCount} item{unreadCount === 1 ? "" : "s"} awaiting review
+                {subtitle}
               </div>
             </div>
             <div className="notification-dropdown-actions">
@@ -160,11 +198,13 @@ export default function NotificationCenter({
             ) : notifications.length === 0 ? (
               <div className="notification-empty">No unread notifications.</div>
             ) : (
-              notifications.map((notification) => (
+              notifications.map((notification) => {
+                const presentationKind = getPresentationKind(notification);
+                return (
                 <Link
                   key={notification.id}
                   to={`/incidents/${encodeURIComponent(notification.incident_id)}`}
-                  className="notification-item"
+                  className={`notification-item notification-item--${presentationKind}`}
                   onClick={() => setOpen(false)}
                 >
                   <div className="notification-item-header">
@@ -178,11 +218,16 @@ export default function NotificationCenter({
                   <div className="notification-item-meta">
                     <span>{notification.incident_id}</span>
                     {notification.equipment_id && <span>{notification.equipment_id}</span>}
-                    {notification.incident_status && <span>{notification.incident_status.replace(/_/g, " ")}</span>}
                   </div>
+                  {notification.incident_status && (
+                    <div className="notification-item-status-row">
+                      <StatusBadge status={notification.incident_status} />
+                    </div>
+                  )}
                   <div className="notification-item-message">{notification.message}</div>
                 </Link>
-              ))
+                );
+              })
             )}
           </div>
         </div>

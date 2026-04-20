@@ -349,8 +349,19 @@
   margin-top: 6px;
 }
 
-.notification-item-message {
+.notification-item-status-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   margin-top: 8px;
+}
+
+.notification-item-status-row .badge {
+  white-space: nowrap;
+}
+
+.notification-item-message {
+  margin-top: 6px;
   font-size: 12px;
   line-height: 1.45;
   color: rgba(236, 241, 255, 0.86);

@@ -11,7 +11,7 @@ import {
 
 const TYPE_LABELS: Record<string, string> = {
   sop: "SOP",
-  historical: "History",
+  historical: "Similar incident",
   gmp: "GMP",
   bpr: "BPR",
   manual: "Manual",
@@ -35,6 +35,7 @@ export default function EvidenceCitations({ citations }: Props) {
           const href = getCitationHref(c);
           const linkLabel = getCitationLinkLabel(c);
           const resolved = isCitationResolved(c);
+          const typeLabel = TYPE_LABELS[c.type ?? ""] ?? labelize(c.type || c.source || "document");
           return (
             <li key={i} className="evidence-item evidence-card">
               <span className="evidence-icon">{TYPE_LABELS[c.type ?? ""] ?? "Doc"}</span>
@@ -44,7 +45,7 @@ export default function EvidenceCitations({ citations }: Props) {
                   {section ? ` ${section}` : ""}
                 </div>
                 <div className="evidence-meta">
-                  {resolved ? labelize(c.type || c.source || "document") : "Unresolved evidence"}
+                  {resolved ? typeLabel : "Unresolved evidence"}
                   {typeof c.score === "number" ? ` | score ${c.score.toFixed(2)}` : ""}
                   {c.source_blob ? ` | ${c.source_blob}` : ""}
                   {c.unresolved_reason ? ` | ${c.unresolved_reason}` : ""}

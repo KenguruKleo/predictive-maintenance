@@ -24,6 +24,19 @@ logger = logging.getLogger(__name__)
 bp = func.Blueprint()
 
 ALL_ROLES = ["Operator", "QAManager", "MaintenanceTech", "Auditor", "ITAdmin"]
+ACTIONABLE_NOTIFICATION_STATUSES = {"pending_approval", "escalated"}
+INFORMATIONAL_NOTIFICATION_STATUSES = {"awaiting_agents"}
+SUPPRESSED_NOTIFICATION_STATUSES = {
+    "open",
+    "ingested",
+    "analyzing",
+    "approved",
+    "in_progress",
+    "executed",
+    "completed",
+    "rejected",
+    "closed",
+}
 
 ROLE_TARGETS = {
     "Operator": {"operator"},
@@ -201,7 +214,7 @@ def _load_visible_notifications(
     *,
     incident_id: str = "",
 ) -> list[dict]:
-    container = get_container("notifications")
+    notifications_container = get_container("notifications")
     query = "SELECT * FROM c"
     parameters = []
 
@@ -209,28 +222,63 @@ def _load_visible_notifications(
         query += " WHERE c.incidentId = @incident_id"
         parameters.append({"name": "@incident_id", "value": incident_id})
 
-    docs = list(container.query_items(
+    docs = list(notifications_container.query_items(
         query=query,
         parameters=parameters,
         enable_cross_partition_query=True,
     ))
 
-    items = [_normalize_notification(doc) for doc in docs if _is_visible_to_caller(doc, primary_role, caller_id)]
+    visible_docs = [doc for doc in docs if _is_visible_to_caller(doc, primary_role, caller_id)]
+    incident_map = _load_incident_map(_collect_incident_ids(visible_docs))
+
+    items = []
+    for doc in visible_docs:
+        incident = incident_map.get(str(doc.get("incidentId") or doc.get("incident_id") or ""))
+        normalized = _normalize_notification(doc, incident=incident, caller_id=caller_id)
+        if normalized:
+            items.append(normalized)
+
     items.sort(key=lambda item: item["created_at"] or "", reverse=True)
-    return items
+    return _dedupe_notifications_by_incident(items)
 
 
-def _normalize_notification(doc: dict) -> dict:
+def _normalize_notification(
+    doc: dict,
+    *,
+    incident: dict | None = None,
+    caller_id: str = "",
+) -> dict | None:
+    incident_id = str(doc.get("incidentId") or doc.get("incident_id") or "")
+    current_status = _get_current_incident_status(doc, incident)
+
+    if not _should_surface_notification(doc, incident, current_status, caller_id):
+        return None
+
+    title = str(
+        (incident or {}).get("title")
+        or doc.get("title")
+        or doc.get("incidentTitle")
+        or ""
+    )
+
     return {
         "id": str(doc.get("id") or ""),
-        "incident_id": str(doc.get("incidentId") or doc.get("incident_id") or ""),
+        "incident_id": incident_id,
         "type": str(doc.get("type") or ""),
-        "message": str(doc.get("message") or ""),
+        "message": _build_notification_message(current_status, doc=doc),
         "target_role": str(doc.get("targetRole") or doc.get("target_role") or ""),
         "assigned_to": str(doc.get("assignedTo") or doc.get("assigned_to") or ""),
-        "equipment_id": str(doc.get("equipmentId") or doc.get("equipment_id") or ""),
-        "title": str(doc.get("title") or doc.get("incidentTitle") or ""),
-        "incident_status": str(doc.get("incidentStatus") or doc.get("incident_status") or ""),
+        "equipment_id": str(
+            (incident or {}).get("equipment_id")
+            or (incident or {}).get("equipmentId")
+            or doc.get("equipmentId")
+            or doc.get("equipment_id")
+            or ""
+        ),
+        "title": title,
+        "incident_status": current_status,
+        "status_label": _format_status_label(current_status),
+        "presentation_kind": _get_notification_presentation_kind(current_status),
         "confidence": float(doc.get("confidence") or 0.0),
         "risk_level": str(doc.get("riskLevel") or doc.get("risk_level") or ""),
         "created_at": str(doc.get("createdAt") or doc.get("created_at") or ""),
@@ -249,6 +297,136 @@ def _notification_is_read(doc: dict) -> bool:
         return True
     status = str(doc.get("status") or "").strip().lower()
     return status == "read"
+
+
+def _load_incident_map(incident_ids: list[str]) -> dict[str, dict]:
+    if not incident_ids:
+        return {}
+
+    incidents_container = get_container("incidents")
+    incident_map: dict[str, dict] = {}
+    for incident_id in incident_ids:
+        rows = list(incidents_container.query_items(
+            query="SELECT * FROM c WHERE c.id = @incident_id",
+            parameters=[{"name": "@incident_id", "value": incident_id}],
+            enable_cross_partition_query=True,
+        ))
+        if rows:
+            incident_map[incident_id] = rows[0]
+
+    return incident_map
+
+
+def _collect_incident_ids(docs: list[dict]) -> list[str]:
+    incident_ids: list[str] = []
+    for doc in docs:
+        incident_id = str(doc.get("incidentId") or doc.get("incident_id") or "")
+        if incident_id and incident_id not in incident_ids:
+            incident_ids.append(incident_id)
+    return incident_ids
+
+
+def _get_current_incident_status(doc: dict, incident: dict | None) -> str:
+    status = (
+        (incident or {}).get("status")
+        or doc.get("incidentStatus")
+        or doc.get("incident_status")
+        or _infer_incident_status(doc)
+    )
+    return _normalize_status_value(status)
+
+
+def _infer_incident_status(doc: dict) -> str:
+    notification_type = str(doc.get("type") or "").strip().lower()
+    if notification_type == "escalation":
+        return "escalated"
+    if notification_type == "approval_required":
+        return "pending_approval"
+    return ""
+
+
+def _should_surface_notification(
+    doc: dict,
+    incident: dict | None,
+    current_status: str,
+    caller_id: str,
+) -> bool:
+    if current_status in SUPPRESSED_NOTIFICATION_STATUSES:
+        return False
+
+    normalized_target_role = _normalize_role_value(doc.get("targetRole") or doc.get("target_role"))
+    expected_target_roles = {
+        "pending_approval": {"operator"},
+        "escalated": ROLE_TARGETS["QAManager"],
+    }.get(current_status)
+
+    if expected_target_roles and normalized_target_role and normalized_target_role not in expected_target_roles:
+        return False
+
+    if current_status == "awaiting_agents":
+        last_decision = (incident or {}).get("lastDecision") or {}
+        last_action = str(last_decision.get("action") or "").strip().lower()
+        last_actor = str(last_decision.get("user_id") or last_decision.get("userId") or "").strip()
+        if last_action == "more_info" and caller_id and last_actor == caller_id:
+            return False
+
+    return True
+
+
+def _get_notification_presentation_kind(current_status: str) -> str:
+    if current_status in ACTIONABLE_NOTIFICATION_STATUSES:
+        return "actionable"
+    return "informational"
+
+
+def _build_notification_message(current_status: str, *, doc: dict) -> str:
+    if current_status == "pending_approval":
+        return "Decision required: review the recommendation and record your decision."
+    if current_status == "escalated":
+        return "Escalated for QA manager review and decision."
+    if current_status == "awaiting_agents":
+        return "Additional analysis was requested; agents are preparing an updated recommendation."
+    if current_status == "approved":
+        return "Recommendation approved; execution is starting."
+    if current_status == "in_progress":
+        return "Approved actions are currently in progress."
+    if current_status == "executed":
+        return "Approved actions have been executed."
+    if current_status == "completed":
+        return "Incident workflow completed."
+    if current_status == "rejected":
+        return "Recommendation rejected; incident closed."
+    if current_status == "closed":
+        return "Incident closed; audit finalized."
+
+    fallback_message = str(doc.get("message") or "").strip()
+    if fallback_message and "action required" not in fallback_message.lower():
+        return fallback_message
+    return "Incident status updated; review the latest activity."
+
+
+def _format_status_label(current_status: str) -> str:
+    if not current_status:
+        return "Unknown"
+    return current_status.replace("_", " ").title()
+
+
+def _normalize_status_value(value: object) -> str:
+    return str(value or "").strip().lower().replace("-", "_")
+
+
+def _dedupe_notifications_by_incident(items: list[dict]) -> list[dict]:
+    deduped: list[dict] = []
+    seen_incident_ids: set[str] = set()
+
+    for item in items:
+        incident_id = str(item.get("incident_id") or item.get("id") or "")
+        if incident_id in seen_incident_ids:
+            continue
+        seen_incident_ids.add(incident_id)
+        deduped.append(item)
+
+    return deduped
 
 
 def _mark_visible_notifications_read(

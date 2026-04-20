@@ -1,3 +1,5 @@
+import type { IncidentStatus } from "./incident";
+
 export type BrowserNotificationPermission = NotificationPermission | "unsupported";
 
 export interface NotificationItem {
@@ -9,7 +11,9 @@ export interface NotificationItem {
   assigned_to: string;
   equipment_id: string;
   title: string;
-  incident_status: string;
+  incident_status: IncidentStatus | (string & {});
+  status_label?: string;
+  presentation_kind?: "actionable" | "informational";
   confidence: number;
   risk_level: string;
   created_at: string;

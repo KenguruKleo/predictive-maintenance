@@ -87,10 +87,56 @@ def test_normalize_evidence_citations_flags_unresolved_instead_of_placeholder_ti
     )
 
     assert len(citations) == 1
+    assert citations[0]["type"] == "document"
     assert citations[0]["resolution_status"] == "unresolved"
     assert citations[0]["url"] == ""
     assert "link" in citations[0]["unresolved_reason"].lower()
     assert citations[0]["document_title"] == "operator note about paragraph 4.2"
+
+
+def test_normalize_evidence_citations_drops_primary_incident_entries() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "type": "incident",
+                    "document_id": "INC-2026-0019",
+                    "source": "Incident Log",
+                    "section": "Incident Details",
+                    "text_excerpt": "Impeller speed dropped below the validated range.",
+                },
+                {
+                    "document_id": "INC-2026-0019",
+                    "source": "Incident Log",
+                    "section": "Incident Details",
+                    "text_excerpt": "Current incident context echoed back by the model.",
+                },
+                {
+                    "type": "sop",
+                    "document_id": "SOP-DEV-001",
+                    "section": "§4.2",
+                    "text_excerpt": "Deviation handling requires documented impact assessment.",
+                },
+            ]
+        },
+        {
+            "idx-sop-documents": [
+                {
+                    "document_id": "SOP-DEV-001",
+                    "document_title": "Deviation Management (SOP-DEV-001)",
+                    "source": "SOP-DEV-001-Deviation-Management.md",
+                    "chunk_index": 3,
+                    "text": "Deviation handling requires documented impact assessment before disposition.",
+                    "score": 0.99,
+                }
+            ]
+        },
+        current_incident_id="INC-2026-0019",
+    )
+
+    assert len(citations) == 1
+    assert citations[0]["type"] == "sop"
+    assert citations[0]["document_id"] == "SOP-DEV-001"
 
 
 def test_normalize_evidence_citations_backfills_contextful_excerpt_from_match() -> None:

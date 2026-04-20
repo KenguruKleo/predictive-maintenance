@@ -963,7 +963,11 @@ def _normalize_agent_result(
 ) -> dict:
     """Make citation output stable for the operator UI."""
     result["title"] = _normalize_incident_title(result)
-    result["evidence_citations"] = _normalize_evidence_citations(result, rag_context or {})
+    result["evidence_citations"] = _normalize_evidence_citations(
+        result,
+        rag_context or {},
+        current_incident_id=str(result.get("incident_id") or ""),
+    )
     result["operator_dialogue"] = _normalize_operator_dialogue(
         result,
         more_info_round,
@@ -1405,7 +1409,12 @@ def _normalize_incident_title(result: dict) -> str:
     return "Deviation Review Required"
 
 
-def _normalize_evidence_citations(result: dict, rag_context: dict) -> list[dict]:
+def _normalize_evidence_citations(
+    result: dict,
+    rag_context: dict,
+    *,
+    current_incident_id: str = "",
+) -> list[dict]:
     flat_hits = _flatten_rag_hits(rag_context)
     raw_items: list[dict] = []
 
@@ -1431,6 +1440,11 @@ def _normalize_evidence_citations(result: dict, rag_context: dict) -> list[dict]
     seen: set[tuple] = set()
     for item in raw_items:
         citation = _normalize_single_citation(item, flat_hits)
+        if citation.get("type") == "incident" or _citation_points_to_incident(
+            citation,
+            current_incident_id,
+        ):
+            continue
         key = _citation_identity_key(citation)
         if key in seen:
             continue
@@ -1560,6 +1574,31 @@ def _citation_identity_key(citation: dict) -> tuple[str, str, str, str]:
     status = str(citation.get("resolution_status") or "").strip()
     citation_type = str(citation.get("type") or "").strip()
     return (citation_type, primary_id.lower(), section.lower(), status)
+
+
+def _citation_points_to_incident(citation: dict, incident_id: str) -> bool:
+    expected = str(incident_id or "").strip().upper()
+    if not expected:
+        return False
+
+    candidates = (
+        citation.get("document_id"),
+        citation.get("source_blob"),
+        citation.get("source"),
+        citation.get("reference"),
+        citation.get("document_title"),
+        citation.get("url"),
+    )
+    for value in candidates:
+        text = str(value or "").strip()
+        if not text:
+            continue
+        if text.upper() == expected:
+            return True
+        extracted = _extract_historical_incident_id(text)
+        if extracted == expected:
+            return True
+    return False
 
 
 def _build_citation_excerpt(item: dict, match: dict | None) -> str:
@@ -1711,7 +1750,7 @@ def _infer_citation_type(item: dict, match: dict | None) -> str:
         return "bpr"
     if "incident" in text or text.startswith("inc-"):
         return "historical"
-    return "incident"
+    return "document"
 
 
 def _document_url(container: str, source_blob: str) -> str:

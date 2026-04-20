@@ -30,12 +30,19 @@ from azure.cosmos.exceptions import CosmosResourceNotFoundError
 
 from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import patch_incident_by_id
+from utils.auth import AuthError, get_caller_id, get_caller_roles, get_primary_role, require_any_role
 from utils.validation import sanitize_string_fields
 
 logger = logging.getLogger(__name__)
 
 VALID_ACTIONS = {"approved", "rejected", "more_info"}
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
+ALLOWED_ROLES = ["Operator", "QAManager"]
+
+WORKFLOW_ROLE_BY_APP_ROLE = {
+    "Operator": "operator",
+    "QAManager": "qa-manager",
+}
 
 bp = df.Blueprint()
 
@@ -54,6 +61,18 @@ async def http_decision(
     incident_id: str = req.route_params.get("incident_id", "")
     if not incident_id:
         return _error(400, "incident_id path parameter is required")
+
+    try:
+        roles = get_caller_roles(req)
+        require_any_role(roles, ALLOWED_ROLES)
+    except AuthError as exc:
+        return _error(exc.status_code, exc.message)
+
+    caller_id = get_caller_id(req).strip()
+    if not caller_id:
+        return _error(401, "Authentication required")
+
+    primary_role = get_primary_role(roles)
 
     # Parse body
     try:
@@ -78,9 +97,16 @@ async def http_decision(
     if action == "more_info" and not body.get("question"):
         return _error(400, "'question' is required when action=more_info")
 
-    user_id = body.get("user_id", "")
-    if not user_id:
-        return _error(400, "'user_id' is required")
+    body_user_id = str(body.get("user_id", "") or "").strip()
+    if body_user_id and body_user_id != caller_id:
+        logger.warning(
+            "Decision caller mismatch for incident=%s: body_user_id=%s auth_user_id=%s",
+            incident_id,
+            body_user_id,
+            caller_id,
+        )
+
+    workflow_role = WORKFLOW_ROLE_BY_APP_ROLE.get(primary_role, str(body.get("role", "operator") or "operator"))
 
     instance_id = f"durable-{incident_id}"
 
@@ -100,8 +126,8 @@ async def http_decision(
     now_iso = datetime.now(timezone.utc).isoformat()
     event_data = {
         "action": action,
-        "user_id": user_id,
-        "role": body.get("role", "operator"),
+        "user_id": caller_id,
+        "role": workflow_role,
         "reason": body.get("reason", ""),
         "question": body.get("question", ""),
     }
@@ -118,7 +144,7 @@ async def http_decision(
         "operator_decision raised for incident=%s action=%s user=%s",
         incident_id,
         action,
-        user_id,
+        caller_id,
     )
 
     return func.HttpResponse(

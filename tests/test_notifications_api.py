@@ -12,10 +12,12 @@ if str(BACKEND_DIR) not in sys.path:
 
 import triggers.http_notifications as http_notifications  # noqa: E402
 from triggers.http_notifications import (  # noqa: E402
+    _dedupe_notifications_by_incident,
     _is_visible_to_caller,
     _mark_visible_notifications_read,
     _normalize_notification,
     _notification_is_read,
+    _should_surface_notification,
     mark_all_notifications_read,
 )
 
@@ -61,6 +63,108 @@ def test_normalize_notification_defaults_legacy_items_to_unread() -> None:
     assert normalized["incident_id"] == "INC-4"
     assert normalized["is_read"] is False
     assert normalized["created_at"] == "2026-04-20T10:00:00+00:00"
+    assert normalized["incident_status"] == "pending_approval"
+    assert normalized["presentation_kind"] == "actionable"
+
+
+def test_normalize_notification_prefers_live_incident_status_and_message() -> None:
+    normalized = _normalize_notification(
+        {
+            "id": "notif-live-1",
+            "incidentId": "INC-5",
+            "type": "approval_required",
+            "targetRole": "operator",
+            "createdAt": "2026-04-20T10:00:00+00:00",
+            "message": "Action required",
+        },
+        incident={
+            "id": "INC-5",
+            "status": "awaiting_agents",
+            "title": "Mixer deviation",
+        },
+        caller_id="qa.manager",
+    )
+
+    assert normalized["title"] == "Mixer deviation"
+    assert normalized["incident_status"] == "awaiting_agents"
+    assert normalized["presentation_kind"] == "informational"
+    assert normalized["message"] == "Additional analysis was requested; agents are preparing an updated recommendation."
+
+
+def test_normalize_notification_suppresses_terminal_statuses() -> None:
+    normalized = _normalize_notification(
+        {
+            "id": "notif-closed-1",
+            "incidentId": "INC-6",
+            "type": "approval_required",
+            "targetRole": "operator",
+            "createdAt": "2026-04-20T10:00:00+00:00",
+        },
+        incident={"id": "INC-6", "status": "closed"},
+        caller_id="ivan.petrenko",
+    )
+
+    assert normalized is None
+
+
+def test_normalize_notification_suppresses_self_requested_more_info() -> None:
+    normalized = _normalize_notification(
+        {
+            "id": "notif-awaiting-1",
+            "incidentId": "INC-7",
+            "type": "approval_required",
+            "targetRole": "operator",
+            "createdAt": "2026-04-20T10:00:00+00:00",
+        },
+        incident={
+            "id": "INC-7",
+            "status": "awaiting_agents",
+            "lastDecision": {
+                "action": "more_info",
+                "user_id": "ivan.petrenko",
+            },
+        },
+        caller_id="ivan.petrenko",
+    )
+
+    assert normalized is None
+
+
+def test_stale_operator_notification_is_suppressed_after_escalation() -> None:
+    should_surface = _should_surface_notification(
+        {
+            "id": "notif-escalated-1",
+            "incidentId": "INC-8",
+            "targetRole": "operator",
+        },
+        incident={"id": "INC-8", "status": "escalated"},
+        current_status="escalated",
+        caller_id="ivan.petrenko",
+    )
+
+    assert should_surface is False
+
+
+def test_dedupe_notifications_keeps_latest_item_per_incident() -> None:
+    deduped = _dedupe_notifications_by_incident([
+        {
+            "id": "notif-newest",
+            "incident_id": "INC-9",
+            "created_at": "2026-04-20T10:05:00+00:00",
+        },
+        {
+            "id": "notif-older",
+            "incident_id": "INC-9",
+            "created_at": "2026-04-20T10:00:00+00:00",
+        },
+        {
+            "id": "notif-other",
+            "incident_id": "INC-10",
+            "created_at": "2026-04-20T09:55:00+00:00",
+        },
+    ])
+
+    assert [item["id"] for item in deduped] == ["notif-newest", "notif-other"]
 
 
 def test_notification_is_read_when_timestamp_or_flag_present() -> None:

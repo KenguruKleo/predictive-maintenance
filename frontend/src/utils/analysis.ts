@@ -57,7 +57,7 @@ export function getCapaActions(analysis?: AiAnalysis): string[] {
 
 export function getAllCitations(analysis?: AiAnalysis): EvidenceCitation[] {
   if (!analysis) return [];
-  const citations = analysis.evidence_citations ?? [];
+  const citations = (analysis.evidence_citations ?? []).filter((citation) => citation.type !== "incident");
 
   const seen = new Set<string>();
   return citations.filter((c) => {
