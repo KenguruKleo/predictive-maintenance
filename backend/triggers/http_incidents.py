@@ -53,7 +53,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
         container = get_container("incidents")
-        caller_id = _get_caller_id(req)
+        caller_id = get_caller_id(req)
         query, params = _build_query(
             roles,
             caller_id,
@@ -122,7 +122,7 @@ def get_incident(req: func.HttpRequest) -> func.HttpResponse:
         primary_role = get_primary_role(roles)
         if primary_role == "Operator":
             assigned = incident.get("workflow_state", {}).get("assigned_to", "")
-            caller_id = _get_caller_id(req)
+            caller_id = get_caller_id(req)
             if caller_id and assigned and assigned != caller_id:
                 return _error(403, "Access denied to this incident")
 
