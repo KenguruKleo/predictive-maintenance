@@ -40,6 +40,8 @@
                → evidence verification state (verified vs unresolved)
                → notification bell/unread highlight → consistent status colors across UI
                → human approval → audit trail
+               → auditor can export the full incident list to CSV in one click
+               for downstream inspection-readiness review
                Один конкретний сценарій: Granulator GR-204, vibration spike
 
 [04:00–04:30]  ARCHITECTURE SLIDE — один слайд (← T-001)
@@ -128,7 +130,9 @@ If we want one extra visual proof point during recording, we can briefly switch 
 Narrator: "Built on Track A — GitHub, Azure, and Azure AI Foundry.
 Multi-agent orchestration, RAG over validated SOPs,
 mandatory human approval for GxP compliance,
-full audit trail automatically generated."
+full audit trail automatically generated.
+The Auditor role can export the complete incident log to CSV in a single click
+for inspection-readiness review and offline analysis."
 
 [04:30–05:00] IMPACT
 Narrator: "Result: deviation handling reduced from 45 minutes to under 5.

@@ -18,6 +18,7 @@ import azure.durable_functions as df
 from azure.cosmos.exceptions import CosmosResourceNotFoundError
 from openai import AzureOpenAI
 
+from shared.agent_telemetry import log_trace_json
 from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
 
@@ -124,7 +125,7 @@ def _generate_capa_plan(incident_id: str, ai_result: dict, approver: str) -> dic
         "generate a concrete, numbered CAPA action plan. "
         "Each action must include: title, owner_role, priority (P1/P2/P3), deadline_days (integer), "
         "and description. "
-        "Respond with JSON: {\"actions\": [...], \"summary\": \"...\"}."
+        'Respond with JSON: {"actions": [...], "summary": "..."}.'
     )
 
     user_prompt = (
@@ -132,6 +133,14 @@ def _generate_capa_plan(incident_id: str, ai_result: dict, approver: str) -> dic
         f"Approved by: {approver}\n\n"
         f"Root-cause analysis:\n{ai_result.get('analysis', '')}\n\n"
         f"Recommendations:\n" + "\n".join(f"- {r}" for r in ai_result.get("recommendations", []))
+    )
+
+    log_trace_json(
+        incident_id=incident_id,
+        more_info_round=0,
+        trace_kind="execution_user_prompt",
+        payload={"system_prompt": system_prompt, "user_prompt": user_prompt, "model": GPT4O_DEPLOYMENT},
+        metadata={"agent_name": "execution", "status": "started"},
     )
 
     try:
@@ -145,9 +154,35 @@ def _generate_capa_plan(incident_id: str, ai_result: dict, approver: str) -> dic
             temperature=0.1,
             max_tokens=1000,
         )
-        return json.loads(response.choices[0].message.content or "{}")
+        raw_content = response.choices[0].message.content or "{}"
+        usage = response.usage
+        usage_payload = {
+            "prompt_tokens": getattr(usage, "prompt_tokens", None),
+            "completion_tokens": getattr(usage, "completion_tokens", None),
+            "total_tokens": getattr(usage, "total_tokens", None),
+            "model": GPT4O_DEPLOYMENT,
+        } if usage is not None else None
+        log_trace_json(
+            incident_id=incident_id,
+            more_info_round=0,
+            trace_kind="thread_messages",
+            payload={
+                "status": "completed",
+                "usage": usage_payload,
+                "messages": [{"role": "assistant", "content": raw_content}],
+            },
+            metadata={"agent_name": "execution", "status": "completed"},
+        )
+        return json.loads(raw_content)
     except Exception as exc:
         logger.error("CAPA plan generation failed: %s", exc)
+        log_trace_json(
+            incident_id=incident_id,
+            more_info_round=0,
+            trace_kind="thread_messages",
+            payload={"status": "failed", "error": str(exc)},
+            metadata={"agent_name": "execution", "status": "failed"},
+        )
         return {
             "actions": [
                 {

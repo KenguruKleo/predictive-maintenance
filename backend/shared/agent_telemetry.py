@@ -180,6 +180,7 @@ def normalize_trace_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             trace_kind=payload["trace_kind"],
             metadata_text=payload["metadata_text"],
         )
+        token_usage = _extract_token_usage(content, payload["trace_kind"], payload["content_type"])
         items.append({
             "id": item_id,
             "timestamp": payload["timestamp"],
@@ -197,6 +198,7 @@ def normalize_trace_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "content_length": len(content),
             "run_id": metadata.get("run_id"),
             "thread_id": metadata.get("thread_id"),
+            "token_usage": token_usage,
         })
 
     return sorted(items, key=lambda item: (item.get("timestamp") or "", int(item.get("round") or 0), str(item.get("trace_kind") or "")))
@@ -231,6 +233,13 @@ def build_telemetry_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
         if isinstance(item.get("metadata"), dict)
     )
 
+    prompt_tokens_total = 0
+    completion_tokens_total = 0
+    for item in items:
+        usage = item.get("token_usage") or {}
+        prompt_tokens_total += int(usage.get("prompt_tokens") or 0)
+        completion_tokens_total += int(usage.get("completion_tokens") or 0)
+
     return {
         "total_items": len(items),
         "started_items": sum(1 for item in items if item.get("status") == "started"),
@@ -243,6 +252,33 @@ def build_telemetry_summary(items: list[dict[str, Any]]) -> dict[str, Any]:
         "total_duration_ms": total_duration_ms or None,
         "last_timestamp": items[-1]["timestamp"] if items else None,
         "view_scope": "backend_visible_foundry_trace",
+        "total_prompt_tokens": prompt_tokens_total or None,
+        "total_completion_tokens": completion_tokens_total or None,
+        "total_tokens": (prompt_tokens_total + completion_tokens_total) or None,
+    }
+
+
+def _extract_token_usage(content: str, trace_kind: str, content_type: str) -> dict[str, Any] | None:
+    """Extract usage stats from thread_messages JSON payload if present."""
+    if trace_kind != "thread_messages" or content_type != "json":
+        return None
+    try:
+        parsed = json.loads(content)
+    except (json.JSONDecodeError, TypeError):
+        return None
+    usage = parsed.get("usage") if isinstance(parsed, dict) else None
+    if not isinstance(usage, dict):
+        return None
+    prompt = usage.get("prompt_tokens")
+    completion = usage.get("completion_tokens")
+    total = usage.get("total_tokens")
+    if prompt is None and completion is None:
+        return None
+    return {
+        "prompt_tokens": int(prompt) if prompt is not None else None,
+        "completion_tokens": int(completion) if completion is not None else None,
+        "total_tokens": int(total) if total is not None else None,
+        "model": usage.get("model") or "orchestrator",
     }
 
 
@@ -370,3 +406,78 @@ def _column_name(column: Any) -> str:
     if getattr(column, "name", None):
         return str(column.name)
     return str(column)
+
+
+# ---------------------------------------------------------------------------
+# Write-side helpers — used by activity functions to emit telemetry traces
+# ---------------------------------------------------------------------------
+
+_TRACE_CHUNK_SIZE_DEFAULT = 12000
+
+
+def _get_trace_chunk_size() -> int:
+    try:
+        return max(2000, int(os.getenv("FOUNDRY_PROMPT_TRACE_CHUNK_SIZE", str(_TRACE_CHUNK_SIZE_DEFAULT))))
+    except ValueError:
+        return _TRACE_CHUNK_SIZE_DEFAULT
+
+
+def _trace_enabled() -> bool:
+    return os.getenv("FOUNDRY_PROMPT_TRACE_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _chunk_text(text: str, size: int) -> list[str]:
+    if not text:
+        return [""]
+    return [text[i:i + size] for i in range(0, len(text), size)]
+
+
+def log_trace_json(
+    *,
+    incident_id: str,
+    more_info_round: int,
+    trace_kind: str,
+    payload: object,
+    metadata: dict[str, Any] | None = None,
+) -> None:
+    """Emit a JSON telemetry trace chunk to App Insights via the logger."""
+    log_trace_text(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind=trace_kind,
+        text=json.dumps(payload, ensure_ascii=False, default=str, indent=2),
+        metadata=metadata,
+        content_type="json",
+    )
+
+
+def log_trace_text(
+    *,
+    incident_id: str,
+    more_info_round: int,
+    trace_kind: str,
+    text: str,
+    metadata: dict[str, Any] | None = None,
+    content_type: str = "text",
+) -> None:
+    """Emit a plain-text telemetry trace chunk to App Insights via the logger."""
+    if not _trace_enabled():
+        return
+
+    metadata = metadata or {}
+    chunk_size = _get_trace_chunk_size()
+    chunks = _chunk_text(text or "", chunk_size)
+    total_chunks = len(chunks)
+    for index, chunk in enumerate(chunks, start=1):
+        row = {
+            "marker": TRACE_MARKER,
+            "incident_id": incident_id,
+            "round": more_info_round,
+            "trace_kind": trace_kind,
+            "content_type": content_type,
+            "chunk_index": index,
+            "chunk_count": total_chunks,
+            "metadata": metadata,
+            "content": chunk,
+        }
+        logger.info("%s %s", TRACE_MARKER, json.dumps(row, ensure_ascii=False, default=str))

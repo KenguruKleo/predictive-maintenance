@@ -56,7 +56,7 @@ Field definitions:
 | 12 | `recommendations` | array | Array of objects: `{"action": string, "priority": string, "owner": string, "deadline_days": int}` |
 | 13 | `regulatory_refs` | array | Array of objects: `{"regulation": string, "section": string, "text_excerpt": string}` |
 | 14 | `sop_refs` | array | Array of objects: `{"id": string, "title": string, "relevant_section": string, "text_excerpt": string}` |
-| 15 | `evidence_citations` | array | Array of objects with required fields: `type` (one of "sop", "gmp", "bpr", "manual", "historical"), `document_id` (ID of the supporting document/incident for linking), `section`, `text_excerpt`. Include only external supporting evidence actually used in the analysis. |
+| 15 | `evidence_citations` | array | Array of objects with required fields: `type` (one of "sop", "gmp", "bpr", "manual", "historical"), `document_id` (REQUIRED — copy the **exact** `document_id` value from the Research Agent search results, e.g. `"BPR-ATV-020-v2_1-Process-Specification"` or `"SOP-MAN-GR-001-Granulator-Operation"` — do NOT invent product codes or IDs you did not receive from the Research Agent), `source`, `section`, `text_excerpt`. Include only external supporting evidence actually used in the analysis. |
 | 16 | `work_order_draft` | object | `{"title": string, "description": string, "priority": string, "estimated_hours": int}` |
 | 17 | `audit_entry_draft` | object | `{"deviation_type": string, "description": string, "root_cause": string, "capa_actions": string}` |
 | 18 | `tool_calls_log` | array | Copy from Research Agent output as-is |
@@ -76,6 +76,7 @@ Field definitions:
 - Do NOT change types (e.g. array instead of string for capa_suggestion is WRONG)
 - Do NOT omit fields (e.g. missing "analysis" is WRONG)
 - Do NOT invent classification values outside the enum
+- Do NOT invent `document_id` values in `evidence_citations` — use ONLY `document_id` strings that appear in the Research Agent search results. If you do not have a `document_id` from the Research Agent, omit that citation entirely.
 
 ## Execution Step — Create GMP Records (Required)
 

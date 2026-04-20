@@ -157,11 +157,16 @@ DOCUMENT_RESPONSE_SCHEMA = {
             "items": {
                 "type": "object",
                 "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["sop", "gmp", "bpr", "manual", "historical"],
+                    },
+                    "document_id": {"type": "string"},
                     "source": {"type": "string"},
                     "section": {"type": "string"},
                     "text_excerpt": {"type": "string"},
                 },
-                "required": ["source", "section", "text_excerpt"],
+                "required": ["type", "source", "section", "text_excerpt"],
                 "additionalProperties": False,
             },
         },

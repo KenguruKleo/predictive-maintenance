@@ -73,6 +73,28 @@ export default function AgentRunSummary({ incident, summary, businessEventCount 
             {formatTimestamp(summary.last_timestamp)}
           </strong>
         </div>
+        {summary.total_tokens != null && (
+          <>
+            <div className="telemetry-stat-card">
+              <span className="telemetry-stat-label">Prompt Tokens</span>
+              <strong className="telemetry-stat-value">
+                {summary.total_prompt_tokens?.toLocaleString() ?? "n/a"}
+              </strong>
+            </div>
+            <div className="telemetry-stat-card">
+              <span className="telemetry-stat-label">Completion Tokens</span>
+              <strong className="telemetry-stat-value">
+                {summary.total_completion_tokens?.toLocaleString() ?? "n/a"}
+              </strong>
+            </div>
+            <div className="telemetry-stat-card">
+              <span className="telemetry-stat-label">Total Tokens</span>
+              <strong className="telemetry-stat-value">
+                {summary.total_tokens.toLocaleString()}
+              </strong>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

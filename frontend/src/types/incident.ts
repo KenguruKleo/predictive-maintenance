@@ -202,6 +202,12 @@ export interface IncidentTelemetryItem {
   content_length: number;
   run_id?: string | null;
   thread_id?: string | null;
+  token_usage?: {
+    prompt_tokens?: number | null;
+    completion_tokens?: number | null;
+    total_tokens?: number | null;
+    model?: string | null;
+  } | null;
 }
 
 export interface IncidentTelemetrySummary {
@@ -216,6 +222,9 @@ export interface IncidentTelemetrySummary {
   total_duration_ms?: number | null;
   last_timestamp?: string | null;
   view_scope: string;
+  total_prompt_tokens?: number | null;
+  total_completion_tokens?: number | null;
+  total_tokens?: number | null;
 }
 
 export interface IncidentTelemetryFilters {

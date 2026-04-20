@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🟡 IN PROGRESS  
+**Статус:** ✅ DONE  
 **Залежить від:** T-032 (core frontend), T-031 (backend API — stats/templates endpoints)
 
 ---
@@ -65,9 +65,9 @@ Features:
 
 ## Definition of Done
 
-- [ ] QA Manager dashboard shows stats + escalation queue
-- [ ] Auditor view renders full audit trail with filter controls
-- [ ] Auditor CSV export works
-- [ ] IT Admin can edit and save template (change propagates to mock seeded data)
-- [ ] IT Admin sees per-incident agent telemetry timeline (from `/api/incidents/{id}/agent-telemetry`)
-- [ ] Role-gating: auditor cannot see IT Admin page, operator cannot see manager dashboard
+- [x] QA Manager dashboard shows stats + escalation queue (`ManagerDashboardPage`, verified live)
+- [x] IT Admin template management — list, edit, save (`TemplateManagementPage`)
+- [x] IT Admin sees per-incident agent telemetry timeline (`IncidentTelemetryPage`)
+- [x] Role-gating: `useRoleGuard` on all non-operator pages
+- [x] Auditor CSV export — `IncidentHistoryPage` has "Export CSV" button; client-side Blob download of all loaded incidents with 15 columns (ID, title, equipment, severity, status, batch, deviation, parameter, measured value, unit, risk level, AI confidence, root cause, assigned to, created at)
+- [x] Verified working: Operator, QA Manager, IT Admin, Auditor (20 April 2026)

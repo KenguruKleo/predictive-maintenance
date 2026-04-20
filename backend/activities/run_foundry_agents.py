@@ -49,6 +49,7 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
+from shared.agent_telemetry import TRACE_MARKER, log_trace_json, log_trace_text
 from shared.cosmos_client import get_container
 from shared.foundry_run import (
     FoundryRunTimeoutError,
@@ -76,14 +77,8 @@ INDEX_EVIDENCE_META = {
     "idx-incident-history": {"type": "historical", "container": "blob-history"},
 }
 
-TRACE_MARKER = "FOUNDRY_PROMPT_TRACE"
-try:
-    TRACE_CHUNK_SIZE = max(
-        2000,
-        int(os.getenv("FOUNDRY_PROMPT_TRACE_CHUNK_SIZE", "12000")),
-    )
-except ValueError:
-    TRACE_CHUNK_SIZE = 12000
+# Reverse lookup: citation type → index name (derived from INDEX_EVIDENCE_META)
+_TYPE_TO_INDEX: dict[str, str] = {meta["type"]: idx for idx, meta in INDEX_EVIDENCE_META.items()}
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
@@ -336,6 +331,15 @@ def _call_orchestrator_agent(
                 )
 
                 message_items = list(client.messages.list(thread_id=run.thread_id))
+                _run_usage = getattr(run, "usage", None)
+                _usage_payload: dict = {}
+                if _run_usage is not None:
+                    _usage_payload = {
+                        "prompt_tokens": getattr(_run_usage, "prompt_tokens", None),
+                        "completion_tokens": getattr(_run_usage, "completion_tokens", None),
+                        "total_tokens": getattr(_run_usage, "total_tokens", None),
+                        "model": "orchestrator",
+                    }
                 _log_trace_json(
                     incident_id=incident_id,
                     more_info_round=more_info_round,
@@ -344,6 +348,7 @@ def _call_orchestrator_agent(
                         "thread_id": run.thread_id,
                         "run_id": run.id,
                         "status": str(run.status),
+                        "usage": _usage_payload or None,
                         "messages": _serialize_thread_messages(message_items),
                     },
                 )
@@ -688,9 +693,7 @@ def _log_orchestrator_prompt_trace(
     prompt: str,
     context_data: dict,
 ) -> None:
-    if not _trace_enabled():
-        return
-
+    # Tracing guard is enforced inside log_trace_text; no separate check needed here.
     prompt_bundle = {
         "orchestrator_agent_id": orchestrator_agent_id,
         "configured_models": _configured_agent_models(),
@@ -851,67 +854,9 @@ def _serialize_value(value: object) -> object:
     return str(value)
 
 
-def _log_trace_json(
-    *,
-    incident_id: str,
-    more_info_round: int,
-    trace_kind: str,
-    payload: object,
-    metadata: dict[str, object] | None = None,
-) -> None:
-    _log_trace_text(
-        incident_id=incident_id,
-        more_info_round=more_info_round,
-        trace_kind=trace_kind,
-        text=json.dumps(payload, ensure_ascii=False, default=str, indent=2),
-        metadata=metadata,
-        content_type="json",
-    )
-
-
-def _log_trace_text(
-    *,
-    incident_id: str,
-    more_info_round: int,
-    trace_kind: str,
-    text: str,
-    metadata: dict[str, object] | None = None,
-    content_type: str = "text",
-) -> None:
-    if not _trace_enabled():
-        return
-
-    metadata = metadata or {}
-    chunks = _chunk_text(text or "", TRACE_CHUNK_SIZE)
-    total_chunks = len(chunks)
-    for index, chunk in enumerate(chunks, start=1):
-        payload = {
-            "marker": TRACE_MARKER,
-            "incident_id": incident_id,
-            "round": more_info_round,
-            "trace_kind": trace_kind,
-            "content_type": content_type,
-            "chunk_index": index,
-            "chunk_count": total_chunks,
-            "metadata": metadata,
-            "content": chunk,
-        }
-        logger.info("%s %s", TRACE_MARKER, json.dumps(payload, ensure_ascii=False, default=str))
-
-
-def _chunk_text(text: str, size: int) -> list[str]:
-    if not text:
-        return [""]
-    return [text[index:index + size] for index in range(0, len(text), size)]
-
-
-def _trace_enabled() -> bool:
-    return os.getenv("FOUNDRY_PROMPT_TRACE_ENABLED", "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-        "on",
-    }
+# Aliases kept so call-sites within this file don't need to change
+_log_trace_json = log_trace_json
+_log_trace_text = log_trace_text
 
 
 def _parse_response(raw_text: str) -> dict:
@@ -1717,7 +1662,36 @@ def _flatten_rag_hits(rag_context: dict) -> list[dict]:
 
 
 def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
-    match = _find_matching_hit(item, flat_hits)
+    # When the agent supplies an explicit document_id (enforced by JSON schema),
+    # pin the search to that document instead of fuzzy-matching across all RAG
+    # hits.  This prevents the cross-document mismatch that occurs when the RAG
+    # top hit is a different document than the one the agent actually cited.
+    explicit_doc_id = str(item.get("document_id") or "").strip()
+    # Track whether the match was pinned to the agent's explicit document_id so
+    # we can trust the authoritative section heading without requiring the
+    # agent's section name to match verbatim.
+    _pinned_doc_match = False
+    if explicit_doc_id:
+        pinned_hits = [
+            h for h in flat_hits
+            if str(h.get("document_id") or "").strip().lower() == explicit_doc_id.lower()
+        ]
+        match = _find_matching_hit(item, pinned_hits) if pinned_hits else None
+        if match:
+            _pinned_doc_match = True
+        # Document not present in RAG cache — do a live targeted lookup so we
+        # can still resolve the section even if the agent cited a document that
+        # was not the top RAG result for the original search query.
+        if not match:
+            citation_type_hint = str(item.get("type") or "").strip().lower()
+            index_name = _TYPE_TO_INDEX.get(citation_type_hint, "")
+            section_claim = str(item.get("section") or "").strip()
+            if index_name and section_claim:
+                match = _targeted_section_lookup(explicit_doc_id, section_claim, index_name)
+                if match:
+                    _pinned_doc_match = True
+    else:
+        match = _find_matching_hit(item, flat_hits)
     citation_type = item.get("type") or _infer_citation_type(item, match)
     source = item.get("source") or (match or {}).get("document_id") or (match or {}).get("document_title") or ""
     reference = item.get("reference") or item.get("regulation") or ""
@@ -1769,11 +1743,17 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
             document_title = source or reference
     section_claim = str(item.get("section") or item.get("relevant_section") or "").strip()
     raw_excerpt_matches_source = _raw_excerpt_matches_hit(item, match)
+    # When the agent explicitly identified the document and we found a match in
+    # that document, trust the document's authoritative section heading even if
+    # the agent's section name doesn't match verbatim.
     section, section_verified = _resolve_citation_section(
         section_claim,
         match,
         citation_type=citation_type,
-        prefer_authoritative=raw_excerpt_matches_source,
+        prefer_authoritative=raw_excerpt_matches_source or _pinned_doc_match
+        match,
+        citation_type=citation_type,
+        prefer_authoritative=raw_excerpt_matches_source or _pinned_doc_match,
     )
     section_heading = str(item.get("section_heading") or (match or {}).get("section_heading") or section).strip()
     section_key = str(item.get("section_key") or (match or {}).get("section_key") or _normalize_section_key(section)).strip()

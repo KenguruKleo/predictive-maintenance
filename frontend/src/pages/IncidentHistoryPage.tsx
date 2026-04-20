@@ -5,7 +5,43 @@ import { getIncidents } from "../api/incidents";
 import Filters from "../components/IncidentList/Filters";
 import Breadcrumb from "../components/Layout/Breadcrumb";
 import IncidentTable from "../components/IncidentList/IncidentTable";
-import type { IncidentStatus, Severity } from "../types/incident";
+import type { Incident, IncidentStatus, Severity } from "../types/incident";
+
+function exportIncidentsToCSV(incidents: Incident[]): void {
+  const columns: { header: string; value: (inc: Incident) => string }[] = [
+    { header: "Incident ID", value: (i) => i.incident_number ?? i.id },
+    { header: "Title", value: (i) => i.title ?? (i.parameter ? i.parameter.replace(/_/g, " ") : "") },
+    { header: "Equipment", value: (i) => i.equipment_id },
+    { header: "Severity", value: (i) => i.severity },
+    { header: "Status", value: (i) => i.status },
+    { header: "Batch ID", value: (i) => i.batch_id ?? "" },
+    { header: "Deviation Type", value: (i) => i.deviation_type ?? "" },
+    { header: "Parameter", value: (i) => i.parameter ?? "" },
+    { header: "Measured Value", value: (i) => i.measured_value != null ? String(i.measured_value) : "" },
+    { header: "Unit", value: (i) => i.unit ?? "" },
+    { header: "Risk Level", value: (i) => i.ai_analysis?.risk_level ?? "" },
+    { header: "AI Confidence", value: (i) => i.ai_analysis?.confidence != null ? String(i.ai_analysis.confidence) : "" },
+    { header: "Root Cause", value: (i) => i.ai_analysis?.root_cause_hypothesis ?? i.ai_analysis?.root_cause ?? "" },
+    { header: "Assigned To", value: (i) => i.assigned_to ?? "" },
+    { header: "Created At", value: (i) => i.created_at ?? i.reported_at ?? "" },
+  ];
+
+  const escape = (v: string) => `"${v.replace(/"/g, '""')}"`;
+  const header = columns.map((c) => escape(c.header)).join(",");
+  const rows = incidents.map((inc) =>
+    columns.map((c) => escape(c.value(inc))).join(",")
+  );
+  const csv = [header, ...rows].join("\r\n");
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const date = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `incidents-audit-${date}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 const PAGE_SIZE = 20;
 
@@ -114,7 +150,15 @@ export default function IncidentHistoryPage() {
           onDateToChange={setDateTo}
         />
         <div className="history-meta">
-          Showing {incidents.length} of {total} incidents
+          <span>Showing {incidents.length} of {total} incidents</span>
+          <button
+            className="btn btn--secondary btn--sm"
+            onClick={() => exportIncidentsToCSV(incidents)}
+            disabled={incidents.length === 0}
+            title={`Export ${incidents.length} loaded incident${incidents.length !== 1 ? "s" : ""} to CSV`}
+          >
+            ↓ Export CSV
+          </button>
         </div>
       </div>
 
