@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + explicit notification acknowledge from bell/left rail) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
+**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + explicit notification acknowledge from bell/left rail) · T-034 (manager/auditor/IT-admin views — manager stats contract hardening) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -37,6 +37,10 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (20 квітня 2026):**
+- T-032 — status history timeline dots on incident detail were aligned with the same shared status token palette used by incident badges and sidebar states (`pending_approval`, `analyzing`, `executing`, `escalated`, `approved`, `rejected`, `closed`), so timeline colors now match incident-status colors consistently across the app; `frontend/npm run build` passed
+- T-034 — manager dashboard follow-up completed live: the updated `http_stats.py` projection was deployed to `func-sentinel-intel-dev-erzrpo`, and the live `/api/stats/summary` now returns `recent_decisions`; in the frontend, escalated status styling was also normalized onto the shared status token set (`index.css` + `StatusBadge`) so `escalated` is visually distinct from `pending_approval` across queue/cards/timeline/sidebar surfaces
+- T-034 — `Recent Decisions` on `/manager` is now backed by real backend data: `backend/triggers/http_stats.py` projects the latest finalized `approved` / `rejected` incident decisions (actor, AI confidence, QA override flag, response time) into `/api/stats/summary`, with focused pytest coverage in `tests/test_http_stats.py`; the previous frontend-only compatibility fallback remains in place for safety
+- T-034 — manager dashboard crash for IT Admin / QA Manager was fixed in the frontend compatibility layer: `frontend/src/api/stats.ts` now normalizes the live `/api/stats/summary` payload when the backend returns legacy aggregate fields (`by_status`, `open_incidents`) and omits `recent_decisions`, so `/manager` no longer throws on `decisions.map(...)`; `frontend/npm run build` passed
 - T-024/T-029/T-033 — approval ownership semantics tightened end-to-end: `http_decision.py` now authorizes against the incident’s active workflow owner instead of any allowed app role, the Durable `more_info` loop preserves QA ownership after escalation, `notify_operator.py` keeps QA follow-ups in `escalated` / `awaiting_qa_manager_decision` notification semantics, and the frontend approval buttons now render only for the active owner role while non-owning roles stay read-only; focused pytest slices and `frontend/npm run build` passed locally
 - T-046 (NEW) — code review `run_foundry_agents.py`: 3 негайні виправлення застосовані (тестовий env var прибрано з `_build_agents_client`, HACKATHON-only guard для `_infer_known_document`, fallback agent ID задокументовано як константу); залишкові проблеми зафіксовано в T-046 як low-priority post-demo cleanup
 - T-040 — RAI task уточнено під hackathon AI Fit: separate anti-hallucination verification pass для document identity та citations винесено як explicit architecture / demo requirement, а не лише як backend implementation detail
@@ -113,7 +117,7 @@
 | T-010 | **[Cartoon / анімація «До і Після»](./tasks/T-010-cartoon-animation.md)** | Deliverables | 🟠 HIGH | 🔜 TODO | T-002 |
 | T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service + unread notification center contract | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
-| T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
+| T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
 | T-045 | **[Evidence citations quality + historical evidence links](./tasks/T-045-evidence-citation-quality.md)** — canonical document cards, strict citation contract, excerpt backfill, unresolved evidence state, historical incident linkability | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |

@@ -6,6 +6,7 @@ Returns incident statistics for the QA Manager / IT Admin dashboard.
 
 import json
 import logging
+from datetime import datetime
 
 import azure.functions as func
 
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 bp = func.Blueprint()
 
 ALLOWED_ROLES = ["QAManager", "ITAdmin"]
+RECENT_DECISIONS_LIMIT = 10
 
 
 @bp.route(route="stats/summary", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -34,7 +36,12 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
         # Cosmos DB cross-partition queries only support VALUE <AggregateFunc> for aggregates,
         # so GROUP BY is not available. Fetch status/severity/risk_level and aggregate in Python.
         all_rows = list(container.query_items(
-            query="SELECT c.status, c.severity, c.ai_analysis.risk_level AS risk_level FROM c",
+            query=(
+                "SELECT c.id, c.incident_number, c.status, c.severity, "
+                "c.ai_analysis.risk_level AS risk_level, c.ai_analysis.confidence AS confidence, "
+                "c.createdAt, c.created_at, c.reported_at, c.closedAt, c.finalDecision "
+                "FROM c"
+            ),
             enable_cross_partition_query=True,
         ))
 
@@ -45,6 +52,7 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
         high_risk = 0
         closed_statuses = {"closed", "rejected", "completed"}
         high_risk_levels = {"high", "critical"}
+        recent_decisions = _build_recent_decisions(all_rows)
 
         for row in all_rows:
             st = row.get("status") or ""
@@ -66,6 +74,7 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
             "pending_approval": pending,
             "open_incidents": open_count,
             "high_risk_incidents": high_risk,
+            "recent_decisions": recent_decisions,
         })
 
     except Exception as exc:  # noqa: BLE001
@@ -87,3 +96,88 @@ def _error(status: int, message: str) -> func.HttpResponse:
         status_code=status,
         mimetype="application/json",
     )
+
+
+def _build_recent_decisions(rows: list[dict]) -> list[dict]:
+    items: list[dict] = []
+
+    for row in rows:
+        final_decision = row.get("finalDecision") or {}
+        if not isinstance(final_decision, dict):
+            continue
+
+        action = str(final_decision.get("action") or "").strip().lower()
+        if action not in {"approved", "rejected"}:
+            continue
+
+        decided_at = _coerce_iso_datetime(row.get("closedAt"))
+        if not decided_at:
+            continue
+
+        created_at = (
+            _coerce_iso_datetime(row.get("createdAt"))
+            or _coerce_iso_datetime(row.get("created_at"))
+            or _coerce_iso_datetime(row.get("reported_at"))
+        )
+        response_time_minutes = _minutes_between(created_at, decided_at)
+        items.append({
+            "incident_id": row.get("id") or "",
+            "incident_number": row.get("incident_number") or row.get("id") or "",
+            "operator": _format_decision_actor(final_decision),
+            "decision": action,
+            "ai_confidence": _coerce_float(row.get("confidence")),
+            "human_override": _normalize_decision_role(final_decision.get("role")) == "qa-manager",
+            "decided_at": decided_at.isoformat(),
+            "response_time_minutes": response_time_minutes,
+        })
+
+    items.sort(key=lambda item: item.get("decided_at") or "", reverse=True)
+    return items[:RECENT_DECISIONS_LIMIT]
+
+
+def _coerce_float(value) -> float:
+    try:
+        return float(value or 0.0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def _coerce_iso_datetime(value) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+
+    try:
+        return datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+
+
+def _minutes_between(start: datetime | None, end: datetime | None) -> int:
+    if not start or not end:
+        return 0
+    delta_seconds = (end - start).total_seconds()
+    return max(0, int(round(delta_seconds / 60)))
+
+
+def _normalize_decision_role(role: str | None) -> str:
+    normalized = str(role or "").strip().lower().replace("_", "-")
+    if normalized == "qamanager":
+        return "qa-manager"
+    return normalized
+
+
+def _format_decision_actor(decision: dict) -> str:
+    role = _normalize_decision_role(decision.get("role"))
+    if role == "qa-manager":
+        return "QA Manager"
+
+    user_id = str(decision.get("user_id") or decision.get("userId") or "").strip()
+    if not user_id:
+        return "Unknown"
+
+    short_id = user_id.split("#EXT#", 1)[0].split("@", 1)[0]
+    tokens = [token for token in short_id.replace(".", " ").replace("_", " ").split() if token]
+    if not tokens:
+        return user_id
+    return " ".join(token.capitalize() for token in tokens)

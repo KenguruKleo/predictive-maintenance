@@ -128,6 +128,7 @@ frontend/
 - [x] Unread incidents now keep a stronger visible attention state in the left rail, including when the incident is already open
 - [x] Notification acknowledgment moved from automatic detail-page open to explicit user interaction via the bell dropdown or a click on the left active-incident item
 - [x] `npm run build` passes with the notification center slice enabled
+- [x] Incident detail `Status History` timeline dots now use the same shared status token palette as incident badges and sidebar status states, so status colors stay consistent across the app
 
 ---
 

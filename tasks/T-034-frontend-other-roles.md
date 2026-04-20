@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
+**Статус:** 🟡 IN PROGRESS  
 **Залежить від:** T-032 (core frontend), T-031 (backend API — stats/templates endpoints)
 
 ---
@@ -50,6 +50,15 @@ Features:
 - PUT /api/templates/{id} on save
 - Version history display
 - Agent telemetry by incident: timeline of agent/sub-agent/tool events with filters (incidentId, status, agent)
+
+## Progress (20 квітня 2026)
+
+- [x] `ManagerDashboardPage` no longer crashes for IT Admin / QA Manager when `/api/stats/summary` returns the current backend aggregate shape without `recent_decisions`
+- [x] `frontend/src/api/stats.ts` now normalizes legacy stats payloads (`by_status`, `open_incidents`) into the `StatsSummary` shape the UI expects, defaulting `recent_decisions` to `[]`
+- [x] `npm run build` passes in `frontend/`
+- [x] `backend/triggers/http_stats.py` now returns real `recent_decisions` from finalized incidents (`finalDecision` + `closedAt` + AI confidence), including QA override detection and response-time calculation; focused coverage lives in `tests/test_http_stats.py`
+- [x] The updated stats projection was deployed to the live Function App, and the deployed `/api/stats/summary` now returns populated `recent_decisions` for the local frontend target defined in `frontend/.env.local`
+- [x] Escalated status styling was aligned to the shared status token source (`frontend/src/index.css` + `StatusBadge`), including manager escalation cards and incident timeline dots, so it now reads differently from `pending_approval`
 ```
 
 ---

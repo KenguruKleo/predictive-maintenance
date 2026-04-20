@@ -9,14 +9,14 @@ interface Props {
 
 // Per-action display metadata: [label, dot-color-class]
 const ACTION_META: Record<string, [string, string]> = {
-  incident_registered:  ["Incident Registered",   "evt-dot--system"],
-  analysis_started:     ["AI Analysis Started",   "evt-dot--agent"],
-  approval_requested:   ["Awaiting Approval",      "evt-dot--system"],
-  more_info:            ["More Info Requested",    "evt-dot--agent"],
+  incident_registered:  ["Incident Registered",   "evt-dot--analyzing"],
+  analysis_started:     ["AI Analysis Started",   "evt-dot--analyzing"],
+  approval_requested:   ["Awaiting Approval",     "evt-dot--pending"],
+  more_info:            ["More Info Requested",   "evt-dot--analyzing"],
   escalated:            ["Escalated",              "evt-dot--escalated"],
   approved:             ["Approved",               "evt-dot--approved"],
   rejected:             ["Rejected",               "evt-dot--rejected"],
-  execution_started:    ["Execution Started",      "evt-dot--agent"],
+  execution_started:    ["Execution Started",      "evt-dot--executing"],
   incident_rejected:    ["Incident Rejected",      "evt-dot--rejected"],
   audit_finalized:      ["Audit Finalized",        "evt-dot--closed"],
   status_updated:       ["Status Updated",         "evt-dot--system"],

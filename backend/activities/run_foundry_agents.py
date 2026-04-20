@@ -54,7 +54,7 @@ from shared.foundry_run import (
     FoundryRunTimeoutError,
     create_thread_and_process_run_with_approval,
 )
-from shared.search_utils import search_all_indexes
+from shared.search_utils import search_all_indexes, search_index
 
 logger = logging.getLogger(__name__)
 
@@ -1653,6 +1653,12 @@ def _normalize_evidence_citations(
         current_incident_id=current_incident_id,
     )
 
+    # Post-normalization: fix section-mismatch unresolved citations via targeted search
+    _resolve_section_mismatch_citations(normalized)
+
+    # Remove ghost citations that duplicate a real document citation for the same section
+    normalized = _deduplicate_ghost_citations(normalized)
+
     return normalized
 
 
@@ -1980,6 +1986,106 @@ def _excerpt_window(text: str, anchor_idx: int, anchor_len: int, radius: int = 1
     if end < len(text):
         snippet = f"{snippet}..."
     return _trim_excerpt(snippet)
+
+
+def _targeted_section_lookup(
+    document_id: str,
+    section_claim: str,
+    index_name: str,
+) -> dict | None:
+    """Search for a specific section within a known document.
+
+    Used when _find_matching_hit resolved the document but matched the wrong
+    section (e.g. §6.1 instead of claimed §6.3).  We re-query the index with a
+    ``document_id`` OData filter so Azure AI Search only returns chunks from
+    the correct document, then pick the chunk whose section_key matches the
+    claim.
+    """
+    if not SEARCH_ENABLED:
+        return None
+    section_key = _normalize_section_key(section_claim)
+    query = f"section {section_claim} {section_key}"
+    try:
+        safe_id = document_id.replace("'", "''")
+        hits = search_index(
+            index_name,
+            query,
+            top_k=10,
+            filter_expr=f"document_id eq '{safe_id}'",
+        )
+    except Exception:
+        return None
+    for hit in hits:
+        hit_key = _normalize_section_key(hit.get("section_key") or hit.get("section_heading") or "")
+        if hit_key == section_key:
+            return hit
+    return None
+
+
+def _resolve_section_mismatch_citations(citations: list[dict]) -> None:
+    """Fix citations that are unresolved only because of section mismatch.
+
+    Mutates citations in-place.  For each ``unresolved`` citation whose reason
+    is "Missing authoritative section match" and that already has a real
+    document_id + index_name, attempt a targeted lookup to find the correct
+    section chunk and upgrade the citation to resolved.
+    """
+    for citation in citations:
+        if citation.get("resolution_status") != "unresolved":
+            continue
+        reason = str(citation.get("unresolved_reason") or "")
+        if "authoritative section match" not in reason:
+            continue
+        document_id = str(citation.get("document_id") or "").strip()
+        index_name = str(citation.get("index_name") or "").strip()
+        section_claim = str(citation.get("section") or "").strip()
+        if not document_id or not index_name or not section_claim:
+            continue
+        hit = _targeted_section_lookup(document_id, section_claim, index_name)
+        if not hit:
+            continue
+        # Upgrade to resolved with the correct section metadata
+        citation["section_heading"] = hit.get("section_heading") or citation["section_heading"]
+        citation["section_key"] = hit.get("section_key") or citation["section_key"]
+        citation["section_path"] = hit.get("section_path") or citation["section_path"]
+        citation["chunk_index"] = hit.get("chunk_index", citation.get("chunk_index"))
+        if not citation.get("text_excerpt") and hit.get("text"):
+            citation["text_excerpt"] = _trim_excerpt(hit["text"])
+        citation["resolution_status"] = "resolved"
+        citation["unresolved_reason"] = ""
+
+
+def _deduplicate_ghost_citations(citations: list[dict]) -> list[dict]:
+    """Remove ghost (unresolvable) citations when a real citation covers the same section.
+
+    A ghost citation has no document_id and a generic source label (e.g.
+    ``source="gmp"``).  If a real citation exists with the same type and the
+    same section_key claim, the ghost is a redundant AI hallucination artifact
+    and should be dropped.
+    """
+    # Build a set of (type, section_key) for citations that have a real document
+    real_keys: set[tuple[str, str]] = set()
+    for c in citations:
+        if str(c.get("document_id") or "").strip():
+            c_type = str(c.get("type") or "").strip()
+            # Use original section claim normalised, not the matched section_key
+            # which may have been overwritten to the wrong section.
+            c_section = _normalize_section_key(str(c.get("section") or c.get("section_key") or ""))
+            if c_type and c_section:
+                real_keys.add((c_type, c_section))
+
+    result: list[dict] = []
+    for c in citations:
+        doc_id = str(c.get("document_id") or "").strip()
+        source = str(c.get("source") or "").strip()
+        if not doc_id and _is_generic_reference_label(source):
+            c_type = str(c.get("type") or "").strip()
+            c_section = _normalize_section_key(str(c.get("section") or c.get("section_key") or ""))
+            if (c_type, c_section) in real_keys:
+                # Ghost citation — already covered by a real document citation
+                continue
+        result.append(c)
+    return result
 
 
 def _classify_citation_resolution(

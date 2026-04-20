@@ -1065,7 +1065,7 @@
 .ops-card:hover { box-shadow: var(--shadow-md); }
 .ops-card--action    { border-left-color: var(--sev-critical-fg); }
 .ops-card--processing { border-left-color: var(--blue-primary); }
-.ops-card--escalated { border-left-color: var(--sev-moderate-fg); }
+.ops-card--escalated { border-left-color: var(--status-escalated-fg); }
 
 .ops-card-header {
   display: flex;
@@ -1083,7 +1083,7 @@
 }
 .card-label--action     { color: var(--sev-critical-fg); background: var(--sev-critical-bg); }
 .card-label--processing { color: var(--status-analyzing-fg); background: var(--status-analyzing-bg); }
-.card-label--escalated  { color: var(--sev-moderate-fg); background: var(--sev-moderate-bg); }
+.card-label--escalated  { color: var(--status-escalated-fg); background: var(--status-escalated-bg); }
 .card-label--approved   { color: var(--sev-minor-fg); background: var(--sev-minor-bg); }
 
 .ops-card-meta {
@@ -1795,7 +1795,10 @@
   position: relative;
   width: 100%;
   min-width: 0;
+.evt-dot--analyzing { background: var(--status-analyzing-fg); }
+.evt-dot--pending   { background: var(--status-pending-fg); }
 }
+.evt-dot--executing { background: var(--status-executing-fg); }
 .evt-item:last-child { padding-bottom: 0; }
 
 .evt-dot {
@@ -1812,7 +1815,7 @@
 .evt-dot--agent     { background: var(--blue-primary); }
 .evt-dot--approved  { background: var(--conf-high); }
 .evt-dot--rejected  { background: var(--conf-low); }
-.evt-dot--escalated { background: var(--severity-major); }
+.evt-dot--escalated { background: var(--status-escalated-fg); }
 .evt-dot--closed    { background: var(--gray-500); }
 
 .evt-body {
@@ -2441,9 +2444,9 @@
 }
 
 .escalation-card {
-  background: var(--sev-moderate-bg);
-  border: 1px solid rgba(202, 125, 1, 0.25);
-  border-left: 4px solid var(--sev-moderate-fg);
+  background: var(--status-escalated-bg);
+  border: 1px solid color-mix(in srgb, var(--status-escalated-fg) 24%, white);
+  border-left: 4px solid var(--status-escalated-fg);
   border-radius: var(--radius-md);
   padding: 12px 16px;
 }
@@ -2456,6 +2459,13 @@
   font-weight: 600;
   color: var(--text-heading);
   margin-bottom: var(--space-1);
+}
+
+.escalation-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .escalation-title {

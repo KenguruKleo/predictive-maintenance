@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Incident } from "../../types/incident";
 import SeverityBadge from "../IncidentList/SeverityBadge";
+import StatusBadge from "../IncidentList/StatusBadge";
 
 interface Props {
   incidents: Incident[];
@@ -20,7 +21,10 @@ export default function EscalationQueue({ incidents }: Props) {
             <span>
               ⚠️ {inc.incident_number} · {inc.equipment_id}
             </span>
-            <SeverityBadge severity={inc.severity} />
+            <div className="escalation-badges">
+              <StatusBadge status={inc.status} />
+              <SeverityBadge severity={inc.severity} />
+            </div>
           </div>
           {inc.title && <div className="escalation-title">{inc.title}</div>}
           {inc.ai_analysis && (

@@ -35,7 +35,7 @@
   /* ── Status ── */
   --status-pending-fg:   #8a4b00;  --status-pending-bg:   #fffae6;
   --status-analyzing-fg: #0052cc;  --status-analyzing-bg: #deebff;
-  --status-escalated-fg: #8a4b00;  --status-escalated-bg: #fff8d6;
+  --status-escalated-fg: #c25100;  --status-escalated-bg: #fff0e1;
   --status-approved-fg:  #006644;  --status-approved-bg:  #e3fcef;
   --status-rejected-fg:  #de350b;  --status-rejected-bg:  #ffebe6;
   --status-executing-fg: #0052cc;  --status-executing-bg: #deebff;
