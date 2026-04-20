@@ -1750,9 +1750,6 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         section_claim,
         match,
         citation_type=citation_type,
-        prefer_authoritative=raw_excerpt_matches_source or _pinned_doc_match
-        match,
-        citation_type=citation_type,
         prefer_authoritative=raw_excerpt_matches_source or _pinned_doc_match,
     )
     section_heading = str(item.get("section_heading") or (match or {}).get("section_heading") or section).strip()
