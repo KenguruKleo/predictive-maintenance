@@ -23,6 +23,10 @@ param orchestratorAgentId string = ''
 param researchAgentId string = ''
 param documentAgentId string = ''
 
+// Set to true when the deployment principal lacks Microsoft.Authorization/roleAssignments/write
+// (e.g. Contributor-only service principal in ODL/lab environments).
+param skipRoleAssignments bool = false
+
 resource storage 'Microsoft.Storage/storageAccounts@2023-05-01' existing = {
   name: storageAccountName
 }
@@ -145,7 +149,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
   }
 }
 
-resource functionAppMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppMonitoringReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!skipRoleAssignments) {
   name: guid(resourceGroup().id, functionApp.id, 'monitoring-reader')
   scope: resourceGroup()
   properties: {
@@ -155,7 +159,7 @@ resource functionAppMonitoringReader 'Microsoft.Authorization/roleAssignments@20
   }
 }
 
-resource functionAppAppInsightsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppAppInsightsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!skipRoleAssignments) {
   name: guid(appInsights.id, functionApp.id, 'reader')
   scope: appInsights
   properties: {
@@ -165,7 +169,7 @@ resource functionAppAppInsightsReader 'Microsoft.Authorization/roleAssignments@2
   }
 }
 
-resource functionAppWorkspaceLogAnalyticsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+resource functionAppWorkspaceLogAnalyticsReader 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!skipRoleAssignments) {
   name: guid(appInsightsWorkspace.id, functionApp.id, 'log-analytics-reader')
   scope: appInsightsWorkspace
   properties: {

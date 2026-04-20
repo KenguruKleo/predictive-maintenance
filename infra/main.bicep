@@ -27,6 +27,9 @@ param researchAgentId string = ''
 @description('Azure AI Foundry Document agent ID. Update after running agents/create_agents.py --update.')
 param documentAgentId string = ''
 
+@description('Skip role assignments — set true when deployment principal lacks roleAssignments/write (e.g. ODL Contributor-only SP).')
+param skipRoleAssignments bool = false
+
 // Variables
 
 var prefix = '${projectName}-${environmentName}'
@@ -102,6 +105,7 @@ module functions 'modules/functions.bicep' = {
     orchestratorAgentId: orchestratorAgentId
     researchAgentId: researchAgentId
     documentAgentId: documentAgentId
+    skipRoleAssignments: skipRoleAssignments
   }
 }
 
