@@ -7,7 +7,8 @@ Used by:
 
 All 5 indexes share the same field schema:
   id, document_id, document_title, document_type, chunk_index,
-  text, embedding, equipment_ids, keywords, source_blob
+    section_heading, section_key, section_path,
+    text, embedding, equipment_ids, keywords, source_blob
 """
 
 import os
@@ -94,7 +95,7 @@ def search_index(
     Hybrid search (keyword + vector) on a single AI Search index.
 
     Returns list of result dicts: document_id, document_title, document_type,
-    chunk_index, text, keywords, source, score.
+    chunk_index, section metadata, text, keywords, source, score.
     """
     vector = embed(query)
     vector_query = VectorizedQuery(
@@ -111,7 +112,8 @@ def search_index(
         top=top_k,
         select=[
             "id", "document_id", "document_title", "document_type",
-            "chunk_index", "text", "keywords", "source_blob",
+            "chunk_index", "section_heading", "section_key", "section_path",
+            "text", "keywords", "source_blob",
         ],
     )
 
@@ -121,6 +123,9 @@ def search_index(
             "document_title": r.get("document_title", ""),
             "document_type": r.get("document_type", ""),
             "chunk_index": r.get("chunk_index", 0),
+            "section_heading": r.get("section_heading", ""),
+            "section_key": r.get("section_key", ""),
+            "section_path": r.get("section_path", ""),
             "text": r.get("text", ""),
             "keywords": r.get("keywords", []),
             "source": r.get("source_blob", ""),

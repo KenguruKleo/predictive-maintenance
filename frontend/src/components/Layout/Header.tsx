@@ -64,6 +64,7 @@ export default function Header({
     () => roles.map((role) => formatRoleLabel(role)),
     [roles],
   );
+  const roleSummary = formattedRoles.join(" • ") || (IS_E2E_AUTH ? "User" : "No app role assigned");
   const userInitials = useMemo(() => getUserInitials(displayName), [displayName]);
 
   useEffect(() => {
@@ -167,7 +168,7 @@ export default function Header({
               <div className="user-menu-dropdown-header">
                 <div className="user-menu-dropdown-name">{displayName}</div>
                 <div className="user-menu-dropdown-meta">
-                  {formattedRoles.join(" • ") || "User"}
+                  {roleSummary}
                 </div>
               </div>
               <button type="button" className="user-menu-action" role="menuitem" onClick={handleLogout}>

@@ -110,7 +110,7 @@ backend/
 - [x] Live stale-state issue for `INC-2026-0019` was diagnosed: incident stayed in `pending_approval` while Durable status returned `null`; `scripts/recover_live_incident.py --skip-more-info-replay --yes` recreated a fresh `durable-INC-2026-0019` instance and `/decision` succeeded on that recovered instance
 - [x] Post-deploy unauthorized smoke check now returns `401 Authentication required` from the live Function App, confirming the RBAC hardening is active in Azure
 - [x] Live authorized proof is now confirmed in Azure through the deployed frontend: both `rejected` and `more_info` operator actions succeeded via the same protected `POST /api/incidents/{id}/decision` endpoint after Entra role assignment and delegated token setup were corrected
-- [x] T-029 is now treated as closed; the remaining SignalR status-change notification follow-up was moved into T-030 so this task stays scoped to the protected decision API + Durable resume flow
+- [x] T-029 is now treated as closed; the former SignalR notification follow-up was handled separately in T-030 so this task stays scoped to the protected decision API + Durable resume flow
 
 ## Definition of Done
 
@@ -120,4 +120,4 @@ backend/
 - [x] `action: "rejected"` → incident status → `rejected`, orchestrator closes
 - [x] Decision записується в `incident_events` collection
 
-> SignalR delivery for decision-driven status changes is tracked in [T-030](./T-030-signalr.md).
+> SignalR notification scope and bell UX were finalized in [T-030](./T-030-signalr.md); T-029 remains limited to the protected decision API + Durable resume path.

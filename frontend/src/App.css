@@ -1917,6 +1917,21 @@
   padding: 16px;
 }
 
+.approval-summary--approved {
+  background: var(--status-approved-bg);
+  border-color: rgba(24, 107, 56, 0.18);
+}
+
+.approval-summary--rejected {
+  background: var(--status-rejected-bg);
+  border-color: rgba(148, 27, 42, 0.18);
+}
+
+.approval-summary--info {
+  background: var(--status-pending-bg);
+  border-color: rgba(202, 125, 1, 0.22);
+}
+
 .approval-summary-columns {
   display: flex;
   flex-direction: column;
@@ -1950,10 +1965,26 @@
   color: var(--text);
 }
 
+.approval-summary-value--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .approval-summary-value--primary {
   font-size: 15px;
   font-weight: 600;
   color: var(--text-heading);
+}
+
+.approval-summary-actor-id {
+  overflow-wrap: anywhere;
+}
+
+.approval-summary-actor-role {
+  font-size: 12px;
+  color: var(--text-subtle);
+  text-transform: capitalize;
 }
 
 .approval-question-note {

@@ -10,6 +10,20 @@ const client = axios.create({
 });
 
 let msalInstance: PublicClientApplication | null = null;
+let tokenRedirectInFlight = false;
+
+function getMsalErrorCode(error: unknown): string {
+  if (!error || typeof error !== "object") return "";
+  const errorCode = (error as { errorCode?: unknown }).errorCode;
+  return typeof errorCode === "string" ? errorCode : "";
+}
+
+function requiresInteractiveTokenAcquisition(error: unknown): boolean {
+  const errorCode = getMsalErrorCode(error);
+  return errorCode === "consent_required"
+    || errorCode === "interaction_required"
+    || errorCode === "login_required";
+}
 
 function setHeader(
   config: InternalAxiosRequestConfig,
@@ -43,9 +57,20 @@ client.interceptors.request.use(async (config) => {
       account,
     });
     setHeader(config, "Authorization", `Bearer ${result.accessToken}`);
-  } catch {
-    // Token acquisition failed — let request proceed without token
-    // (backend will return 401, UI will handle)
+  } catch (error) {
+    if (requiresInteractiveTokenAcquisition(error) && !tokenRedirectInFlight) {
+      tokenRedirectInFlight = true;
+      void msalInstance.acquireTokenRedirect({
+        ...apiRequest,
+        account,
+        redirectStartPage: window.location.href,
+        ...(getMsalErrorCode(error) === "consent_required" ? { prompt: "consent" as const } : {}),
+      }).finally(() => {
+        tokenRedirectInFlight = false;
+      });
+    }
+
+    return Promise.reject(error);
   }
   return config;
 });

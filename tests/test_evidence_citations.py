@@ -5,7 +5,11 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from activities.run_foundry_agents import _normalize_evidence_citations, _trace_enabled
+from activities.run_foundry_agents import (
+    _normalize_agent_result,
+    _normalize_evidence_citations,
+    _trace_enabled,
+)
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:
@@ -275,6 +279,195 @@ def test_normalize_evidence_citations_appends_historical_fallback_from_rag_conte
     assert citations[1]["document_title"] == "Spray Rate Deviation on GR-204"
     assert citations[1]["url"] == "/incidents/INC-2026-0006"
     assert citations[1]["resolution_status"] == "resolved"
+
+
+def test_normalize_evidence_citations_prefers_authoritative_section_from_excerpt_anchor() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "source": "EU GMP Annex 15",
+                    "section": "§6.3",
+                    "text_excerpt": "Application to GR-204: Impeller speed validated PAR: 200–800 RPM.",
+                }
+            ]
+        },
+        {
+            "idx-gmp-policies": [
+                {
+                    "document_id": "GMP-Annex15-Excerpt",
+                    "document_title": "EU GMP Annex 15",
+                    "source": "GMP-Annex15-Excerpt.md",
+                    "chunk_index": 1,
+                    "section_heading": "§6.1 General Principles",
+                    "section_key": "6.1",
+                    "section_path": "§6 — Process Validation > §6.1 General Principles",
+                    "text": (
+                        "Application to GR-204: Impeller speed validated PAR: 200–800 RPM. "
+                        "Product-specific NOR may be set at 600–700 RPM in the BPR."
+                    ),
+                    "score": 0.92,
+                },
+                {
+                    "document_id": "GMP-Annex15-Excerpt",
+                    "document_title": "EU GMP Annex 15",
+                    "source": "GMP-Annex15-Excerpt.md",
+                    "chunk_index": 2,
+                    "section_heading": "§6.3 Process Parameter Deviations During Validation and Routine Manufacturing",
+                    "section_key": "6.3",
+                    "section_path": "§6 — Process Validation > §6.3 Process Parameter Deviations During Validation and Routine Manufacturing",
+                    "text": "6.3.1 The deviation shall be detected promptly and documented with exact timestamps.",
+                    "score": 0.91,
+                },
+            ]
+        },
+    )
+
+    assert citations[0]["section"] == "§6.1 General Principles"
+    assert citations[0]["section_key"] == "6.1"
+    assert citations[0]["resolution_status"] == "resolved"
+
+
+def test_normalize_evidence_citations_marks_unverified_section_without_dropping_document() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "source": "EU GMP Annex 15",
+                    "section": "§6.3",
+                    "text_excerpt": "generic process validation note",
+                }
+            ]
+        },
+        {
+            "idx-gmp-policies": [
+                {
+                    "document_id": "GMP-Annex15-Excerpt",
+                    "document_title": "EU GMP Annex 15",
+                    "source": "GMP-Annex15-Excerpt.md",
+                    "chunk_index": 1,
+                    "section_heading": "§6.1 General Principles",
+                    "section_key": "6.1",
+                    "section_path": "§6 — Process Validation > §6.1 General Principles",
+                    "text": "Application to GR-204: Impeller speed validated PAR: 200–800 RPM.",
+                    "score": 0.92,
+                }
+            ]
+        },
+    )
+
+    assert citations[0]["document_title"] == "EU GMP Annex 15"
+    assert citations[0]["section"] == "§6.3"
+    assert citations[0]["resolution_status"] == "unresolved"
+    assert "authoritative section match" in citations[0]["unresolved_reason"]
+
+
+def test_normalize_evidence_citations_dedupes_same_document_section_even_if_status_would_differ() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "source": "EU GMP Annex 15",
+                    "section": "§6.3",
+                    "text_excerpt": "generic process validation note",
+                }
+            ],
+            "regulatory_refs": [
+                {
+                    "regulation": "EU GMP Annex 15",
+                    "section": "§6.3",
+                    "text_excerpt": "6.3.1 The deviation shall be detected promptly and documented with exact timestamps.",
+                }
+            ],
+        },
+        {
+            "idx-gmp-policies": [
+                {
+                    "document_id": "GMP-Annex15-Excerpt",
+                    "document_title": "EU GMP Annex 15",
+                    "source": "GMP-Annex15-Excerpt.md",
+                    "chunk_index": 2,
+                    "section_heading": "§6.3 Process Parameter Deviations During Validation and Routine Manufacturing",
+                    "section_key": "6.3",
+                    "section_path": "§6 — Process Validation > §6.3 Process Parameter Deviations During Validation and Routine Manufacturing",
+                    "text": "6.3.1 The deviation shall be detected promptly and documented with exact timestamps.",
+                    "score": 0.91,
+                }
+            ]
+        },
+    )
+
+    assert len(citations) == 1
+    assert citations[0]["document_title"] == "EU GMP Annex 15"
+    assert citations[0]["section_key"] == "6.3"
+
+
+def test_normalize_agent_result_omits_unverified_section_from_regulatory_reference() -> None:
+    result = {
+        "incident_id": "INC-2026-0024",
+        "title": "Spray Rate Deviation",
+        "recommendation": "Hold the batch pending review.",
+        "operator_dialogue": "Hold the batch pending review.",
+        "regulatory_reference": "SOP-DEV-001 §4.2; GMP Annex 15 §6.3",
+        "evidence_citations": [
+            {
+                "source": "SOP-DEV-001",
+                "section": "§4.2",
+                "text_excerpt": "Spray Rate: Affects binder distribution.",
+            }
+        ],
+        "regulatory_refs": [
+            {
+                "regulation": "EU GMP Annex 15",
+                "section": "§6.3",
+                "text_excerpt": "The impact on product quality shall be assessed based on duration and magnitude.",
+            }
+        ],
+        "sop_refs": [
+            {
+                "id": "SOP-DEV-001",
+                "title": "Deviation Management",
+                "relevant_section": "§4.2",
+                "text_excerpt": "Spray Rate: Affects binder distribution.",
+            }
+        ],
+    }
+    rag_context = {
+        "idx-sop-documents": [
+            {
+                "document_id": "SOP-DEV-001-Deviation-Management",
+                "document_title": "SOP-DEV-001 — GMP Deviation Management Procedure",
+                "source": "SOP-DEV-001-Deviation-Management.md",
+                "chunk_index": 6,
+                "section_heading": "4.2 Process Parameter Excursions — Granulation",
+                "section_key": "4.2",
+                "section_path": "SOP-DEV-001 — GMP Deviation Management Procedure > 4. Deviation Classification > 4.2 Process Parameter Excursions — Granulation",
+                "text": "For High-Shear Granulators (GR series): Spray Rate: Affects binder distribution. Low spray rate increases risk of ungranulated fines.",
+                "score": 1.0,
+            }
+        ],
+        "idx-gmp-policies": [
+            {
+                "document_id": "GMP-Annex15-Excerpt",
+                "document_title": "EU GMP Annex 15",
+                "source": "GMP-Annex15-Excerpt.md",
+                "chunk_index": 2,
+                "section_heading": "§6.1 General Principles",
+                "section_key": "6.1",
+                "section_path": "EU GMP Annex 15 — Process Validation and Deviation Management (Relevant Excerpts) > §6 — Process Validation > §6.1 General Principles",
+                "text": "The impact on product quality shall be assessed based on duration of excursion, magnitude of excursion relative to validated limits, and product sensitivity.",
+                "score": 0.9,
+            }
+        ],
+    }
+
+    normalized = _normalize_agent_result(result, rag_context, more_info_round=0)
+
+    assert normalized["regulatory_reference"] == "SOP-DEV-001 §4.2; EU GMP Annex 15"
+    assert normalized["sop_refs"][0]["relevant_section"] == "§4.2"
+    assert normalized["regulatory_refs"][0]["section"] == ""
+    assert normalized["regulatory_refs"][0]["section_heading"] == "§6.1 General Principles"
+    assert normalized["regulatory_refs"][0]["resolution_status"] == "unresolved"
 
 
 def test_trace_enabled_reads_runtime_env(monkeypatch) -> None:

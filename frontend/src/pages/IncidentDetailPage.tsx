@@ -49,6 +49,13 @@ export default function IncidentDetailPage() {
       (e) =>
         e.action === "operator_question" || e.action === "agent_response",
     );
+  const showDecisionSummary =
+    !showApproval &&
+    Boolean(
+      incident.lastDecision?.action ||
+      incident.finalDecision?.action ||
+      incident.rejectionReason,
+    );
 
   // Synthesize parameter_excursion from root-level alert fields for incidents
   // that were ingested before the nested object was added to the payload.
@@ -141,13 +148,13 @@ export default function IncidentDetailPage() {
             />
           </ErrorBoundary>
 
-          {(showApproval || showReadonlyChat) && (
+          {(showApproval || showReadonlyChat || showDecisionSummary) && (
             <ErrorBoundary inline section="Approval Panel">
               <ApprovalPanel incident={incident} events={events} />
             </ErrorBoundary>
           )}
 
-          {!showApproval && !showReadonlyChat && (
+          {!showApproval && !showReadonlyChat && !showDecisionSummary && (
             <div className="incident-section">
               <h3 className="section-title">Status</h3>
               <div className="incident-status-block">

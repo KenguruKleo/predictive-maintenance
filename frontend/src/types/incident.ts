@@ -157,6 +157,8 @@ export interface Incident {
   document_drafts?: DocumentDraft[];
   workflow_state?: WorkflowState;
   lastDecision?: LastDecision;
+  finalDecision?: LastDecision;
+  rejectionReason?: string;
 }
 
 export interface IncidentEvent {

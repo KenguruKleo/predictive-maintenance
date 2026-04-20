@@ -83,7 +83,7 @@ export function useAuth() {
 
     const claims = account.idTokenClaims as Record<string, unknown> | undefined;
     const normalized = normalizeRoles(claims?.roles);
-    return normalized.length > 0 ? normalized : ["operator"];
+    return normalized;
   }, [account, accessTokenRoles, e2eAuthState.roles]);
 
   const displayName = IS_E2E_AUTH

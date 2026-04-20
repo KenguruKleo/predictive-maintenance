@@ -101,7 +101,13 @@ A vibration spike on Granulator GR-204 triggers our system...
 Notice the notification bell in the header: the operator gets a real-time alert,
 the unread counter increments, and the new incident is highlighted in the left rail.
 Opening the incident takes the operator directly into the approval package and
-clears the unread marker once the package is viewed."
+clears the unread marker once the package is viewed.
+If we want one extra visual proof point during recording, we can briefly switch the browser tab or window and show the optional browser popup notification after permission has been granted."
+
+## Manual popup demo note
+
+- Optional demo beat: after granting browser notification permission from the bell dropdown, move focus away from the app (switch tab/window) and trigger a fresh incident so the system popup becomes visible on screen.
+- This popup check is manual only; no Playwright / automated E2E coverage is planned before demo.
 
 [04:00–04:30] ARCHITECTURE
 Narrator: "Built on Track A — GitHub, Azure, and Azure AI Foundry.

@@ -30,7 +30,10 @@
 - [x] **Incident citations now generate proper `/incidents/{document_id}` URLs** — fixed `_citation_url()` to handle `type="incident"`, added 4 unit tests for URL generation.
 - [x] Document Agent prompts updated to explicitly require primary incident citation with `type: "incident"` and `document_id` in `evidence_citations`.
 - [x] Backend deployed with incident citation URL fix.
-- [ ] Full live end-to-end validation pending: requires fresh incident to be created and processed with updated backend code to confirm incident citations now render with proper deep links instead of showing "Missing link for incident citation".
+- [x] AI Search ingestion now stores authoritative chunk-level section metadata (`section_heading`, `section_key`, `section_path`) for SOP/BPR/manual/GMP docs and incident-history chunks.
+- [x] Citation normalization now uses soft authoritative matching: document/source match + excerpt anchor + section claim decide the best chunk; excerpt-anchored mismatches are corrected to the authoritative section, while unverifiable section claims stay visible as `unresolved` instead of dropping the whole document.
+- [x] Focused regression coverage added for heading-aware ingestion metadata, section metadata retrieval from search hits, authoritative section correction, and unresolved downgrade when only the document can be matched.
+- [ ] Full live end-to-end validation pending: re-run search indexing for affected indexes and deploy the updated backend before creating a fresh incident to confirm corrected/unresolved section behavior in the live UI.
 
 ---
 

@@ -81,6 +81,9 @@ CHUNK_SIZE = 500       # tokens (approx chars/4)
 CHUNK_OVERLAP = 50
 BPR_MAX_CHUNK = 1200   # allow larger chunks to keep tables intact
 
+HEADING_RE = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")
+SECTION_KEY_RE = re.compile(r"(?<!\w)§?\s*(\d+(?:\.\d+)*)(?!\w)")
+
 
 # ---------------------------------------------------------------------------
 # Auth helpers
@@ -94,7 +97,7 @@ def get_search_credential():
 
 
 def get_blob_client() -> BlobServiceClient:
-    conn = os.getenv("AZURE_STORAGE_CONNECTION_STRING")
+    conn = os.getenv("AZURE_STORAGE_CONNECTION_STRING") or os.getenv("AzureWebJobsStorage")
     if conn:
         return BlobServiceClient.from_connection_string(conn)
     key = os.getenv("AZURE_STORAGE_KEY")
@@ -139,6 +142,9 @@ def build_index(name: str) -> SearchIndex:
             facetable=True,
         ),
         SimpleField(name="chunk_index", type=SearchFieldDataType.Int32, filterable=True),
+        SimpleField(name="section_heading", type=SearchFieldDataType.String),
+        SimpleField(name="section_key", type=SearchFieldDataType.String, filterable=True),
+        SimpleField(name="section_path", type=SearchFieldDataType.String),
         SearchableField(name="text", type=SearchFieldDataType.String),
         SearchField(
             name="embedding",
@@ -171,6 +177,96 @@ def build_index(name: str) -> SearchIndex:
 def _approx_tokens(text: str) -> int:
     """Rough token estimate: chars / 4."""
     return len(text) // 4
+
+
+def normalize_section_key(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    match = SECTION_KEY_RE.search(text)
+    if match:
+        return match.group(1).lower()
+
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:80]
+
+
+def _build_section_path(headings: list[str]) -> str:
+    return " > ".join(heading for heading in headings if heading)
+
+
+def _clean_heading_text(value: str) -> str:
+    text = str(value or "").strip()
+    return re.sub(r"\s+", " ", text)
+
+
+def split_markdown_sections(text: str, *, default_heading: str = "") -> list[dict[str, str]]:
+    sections: list[dict[str, str]] = []
+    current_lines: list[str] = []
+
+    default_heading = _clean_heading_text(default_heading)
+    heading_stack: list[str] = [default_heading] if default_heading else []
+    current_heading = default_heading
+    current_key = normalize_section_key(default_heading)
+    current_path = _build_section_path(heading_stack)
+
+    def flush_current_section() -> None:
+        nonlocal current_lines
+        section_text = "\n".join(current_lines).strip()
+        if section_text:
+            sections.append(
+                {
+                    "text": section_text,
+                    "section_heading": current_heading,
+                    "section_key": current_key,
+                    "section_path": current_path or current_heading,
+                }
+            )
+        current_lines = []
+
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+        heading_match = HEADING_RE.match(stripped)
+        if heading_match:
+            flush_current_section()
+
+            heading_level = len(heading_match.group(1))
+            heading_text = _clean_heading_text(heading_match.group(2))
+
+            if heading_level <= 1:
+                heading_stack = [heading_text]
+            else:
+                base_stack = heading_stack[: heading_level - 1]
+                if not base_stack and default_heading:
+                    base_stack = [default_heading]
+                heading_stack = base_stack + [heading_text]
+
+            current_heading = heading_text
+            current_key = normalize_section_key(heading_text)
+            current_path = _build_section_path(heading_stack)
+            current_lines = [stripped]
+            continue
+
+        current_lines.append(raw_line)
+
+    flush_current_section()
+
+    if sections:
+        return sections
+
+    fallback_text = text.strip()
+    if not fallback_text:
+        return []
+
+    fallback_heading = default_heading or "Document"
+    return [
+        {
+            "text": fallback_text,
+            "section_heading": fallback_heading,
+            "section_key": normalize_section_key(fallback_heading),
+            "section_path": fallback_heading,
+        }
+    ]
 
 
 def chunk_standard(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[str]:
@@ -272,6 +368,39 @@ def chunk_text(text: str, strategy: str) -> list[str]:
     if strategy == "table_aware":
         return chunk_table_aware(text)
     return chunk_standard(text)
+
+
+def chunk_document(
+    text: str,
+    strategy: str,
+    *,
+    default_section_heading: str = "",
+) -> list[dict[str, str]]:
+    chunks: list[dict[str, str]] = []
+    sections = split_markdown_sections(text, default_heading=default_section_heading)
+
+    for section in sections:
+        if strategy == "table_aware":
+            section_chunks = chunk_table_aware(section["text"])
+        elif strategy == "incidents":
+            section_chunks = [section["text"]]
+        else:
+            section_chunks = chunk_standard(section["text"])
+
+        for chunk_text_str in section_chunks:
+            normalized_chunk = chunk_text_str.strip()
+            if not normalized_chunk:
+                continue
+            chunks.append(
+                {
+                    "text": normalized_chunk,
+                    "section_heading": section["section_heading"],
+                    "section_key": section["section_key"],
+                    "section_path": section["section_path"],
+                }
+            )
+
+    return chunks
 
 
 # ---------------------------------------------------------------------------
@@ -416,14 +545,20 @@ def process_index(
                     title = line[:120]
                     break
 
-        chunks = chunk_text(text, chunking_strategy)
+        default_section_heading = "Incident summary" if chunking_strategy == "incidents" else title
+        chunks = chunk_document(
+            text,
+            chunking_strategy,
+            default_section_heading=default_section_heading,
+        )
         print(f"  {filename}: {len(chunks)} chunk(s)")
 
-        for i, chunk_text_str in enumerate(chunks):
+        for i, chunk in enumerate(chunks):
             if dry_run:
                 total_chunks += 1
                 continue
 
+            chunk_text_str = chunk["text"]
             embedding = get_embedding(openai_client, chunk_text_str)
 
             batch.append({
@@ -432,6 +567,9 @@ def process_index(
                 "document_title": title,
                 "document_type": doc_type,
                 "chunk_index": i,
+                "section_heading": chunk["section_heading"],
+                "section_key": chunk["section_key"],
+                "section_path": chunk["section_path"],
                 "text": chunk_text_str,
                 "embedding": embedding,
                 "equipment_ids": equipment_ids,

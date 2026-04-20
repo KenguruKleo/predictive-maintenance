@@ -243,9 +243,8 @@ README.md
 
 ## Next notification coverage
 
-- [ ] Add a smoke flow for `incident_pending_approval` → bell badge increment → unread sidebar highlight
-- [ ] Add a smoke flow for dropdown click → incident detail route → unread marker cleared via `POST /api/incidents/{id}/notifications/read`
-- [ ] Decide whether browser/system notifications should be mocked or skipped in Playwright (recommended: skip system-level assertion, cover in manual browser check)
+- Notification-specific E2E coverage is intentionally deferred and not required before demo.
+- Browser/system notification behavior stays a manual smoke check in [T-002](./T-002-final-video.md), not a Playwright target.
 
 ### Local backend startup note
 

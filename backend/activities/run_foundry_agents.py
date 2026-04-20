@@ -968,6 +968,20 @@ def _normalize_agent_result(
         rag_context or {},
         current_incident_id=str(result.get("incident_id") or ""),
     )
+    result["sop_refs"] = _normalize_reference_collection(
+        result["evidence_citations"],
+        citation_type="sop",
+    )
+    result["regulatory_refs"] = _normalize_reference_collection(
+        result["evidence_citations"],
+        citation_type="gmp",
+    )
+    normalized_reference = _build_regulatory_reference_summary(
+        result["sop_refs"],
+        result["regulatory_refs"],
+    )
+    if normalized_reference or result["evidence_citations"]:
+        result["regulatory_reference"] = normalized_reference
     result["operator_dialogue"] = _normalize_operator_dialogue(
         result,
         more_info_round,
@@ -975,6 +989,123 @@ def _normalize_agent_result(
         operator_questions=operator_questions or [],
     )
     return result
+
+
+def _normalize_reference_collection(
+    citations: list[dict],
+    *,
+    citation_type: str,
+) -> list[dict]:
+    normalized_refs: list[dict] = []
+
+    for citation in citations:
+        if str(citation.get("type") or "") != citation_type:
+            continue
+
+        section_display = _reference_section_display(citation)
+        base_ref = {
+            "type": citation_type,
+            "source": citation.get("source", ""),
+            "reference": citation.get("reference", ""),
+            "document_id": citation.get("document_id", ""),
+            "document_title": citation.get("document_title", ""),
+            "section": section_display,
+            "section_heading": citation.get("section_heading", ""),
+            "section_key": citation.get("section_key", ""),
+            "section_path": citation.get("section_path", ""),
+            "text_excerpt": citation.get("text_excerpt", ""),
+            "source_blob": citation.get("source_blob", ""),
+            "container": citation.get("container", ""),
+            "index_name": citation.get("index_name", ""),
+            "chunk_index": citation.get("chunk_index"),
+            "score": citation.get("score"),
+            "url": citation.get("url", ""),
+            "resolution_status": citation.get("resolution_status", ""),
+            "unresolved_reason": citation.get("unresolved_reason", ""),
+        }
+
+        if citation_type == "sop":
+            normalized_refs.append(
+                {
+                    **base_ref,
+                    "id": citation.get("document_id") or citation.get("source") or "",
+                    "title": citation.get("document_title") or citation.get("source") or "",
+                    "relevant_section": section_display,
+                }
+            )
+            continue
+
+        normalized_refs.append(
+            {
+                **base_ref,
+                "regulation": _reference_label(citation),
+            }
+        )
+
+    return normalized_refs
+
+
+def _build_regulatory_reference_summary(
+    sop_refs: list[dict],
+    regulatory_refs: list[dict],
+) -> str:
+    parts: list[str] = []
+    seen: set[str] = set()
+
+    for item in [*(sop_refs or []), *(regulatory_refs or [])]:
+        label = _reference_label(item)
+        section = str(item.get("relevant_section") or item.get("section") or "").strip()
+        summary = f"{label} {section}".strip() if section else label
+        if not summary:
+            continue
+
+        key = summary.lower()
+        if key in seen:
+            continue
+
+        seen.add(key)
+        parts.append(summary)
+
+    return "; ".join(parts)
+
+
+def _reference_label(item: dict) -> str:
+    citation_type = str(item.get("type") or "")
+    if citation_type == "sop":
+        return str(
+            item.get("source")
+            or item.get("id")
+            or item.get("document_id")
+            or item.get("document_title")
+            or item.get("title")
+            or ""
+        ).strip()
+
+    return str(
+        item.get("regulation")
+        or item.get("reference")
+        or item.get("document_title")
+        or item.get("source")
+        or item.get("document_id")
+        or ""
+    ).strip()
+
+
+def _reference_section_display(citation: dict) -> str:
+    unresolved_reason = _normalize_text(str(citation.get("unresolved_reason") or ""))
+    if "authoritative section match" in unresolved_reason:
+        return ""
+
+    section_key = str(citation.get("section_key") or "").strip()
+    if section_key and re.fullmatch(r"\d+(?:\.\d+)*", section_key):
+        return f"§{section_key}"
+
+    return str(
+        citation.get("section")
+        or citation.get("relevant_section")
+        or citation.get("section_heading")
+        or ""
+    ).strip()
 
 
 def _normalize_operator_dialogue(
@@ -1566,9 +1697,17 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
             document_title = f"Similar incident {document_id}"
         else:
             document_title = source or reference
-    section = item.get("section") or item.get("relevant_section") or ""
-    if citation_type == "historical" and not section:
-        section = "Incident summary"
+    section_claim = str(item.get("section") or item.get("relevant_section") or "").strip()
+    raw_excerpt_matches_source = _raw_excerpt_matches_hit(item, match)
+    section, section_verified = _resolve_citation_section(
+        section_claim,
+        match,
+        citation_type=citation_type,
+        prefer_authoritative=raw_excerpt_matches_source,
+    )
+    section_heading = str(item.get("section_heading") or (match or {}).get("section_heading") or section).strip()
+    section_key = str(item.get("section_key") or (match or {}).get("section_key") or _normalize_section_key(section)).strip()
+    section_path = str(item.get("section_path") or (match or {}).get("section_path") or section_heading or section).strip()
     text_excerpt = _build_citation_excerpt(item, match)
     url = item.get("url") or _citation_url(
         citation_type=citation_type,
@@ -1580,6 +1719,8 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         citation_type=citation_type,
         document_title=document_title,
         section=section,
+        section_verified=section_verified,
+        authoritative_section_available=bool((match or {}).get("section_heading")),
         text_excerpt=text_excerpt,
         url=url,
         container=container,
@@ -1593,6 +1734,9 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         "document_id": document_id,
         "document_title": document_title,
         "section": section,
+        "section_heading": section_heading,
+        "section_key": section_key,
+        "section_path": section_path,
         "text_excerpt": text_excerpt,
         "source_blob": source_blob,
         "container": container,
@@ -1615,10 +1759,9 @@ def _citation_identity_key(citation: dict) -> tuple[str, str, str, str]:
         or str(citation.get("source") or "").strip()
         or str(citation.get("document_title") or "").strip()
     )
-    section = str(citation.get("section") or "").strip()
-    status = str(citation.get("resolution_status") or "").strip()
+    section = str(citation.get("section_key") or citation.get("section") or "").strip()
     citation_type = str(citation.get("type") or "").strip()
-    return (citation_type, primary_id.lower(), section.lower(), status)
+    return (citation_type, primary_id.lower(), section.lower(), "")
 
 
 def _citation_points_to_incident(citation: dict, incident_id: str) -> bool:
@@ -1644,6 +1787,78 @@ def _citation_points_to_incident(citation: dict, incident_id: str) -> bool:
         if extracted == expected:
             return True
     return False
+
+
+def _normalize_section_key(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+
+    match = re.search(r"(?<!\w)§?\s*(\d+(?:\.\d+)*)(?!\w)", text)
+    if match:
+        return match.group(1).lower()
+
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:80]
+
+
+def _section_claim_matches_hit(section_claim: str, hit: dict | None) -> bool:
+    if not section_claim or not hit:
+        return False
+
+    claim_text = str(section_claim).strip().lower()
+    claim_key = _normalize_section_key(section_claim)
+    hit_heading = str(hit.get("section_heading") or "").strip()
+    hit_path = str(hit.get("section_path") or "").strip()
+    hit_key = _normalize_section_key(hit.get("section_key") or hit_heading or hit_path)
+
+    if claim_key and hit_key and claim_key == hit_key:
+        return True
+
+    return any(
+        claim_text and claim_text in value.lower()
+        for value in (hit_heading, hit_path)
+        if value
+    )
+
+
+def _resolve_citation_section(
+    section_claim: str,
+    match: dict | None,
+    *,
+    citation_type: str,
+    prefer_authoritative: bool,
+) -> tuple[str, bool]:
+    authoritative_heading = str((match or {}).get("section_heading") or "").strip()
+
+    if citation_type == "historical" and not section_claim:
+        section_claim = "Incident summary"
+
+    if not authoritative_heading:
+        return section_claim, bool(section_claim)
+
+    if not section_claim:
+        return authoritative_heading, True
+
+    if _section_claim_matches_hit(section_claim, match):
+        return section_claim, True
+
+    if prefer_authoritative:
+        return authoritative_heading, True
+
+    return section_claim, False
+
+
+def _raw_excerpt_matches_hit(item: dict, hit: dict | None) -> bool:
+    if not hit:
+        return False
+
+    raw_excerpt = _clean_excerpt_text(
+        item.get("text_excerpt") or item.get("quote") or item.get("relevance") or ""
+    )
+    if len(raw_excerpt) < 12:
+        return False
+
+    return raw_excerpt.lower() in _clean_excerpt_text(hit.get("text", "")).lower()
 
 
 def _build_citation_excerpt(item: dict, match: dict | None) -> str:
@@ -1704,6 +1919,8 @@ def _classify_citation_resolution(
     citation_type: str,
     document_title: str,
     section: str,
+    section_verified: bool,
+    authoritative_section_available: bool,
     text_excerpt: str,
     url: str,
     container: str,
@@ -1715,6 +1932,8 @@ def _classify_citation_resolution(
         missing.append("document title")
     if not section:
         missing.append("section")
+    elif authoritative_section_available and not section_verified:
+        missing.append("authoritative section match")
     if not text_excerpt:
         missing.append("excerpt")
     if not url and not (container and source_blob):
@@ -1752,30 +1971,72 @@ def _extract_historical_incident_id(value: str) -> str:
 
 def _find_matching_hit(item: dict, flat_hits: list[dict]) -> dict | None:
     candidates = [
-        item.get("document_id"),
-        item.get("id"),
-        item.get("document_title"),
-        item.get("title"),
-        item.get("regulation"),
-        item.get("reference"),
-        item.get("source"),
-        item.get("source_blob"),
+        str(item.get("document_id") or "").strip(),
+        str(item.get("id") or "").strip(),
+        str(item.get("document_title") or "").strip(),
+        str(item.get("title") or "").strip(),
+        str(item.get("regulation") or "").strip(),
+        str(item.get("reference") or "").strip(),
+        str(item.get("source") or "").strip(),
+        str(item.get("source_blob") or "").strip(),
     ]
-    candidate_text = " ".join(str(c) for c in candidates if c).lower()
-    excerpt = str(item.get("text_excerpt") or item.get("quote") or "").lower()
+    section_claim = str(item.get("section") or item.get("relevant_section") or "").strip()
+    excerpt = _clean_excerpt_text(item.get("text_excerpt") or item.get("quote") or "")
+
+    best_hit: dict | None = None
+    best_score = 0
 
     for hit in flat_hits:
-        hit_identifiers = " ".join(
-            str(hit.get(k, ""))
-            for k in ("document_id", "document_title", "source", "document_type")
-        ).lower()
-        if candidate_text and (
-            candidate_text in hit_identifiers or hit_identifiers in candidate_text
-        ):
-            return hit
-        if excerpt and (excerpt[:80] in str(hit.get("text", "")).lower()):
-            return hit
-    return None
+        score = _document_match_score(candidates, hit)
+        if excerpt:
+            score += _excerpt_match_score(excerpt, hit)
+        if section_claim:
+            score += _section_match_score(section_claim, hit)
+
+        if score > best_score:
+            best_score = score
+            best_hit = hit
+
+    return best_hit if best_score > 0 else None
+
+
+def _document_match_score(candidates: list[str], hit: dict) -> int:
+    hit_values = [
+        str(hit.get("document_id") or "").strip(),
+        str(hit.get("document_title") or "").strip(),
+        str(hit.get("source") or "").strip(),
+        str(hit.get("document_type") or "").strip(),
+    ]
+
+    best = 0
+    for candidate in candidates:
+        candidate_lower = candidate.lower()
+        if not candidate_lower:
+            continue
+        for hit_value in hit_values:
+            hit_lower = hit_value.lower()
+            if not hit_lower:
+                continue
+            if candidate_lower == hit_lower:
+                best = max(best, 100)
+            elif len(candidate_lower) >= 6 and (
+                candidate_lower in hit_lower or hit_lower in candidate_lower
+            ):
+                best = max(best, 70)
+    return best
+
+
+def _excerpt_match_score(excerpt: str, hit: dict) -> int:
+    normalized_excerpt = _clean_excerpt_text(excerpt)
+    if len(normalized_excerpt) < 12:
+        return 0
+
+    hit_text = _clean_excerpt_text(hit.get("text", ""))
+    return 60 if normalized_excerpt.lower() in hit_text.lower() else 0
+
+
+def _section_match_score(section_claim: str, hit: dict) -> int:
+    return 40 if _section_claim_matches_hit(section_claim, hit) else 0
 
 
 def _infer_citation_type(item: dict, match: dict | None) -> str:
