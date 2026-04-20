@@ -8,6 +8,25 @@ interface Props {
   isLoading?: boolean;
   browserNotificationPermission: BrowserNotificationPermission;
   onRequestBrowserNotifications?: () => Promise<BrowserNotificationPermission>;
+  onClearAllNotifications?: () => Promise<unknown>;
+  clearAllPending?: boolean;
+  dismissVersion?: number;
+  onOpen?: () => void;
+}
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M10 3.25a3 3 0 0 0-3 3v1.12c0 .78-.23 1.53-.66 2.18L5.2 11.25c-.56.85-.15 2 .83 2h7.94c.98 0 1.39-1.15.83-2l-1.14-1.7A3.93 3.93 0 0 1 13 7.37V6.25a3 3 0 0 0-3-3Z"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M8.4 15.25a1.9 1.9 0 0 0 3.2 0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
 }
 
 function formatNotificationDate(value?: string): string {
@@ -28,9 +47,17 @@ export default function NotificationCenter({
   isLoading = false,
   browserNotificationPermission,
   onRequestBrowserNotifications,
+  onClearAllNotifications,
+  clearAllPending = false,
+  dismissVersion = 0,
+  onOpen,
 }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    setOpen(false);
+  }, [dismissVersion]);
 
   useEffect(() => {
     if (!open) return;
@@ -56,6 +83,16 @@ export default function NotificationCenter({
 
   const unreadLabel = useMemo(() => (unreadCount > 9 ? "9+" : String(unreadCount)), [unreadCount]);
 
+  const handleBellClick = () => {
+    setOpen((value) => {
+      const nextValue = !value;
+      if (nextValue) {
+        onOpen?.();
+      }
+      return nextValue;
+    });
+  };
+
   return (
     <div className="notification-center" ref={rootRef}>
       <button
@@ -63,9 +100,11 @@ export default function NotificationCenter({
         className="notification-bell"
         aria-label={`Notifications${unreadCount ? `, ${unreadCount} unread` : ""}`}
         aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
+        onClick={handleBellClick}
       >
-        <span className="notification-bell-icon" aria-hidden="true">🔔</span>
+        <span className="notification-bell-icon" aria-hidden="true">
+          <BellIcon />
+        </span>
         {unreadCount > 0 && (
           <span className="notification-bell-badge">{unreadLabel}</span>
         )}
@@ -80,15 +119,27 @@ export default function NotificationCenter({
                 {unreadCount} item{unreadCount === 1 ? "" : "s"} awaiting review
               </div>
             </div>
-            {browserNotificationPermission === "default" && onRequestBrowserNotifications && (
-              <button
-                type="button"
-                className="notification-enable-btn"
-                onClick={() => void onRequestBrowserNotifications()}
-              >
-                Enable browser alerts
-              </button>
-            )}
+            <div className="notification-dropdown-actions">
+              {browserNotificationPermission === "default" && onRequestBrowserNotifications && (
+                <button
+                  type="button"
+                  className="notification-enable-btn"
+                  onClick={() => void onRequestBrowserNotifications()}
+                >
+                  Enable browser alerts
+                </button>
+              )}
+              {onClearAllNotifications && unreadCount > 0 && (
+                <button
+                  type="button"
+                  className="notification-clear-btn"
+                  onClick={() => void onClearAllNotifications()}
+                  disabled={clearAllPending}
+                >
+                  {clearAllPending ? "Clearing…" : "Clear all"}
+                </button>
+              )}
+            </div>
           </div>
 
           {browserNotificationPermission === "denied" && (

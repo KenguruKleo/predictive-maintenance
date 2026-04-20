@@ -4,6 +4,8 @@ HTTP Triggers — notification feed + unread state (notification MVP)
 Endpoints:
   GET   /api/notifications
   GET   /api/notifications/summary
+    POST  /api/notifications/read-all
+    PATCH /api/notifications/read-all
   POST  /api/incidents/{incident_id}/notifications/read
   PATCH /api/incidents/{incident_id}/notifications/read
 """
@@ -105,6 +107,46 @@ def get_notifications_summary(req: func.HttpRequest) -> func.HttpResponse:
         return _error(500, "Internal server error")
 
 
+@bp.route(route="notifications/read-all", methods=["POST", "PATCH"], auth_level=func.AuthLevel.ANONYMOUS)
+def mark_all_notifications_read(req: func.HttpRequest) -> func.HttpResponse:
+    """Mark all caller-visible unread notifications as read."""
+    try:
+        roles = get_caller_roles(req)
+        require_any_role(roles, ALL_ROLES)
+    except AuthError as exc:
+        return _error(exc.status_code, exc.message)
+
+    primary_role = get_primary_role(roles)
+    caller_id = get_caller_id(req)
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    try:
+        container = get_container("notifications")
+        docs = list(container.query_items(
+            query="SELECT * FROM c",
+            parameters=[],
+            enable_cross_partition_query=True,
+        ))
+
+        updated_docs, updated_ids, updated_incident_ids = _mark_visible_notifications_read(
+            docs,
+            primary_role,
+            caller_id,
+            now_iso=now_iso,
+        )
+        for doc in updated_docs:
+            container.upsert_item(doc)
+
+        return _json({
+            "marked_read": len(updated_ids),
+            "notification_ids": updated_ids,
+            "incident_ids": updated_incident_ids,
+        })
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("mark_all_notifications_read failed: %s", exc)
+        return _error(500, "Internal server error")
+
+
 @bp.route(
     route="incidents/{incident_id}/notifications/read",
     methods=["POST", "PATCH"],
@@ -134,19 +176,14 @@ def mark_incident_notifications_read(req: func.HttpRequest) -> func.HttpResponse
             enable_cross_partition_query=True,
         ))
 
-        updated_ids: list[str] = []
-        for doc in docs:
-            if not _is_visible_to_caller(doc, primary_role, caller_id):
-                continue
-            if _notification_is_read(doc):
-                continue
-
-            doc["isRead"] = True
-            doc["readAt"] = now_iso
-            doc["readBy"] = caller_id or primary_role
-            doc["updatedAt"] = now_iso
+        updated_docs, updated_ids, _updated_incident_ids = _mark_visible_notifications_read(
+            docs,
+            primary_role,
+            caller_id,
+            now_iso=now_iso,
+        )
+        for doc in updated_docs:
             container.upsert_item(doc)
-            updated_ids.append(str(doc.get("id") or ""))
 
         return _json({
             "incident_id": incident_id,
@@ -212,6 +249,43 @@ def _notification_is_read(doc: dict) -> bool:
         return True
     status = str(doc.get("status") or "").strip().lower()
     return status == "read"
+
+
+def _mark_visible_notifications_read(
+    docs: list[dict],
+    primary_role: str,
+    caller_id: str,
+    *,
+    now_iso: str,
+) -> tuple[list[dict], list[str], list[str]]:
+    updated_docs: list[dict] = []
+    updated_ids: list[str] = []
+    updated_incident_ids: list[str] = []
+
+    for doc in docs:
+        if not _is_visible_to_caller(doc, primary_role, caller_id):
+            continue
+        if _notification_is_read(doc):
+            continue
+
+        doc["isRead"] = True
+        doc["readAt"] = now_iso
+        doc["readBy"] = caller_id or primary_role
+        doc["updatedAt"] = now_iso
+        if str(doc.get("status") or "").strip().lower() == "unread":
+            doc["status"] = "read"
+
+        updated_docs.append(doc)
+
+        notification_id = str(doc.get("id") or "")
+        if notification_id:
+            updated_ids.append(notification_id)
+
+        incident_id = str(doc.get("incidentId") or doc.get("incident_id") or "")
+        if incident_id and incident_id not in updated_incident_ids:
+            updated_incident_ids.append(incident_id)
+
+    return updated_docs, updated_ids, updated_incident_ids
 
 
 def _is_visible_to_caller(doc: dict, primary_role: str, caller_id: str) -> bool:

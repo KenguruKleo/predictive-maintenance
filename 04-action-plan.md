@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — Foundry Agent + MCP-QMS/CMMS) · T-029 (Human Approval — transcript events + /decision flow) · T-030 (SignalR extension — notification center + unread state + browser alerts) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + mark-read on detail open) · T-039 (Reliability hardening — Foundry timeout budget + fallback path + trace logging) · T-040 (RAI observability — incident-scoped prompt/response traces) · T-043 (Agent telemetry admin delivery — App Insights traces → admin API/UI slice) · T-044 (Local Playwright E2E — auth bypass + smoke setup + notifications flow)
+**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-029 (Human Approval — transcript events + /decision flow) · T-030 (SignalR extension — notification center + unread state + browser alerts) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + mark-read on detail open) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -67,7 +67,7 @@
 - ✅ T-031 — Backend API: 9 REST endpoints (incidents, equipment, batches, templates, stats); role-based filtering; all 11 HTTP triggers deployed
 - ✅ T-035 — RBAC: App Registrations (API + SPA), 5 Entra ID roles, JWKS JWT signature verification (`auth.py`), security tests passed
 
-**Наступний крок:** T-027 Execution Agent → finish T-029/T-032/T-033 end-to-end validation on live incidents → T-034 other frontend roles
+**Наступний крок:** T-034 (frontend manager/auditor/IT views) → T-029 live e2e validation → T-001 architecture presentation → T-002 final video
 
 ---
 
@@ -88,7 +88,7 @@
 | T-024 | **[Durable Functions orchestrator](./tasks/T-024-durable-orchestrator.md)** — workflow: enrich→run_foundry_agents→notify→wait (24h HITL)→more_info loop→execute→finalize; ADR-002 | Gap #3 | 🔴 CRITICAL | ✅ DONE | T-029 |
 | T-025 | **[Research Agent](./tasks/T-025-research-agent.md)** — Foundry sub-agent (Connected Agents) + MCP + AzureAISearchTool; підключається до Orchestrator Agent як `AgentTool` | Gap #4 | 🔴 CRITICAL | ✅ DONE | T-024 |
 | T-026 | **[Document Agent](./tasks/T-026-document-agent.md)** — Foundry sub-agent (Connected Agents) + template fill; confidence gate в `run_foundry_agents.py` | Gap #4, #5 | 🔴 CRITICAL | ✅ DONE | T-024 |
-| T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS | — | 🔴 CRITICAL | 🔜 TODO | T-028 |
+| T-027 | **[Execution Agent](./tasks/T-027-execution-agent.md)** — Foundry Agent + MCP-QMS + MCP-CMMS (placeholder impl in `run_execution_agent.py`, full Foundry Agent spec pending) | — | 🔴 CRITICAL | 🟡 IN PROGRESS | T-028 |
 | T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-sentinel-db, mcp-qms, mcp-cmms (stdio) | — | 🔴 CRITICAL | ✅ DONE | T-025–T-027 |
 | T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent + SignalR | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-030, T-033 |
 | T-031 | **[Backend API Functions](./tasks/T-031-backend-api.md)** — incidents CRUD, templates, equipment, batches endpoints | Gap #5 | 🔴 CRITICAL | ✅ DONE | T-032 |
@@ -104,7 +104,6 @@
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service + unread notification center contract | Gap #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🔜 TODO | — |
 | T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
-| T-044 | **[Local Playwright E2E mode](./tasks/T-044-playwright-local-e2e.md)** — dev-only auth mode + local backend proxy + smoke tests без Entra login | Quality / DX | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-045 | **[Evidence citations quality + historical evidence links](./tasks/T-045-evidence-citation-quality.md)** — canonical document cards, strict citation contract, excerpt backfill, unresolved evidence state, historical incident linkability | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |

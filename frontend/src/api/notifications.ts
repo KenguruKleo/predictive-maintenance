@@ -1,5 +1,6 @@
 import client from "./client";
 import type {
+  MarkAllNotificationsReadResponse,
   MarkNotificationsReadResponse,
   NotificationsResponse,
   NotificationSummary,
@@ -34,5 +35,10 @@ export async function markIncidentNotificationsRead(
   const { data } = await client.post<MarkNotificationsReadResponse>(
     `/incidents/${encodeURIComponent(incidentId)}/notifications/read`,
   );
+  return data;
+}
+
+export async function markAllNotificationsRead(): Promise<MarkAllNotificationsReadResponse> {
+  const { data } = await client.post<MarkAllNotificationsReadResponse>("/notifications/read-all");
   return data;
 }

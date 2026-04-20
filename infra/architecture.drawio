@@ -9,7 +9,7 @@
                 <mxCell id="title" value="Sentinel Intelligence — Azure Infrastructure" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=16;" parent="1" vertex="1">
                     <mxGeometry x="20" y="10" width="1000" height="30" as="geometry"/>
                 </mxCell>
-                <mxCell id="updated" value="Last updated: 2026-04-17" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontColor=#666666;" parent="1" vertex="1">
+                <mxCell id="updated" value="Last updated: 2026-04-20" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;fontSize=10;fontColor=#666666;" parent="1" vertex="1">
                     <mxGeometry x="2000" y="10" width="260" height="30" as="geometry"/>
                 </mxCell>
 
@@ -57,7 +57,7 @@
                 </mxCell>
 
                 <!-- SignalR (in rg) -->
-                <mxCell id="signalr" value="&lt;b&gt;🔜 SignalR Service&lt;/b&gt;&lt;br&gt;sigr-sentinel-intel-dev-erzrpo&lt;br&gt;human approval push" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="rg" vertex="1">
+                <mxCell id="signalr" value="&lt;b&gt;� SignalR Service&lt;/b&gt;&lt;br&gt;sigr-sentinel-intel-dev-erzrpo&lt;br&gt;deviationHub · push notifications" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="rg" vertex="1">
                     <mxGeometry x="920" y="48" width="220" height="80" as="geometry"/>
                 </mxCell>
 
@@ -76,7 +76,7 @@
                 </mxCell>
 
                 <!-- Key Vault (in rg) -->
-                <mxCell id="kv" value="&lt;b&gt;🔜 Key Vault&lt;/b&gt;&lt;br&gt;kv-sentinel-intel-erzrpo&lt;br&gt;Managed Identities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="rg" vertex="1">
+                <mxCell id="kv" value="&lt;b&gt;✅ Key Vault&lt;/b&gt;&lt;br&gt;kv-sentinel-intel-erzrpo&lt;br&gt;Managed Identities" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="rg" vertex="1">
                     <mxGeometry x="20" y="197" width="225" height="68" as="geometry"/>
                 </mxCell>
 
@@ -84,16 +84,19 @@
                 <mxCell id="agents-grp" value="AI Agents · Azure AI Foundry" style="swimlane;startSize=25;fillColor=#fff9e6;strokeColor=#d6b656;fontStyle=1;fontSize=11;" parent="rg" vertex="1">
                     <mxGeometry x="20" y="310" width="660" height="455" as="geometry"/>
                 </mxCell>
-                <mxCell id="foundry" value="&lt;b&gt;🔜 AI Foundry Project&lt;/b&gt;&lt;br&gt;aoai-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
-                    <mxGeometry x="125" y="40" width="240" height="55" as="geometry"/>
+                <mxCell id="foundry" value="&lt;b&gt;✅ AI Foundry Project&lt;/b&gt;&lt;br&gt;aoai-sentinel-intel-dev-erzrpo" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="125" y="35" width="240" height="55" as="geometry"/>
                 </mxCell>
-                <mxCell id="ra" value="&lt;b&gt;🔜 Research Agent&lt;/b&gt;&lt;br&gt;RAG + MCP-sentinel-db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
-                    <mxGeometry x="430" y="62" width="210" height="55" as="geometry"/>
+                <mxCell id="oa" value="&lt;b&gt;✅ Orchestrator Agent&lt;/b&gt;&lt;br&gt;asst_CNYK3TZIaOCH4OPKcP4N9B2r&lt;br&gt;Connected Agents pipeline" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="125" y="115" width="240" height="60" as="geometry"/>
                 </mxCell>
-                <mxCell id="da" value="&lt;b&gt;🔜 Document Agent&lt;/b&gt;&lt;br&gt;templates + confidence 0.7" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
-                    <mxGeometry x="20" y="185" width="210" height="55" as="geometry"/>
+                <mxCell id="ra" value="&lt;b&gt;✅ Research Agent&lt;/b&gt;&lt;br&gt;RAG + MCP-sentinel-db&lt;br&gt;asst_NDuVHHTsxfRvY1mRSd7MtEGT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="430" y="62" width="210" height="65" as="geometry"/>
                 </mxCell>
-                <mxCell id="ea" value="&lt;b&gt;🔜 Execution Agent&lt;/b&gt;&lt;br&gt;MCP-qms&lt;br&gt;MCP-cmms" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
+                <mxCell id="da" value="&lt;b&gt;✅ Document Agent&lt;/b&gt;&lt;br&gt;templates + confidence 0.7&lt;br&gt;asst_AXgt7fxnSnUh5WXauR27S40L" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="agents-grp" vertex="1">
+                    <mxGeometry x="20" y="185" width="210" height="65" as="geometry"/>
+                </mxCell>
+                <mxCell id="ea" value="&lt;b&gt;🟡 Execution Agent&lt;/b&gt;&lt;br&gt;MCP-qms + MCP-cmms&lt;br&gt;(placeholder impl)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="agents-grp" vertex="1">
                     <mxGeometry x="310" y="175" width="210" height="75" as="geometry"/>
                 </mxCell>
                 <mxCell id="mcp-label" value="MCP servers (stdio)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=10;fontStyle=2;" parent="agents-grp" vertex="1">
@@ -109,13 +112,16 @@
                     <mxGeometry x="320" y="330" width="140" height="28" as="geometry"/>
                 </mxCell>
                 <!-- intra-agents edges (LCA = agents-grp) -->
-                <mxCell id="e-foundry-da" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="foundry" target="da" edge="1">
+                <mxCell id="e-foundry-oa" value="spawns" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="foundry" target="oa" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e-foundry-ea" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="foundry" target="ea" edge="1">
+                <mxCell id="e-foundry-da" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="oa" target="da" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
-                <mxCell id="e-foundry-ra" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" parent="agents-grp" source="foundry" target="ra" edge="1">
+                <mxCell id="e-foundry-ea" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="agents-grp" source="oa" target="ea" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="e-foundry-ra" style="edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.5;entryX=0;entryY=0.5;fontSize=10;" parent="agents-grp" source="oa" target="ra" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
 
@@ -152,7 +158,7 @@
                 <mxCell id="blob" value="&lt;b&gt;✅ Storage Account&lt;/b&gt;&lt;br&gt;stsentinelintelerzrpo&lt;br&gt;container: documents" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="data-grp" vertex="1">
                     <mxGeometry x="385" y="65" width="320" height="65" as="geometry"/>
                 </mxCell>
-                <mxCell id="search" value="&lt;b&gt;🔜 AI Search&lt;/b&gt;&lt;br&gt;srch-sentinel-intel-dev-erzrpo&lt;br&gt;4 RAG indexes" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" parent="data-grp" vertex="1">
+                <mxCell id="search" value="&lt;b&gt;✅ AI Search&lt;/b&gt;&lt;br&gt;srch-sentinel-intel-dev-erzrpo&lt;br&gt;5 indexes · 117 chunks · HNSW" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" parent="data-grp" vertex="1">
                     <mxGeometry x="385" y="290" width="320" height="65" as="geometry"/>
                 </mxCell>
                 <!-- blob → search (same parent = data-grp) -->
@@ -224,7 +230,7 @@
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <!-- orchestration -->
-                <mxCell id="e-func-foundry" value="Durable: RunAgents" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="rg" source="func" target="foundry" edge="1">
+                <mxCell id="e-func-foundry" value="Durable: run_foundry_agents" style="edgeStyle=orthogonalEdgeStyle;exitX=0.5;exitY=1;entryX=0.5;entryY=0;fontSize=10;" parent="rg" source="func" target="oa" edge="1">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
                 <!-- real-time -->

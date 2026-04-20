@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Link } from "react-router-dom";
 import { APP_ROLE_OPTIONS, IS_E2E_AUTH, setE2EPrimaryRole } from "../../authRuntime";
 import type { AppRole } from "../../authRuntime";
@@ -13,6 +13,35 @@ interface Props {
   notificationsLoading?: boolean;
   browserNotificationPermission: BrowserNotificationPermission;
   onRequestBrowserNotifications?: () => Promise<BrowserNotificationPermission>;
+  onClearAllNotifications?: () => Promise<unknown>;
+  clearAllNotificationsPending?: boolean;
+}
+
+function formatRoleLabel(role: string): string {
+  return role
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function getUserInitials(displayName: string): string {
+  const parts = displayName
+    .split(/\s+/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 2);
+
+  if (parts.length === 0) return "SI";
+  return parts.map((part) => part.charAt(0).toUpperCase()).join("");
+}
+
+function ChevronDownIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M4 6.5 8 10l4-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 }
 
 export default function Header({
@@ -22,12 +51,65 @@ export default function Header({
   notificationsLoading,
   browserNotificationPermission,
   onRequestBrowserNotifications,
+  onClearAllNotifications,
+  clearAllNotificationsPending = false,
 }: Props) {
   const { displayName, roles, logout } = useAuth();
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationDismissVersion, setNotificationDismissVersion] = useState(0);
+  const userMenuRef = useRef<HTMLDivElement | null>(null);
+  const formattedRoles = useMemo(
+    () => roles.map((role) => formatRoleLabel(role)),
+    [roles],
+  );
+  const userInitials = useMemo(() => getUserInitials(displayName), [displayName]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setUserMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setUserMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [userMenuOpen]);
 
   const handleRolePreviewChange = (event: ChangeEvent<HTMLSelectElement>) => {
     setE2EPrimaryRole(event.target.value as AppRole);
     window.location.reload();
+  };
+
+  const handleLogout = () => {
+    setUserMenuOpen(false);
+    logout();
+  };
+
+  const handleUserMenuToggle = () => {
+    setUserMenuOpen((value) => {
+      const nextValue = !value;
+      if (nextValue) {
+        setNotificationDismissVersion((dismissVersion) => dismissVersion + 1);
+      }
+      return nextValue;
+    });
+  };
+
+  const handleNotificationCenterOpen = () => {
+    setUserMenuOpen(false);
   };
 
   return (
@@ -60,22 +142,49 @@ export default function Header({
             </select>
           </label>
         ) : null}
+        <div className="user-menu" ref={userMenuRef}>
+          <button
+            type="button"
+            className="user-menu-trigger"
+            aria-haspopup="menu"
+            aria-expanded={userMenuOpen}
+            aria-label={`User menu for ${displayName}`}
+            onClick={handleUserMenuToggle}
+          >
+            <span className="user-avatar" aria-hidden="true">{userInitials}</span>
+            <span className="user-menu-text">
+              <span className="user-menu-name">{displayName}</span>
+            </span>
+            <span className="user-menu-chevron" aria-hidden="true">
+              <ChevronDownIcon />
+            </span>
+          </button>
+
+          {userMenuOpen && (
+            <div className="user-menu-dropdown" role="menu" aria-label="User menu">
+              <div className="user-menu-dropdown-header">
+                <div className="user-menu-dropdown-name">{displayName}</div>
+                <div className="user-menu-dropdown-meta">
+                  {formattedRoles.join(" • ") || "User"}
+                </div>
+              </div>
+              <button type="button" className="user-menu-action" role="menuitem" onClick={handleLogout}>
+                Log out
+              </button>
+            </div>
+          )}
+        </div>
         <NotificationCenter
           notifications={notifications}
           unreadCount={unreadCount}
           isLoading={notificationsLoading}
           browserNotificationPermission={browserNotificationPermission}
           onRequestBrowserNotifications={onRequestBrowserNotifications}
+          onClearAllNotifications={onClearAllNotifications}
+          clearAllPending={clearAllNotificationsPending}
+          dismissVersion={notificationDismissVersion}
+          onOpen={handleNotificationCenterOpen}
         />
-        <span className="user-name">{displayName}</span>
-        {roles.map((role) => (
-          <span key={role} className="role-badge">
-            {role}
-          </span>
-        ))}
-        <button className="logout-btn" onClick={logout}>
-          Sign Out
-        </button>
       </div>
     </header>
   );

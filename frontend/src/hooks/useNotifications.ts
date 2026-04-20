@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getNotifications,
   getNotificationSummary,
+  markAllNotificationsRead,
   markIncidentNotificationsRead,
 } from "../api/notifications";
 
@@ -39,6 +40,23 @@ export function useMarkIncidentNotificationsRead() {
       queryClient.invalidateQueries({ queryKey: ["notifications-summary"] });
       queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
+    },
+  });
+}
+
+export function useMarkAllNotificationsRead() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => markAllNotificationsRead(),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["notifications"] });
+      queryClient.invalidateQueries({ queryKey: ["notifications-summary"] });
+      queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
+
+      for (const incidentId of result.incident_ids) {
+        queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
+      }
     },
   });
 }

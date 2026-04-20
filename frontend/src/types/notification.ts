@@ -37,3 +37,9 @@ export interface MarkNotificationsReadResponse {
   marked_read: number;
   notification_ids: string[];
 }
+
+export interface MarkAllNotificationsReadResponse {
+  marked_read: number;
+  notification_ids: string[];
+  incident_ids: string[];
+}

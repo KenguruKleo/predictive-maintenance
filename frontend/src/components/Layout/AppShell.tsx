@@ -6,7 +6,11 @@ import AppFooter from "./AppFooter";
 import CommandPalette from "./CommandPalette";
 import ToastStack from "./ToastStack";
 import { useSignalR } from "../../hooks/useSignalR";
-import { useNotifications, useNotificationSummary } from "../../hooks/useNotifications";
+import {
+  useMarkAllNotificationsRead,
+  useNotifications,
+  useNotificationSummary,
+} from "../../hooks/useNotifications";
 
 export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -22,6 +26,7 @@ export default function AppShell() {
     limit: 8,
   });
   const { data: notificationSummary } = useNotificationSummary();
+  const markAllNotificationsRead = useMarkAllNotificationsRead();
 
   const unreadCount = notificationSummary?.unread_count ?? notificationFeed?.unread_count ?? 0;
   const unreadIncidentIds = notificationSummary?.unread_incident_ids ?? [];
@@ -46,6 +51,8 @@ export default function AppShell() {
         notificationsLoading={notificationsLoading}
         browserNotificationPermission={browserPermission}
         onRequestBrowserNotifications={requestBrowserNotifications}
+        onClearAllNotifications={() => markAllNotificationsRead.mutateAsync()}
+        clearAllNotificationsPending={markAllNotificationsRead.isPending}
       />
       <div className="app-body">
         <Sidebar unreadIncidentIds={unreadIncidentIds} />

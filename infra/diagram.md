@@ -4,7 +4,7 @@
 > **Subscription:** `Sandbox AI DS - 1003462`  
 > **Suffix:** `erzrpo` (derived from RG id)
 >
-> Legend: ✅ deployed · 🔜 planned · ❌ not started
+> Legend: ✅ deployed · � in progress · 🔜 planned
 
 ```mermaid
 flowchart TB
@@ -20,46 +20,54 @@ flowchart TB
     subgraph rg["ODL-GHAZ-2177134 · Sweden Central"]
 
         subgraph ingestion["Ingestion Layer"]
-            SB["✅ Service Bus\nsb-sentinel-intel-dev-erzrpo\nqueue: alert-queue"]
+            SB["✅ Service Bus\nsb-sentinel-intel-dev-erzrpo\nqueue: alert-queue · DLQ ✓"]
         end
 
-        subgraph compute["Compute"]
+        subgraph compute["Compute · Azure Durable Functions"]
             PLAN["✅ App Service Plan\nasp-func-sentinel-intel-dev-erzrpo · Y1 · Linux"]
-            FUNC["✅ Azure Functions\nfunc-sentinel-intel-dev-erzrpo\nPython 3.11 · Consumption"]
+            FUNC["✅ Azure Functions · func-sentinel-intel-dev-erzrpo\nPython 3.11 · Durable\nPOST /api/alerts · GET /api/incidents · POST /decision\nGET /api/notifications · /notifications/summary\nGET /api/incidents/{id}/agent-telemetry"]
         end
 
-        subgraph agents["AI Agents · Azure AI Foundry"]
-            FOUNDRY["🔜 AI Foundry Project\naoai-sentinel-intel-dev-erzrpo"]
-            RA["🔜 Research Agent\nRAG + MCP-sentinel-db"]
-            DA["🔜 Document Agent\ntemplates + confidence gate 0.7"]
-            EA["🔜 Execution Agent\nMCP-qms + MCP-cmms"]
+        subgraph agents["AI Agents · Azure AI Foundry (Connected Agents)"]
+            FOUNDRY["✅ AI Foundry Project\naoai-sentinel-intel-dev-erzrpo"]
+            OA["✅ Orchestrator Agent\nasst_CNYK3TZIaOCH4OPKcP4N9B2r\nConnected Agents pipeline: Research → Document"]
+            RA["✅ Research Agent · asst_NDuVHHTsxfRvY1mRSd7MtEGT\nRAG (5 indexes) + MCP-sentinel-db (5 tools)"]
+            DA["✅ Document Agent · asst_AXgt7fxnSnUh5WXauR27S40L\ntemplates + confidence gate 0.7"]
+            EA["🟡 Execution Agent\nMCP-qms + MCP-cmms\n(placeholder impl — gpt-4o direct)"]
+            subgraph mcp["MCP Servers (stdio · Azure Functions hosted)"]
+                MCP_DB["✅ mcp-sentinel-db\n5 Cosmos tools"]
+                MCP_QMS["✅ mcp-qms\ncreate_audit_entry"]
+                MCP_CMMS["✅ mcp-cmms\ncreate_work_order"]
+            end
+            OA --> RA & DA
+            OA -->|"post-approval"| EA
         end
 
         subgraph data["Data Layer"]
             subgraph cosmos["✅ Cosmos DB Serverless · cosmos-sentinel-intel-dev-erzrpo"]
                 CDB_INC["incidents&#xa;/equipmentId"]
-                CDB_EVT["incident_events&#xa;/incidentId"]
-                CDB_NOTIF["notifications&#xa;/incidentId"]
+                CDB_EVT["incident_events&#xa;/incidentId&#xa;audit trail + transcript"]
+                CDB_NOTIF["notifications&#xa;/incidentId&#xa;unread center"]
                 CDB_EQP["equipment&#xa;/id"]
                 CDB_BAT["batches&#xa;/equipmentId"]
                 CDB_CAPA["capa-plans&#xa;/incidentId"]
                 CDB_APPR["approval-tasks&#xa;/incidentId"]
                 CDB_TMPL["templates&#xa;/id"]
             end
-            SEARCH["🔜 AI Search\nsrch-sentinel-intel-dev-erzrpo\n5 RAG indexes"]
+            SEARCH["✅ AI Search\nsrch-sentinel-intel-dev-erzrpo\n5 indexes: SOP · equipment · GMP · BPR · incident-history\n117 chunks · HNSW vector"]
             BLOB["✅ Storage Account\nstsentinelintelerzrpo\n5 blob containers for ingestion"]
         end
 
         subgraph realtime["Real-time"]
-            SIGNALR["🔜 SignalR Service\nsigr-sentinel-intel-dev-erzrpo"]
+            SIGNALR["🟡 SignalR Service\nsigr-sentinel-intel-dev-erzrpo\ndeviationHub · push notifications"]
         end
 
         subgraph security["Security"]
-            KV["🔜 Key Vault\nkv-sentinel-intel-erzrpo"]
+            KV["✅ Key Vault\nkv-sentinel-intel-erzrpo\nManaged Identities"]
         end
 
         subgraph observability["Observability"]
-            APPI["✅ Application Insights\nappi-sentinel-intel-dev-erzrpo"]
+            APPI["✅ Application Insights\nappi-sentinel-intel-dev-erzrpo\nFOUNDRY_PROMPT_TRACE · agent telemetry"]
             LOG["✅ Log Analytics\nlog-sentinel-intel-dev-erzrpo · 30d"]
         end
 
@@ -76,28 +84,27 @@ flowchart TB
     SB -->|"ServiceBusTrigger"| FUNC
     PLAN --> FUNC
 
-    %% Compute → Agents
-    FUNC -->|"Durable: RunAgents activity"| FOUNDRY
-    FOUNDRY --> RA & DA & EA
+    %% Compute → Agents (Connected Agents via Durable activity)
+    FUNC -->|"Durable: run_foundry_agents"| OA
+    FOUNDRY --> OA
 
-    %% Agents → Data
-    RA -->|"search_incidents"| CDB_INC
-    RA -->|"get_equipment"| CDB_EQP
-    RA -->|"get_batch"| CDB_BAT
-    RA -->|"vector search"| SEARCH
+    %% Agents → Data via MCP
+    RA -->|"MCP tools"| MCP_DB
+    MCP_DB --> CDB_INC & CDB_EQP & CDB_BAT
+    RA -->|"vector search · 5 indexes"| SEARCH
     DA -->|"write CAPA plan"| CDB_CAPA
-    EA -->|"read CAPA"| CDB_CAPA
-    EA -->|"create_audit_entry"| CDB_APPR
+    EA -->|"MCP tool call"| MCP_QMS & MCP_CMMS
+    MCP_QMS --> CDB_APPR
+    MCP_CMMS --> CDB_CAPA
 
     %% Compute → Data
     FUNC -->|"CRUD"| CDB_INC
     FUNC -->|"audit + transcript"| CDB_EVT
-    FUNC -->|"notify"| CDB_NOTIF
-    FUNC -->|"read"| CDB_EQP
-    FUNC -->|"read"| CDB_BAT
-    FUNC -->|"write (notify)"| CDB_APPR
+    FUNC -->|"notifications"| CDB_NOTIF
+    FUNC -->|"read"| CDB_EQP & CDB_BAT
     FUNC -->|"blob trigger → chunk → embed"| BLOB
     BLOB -->|"index documents"| SEARCH
+    FUNC -->|"finalize: auto-sync closed incidents"| SEARCH
 
     %% Real-time
     FUNC -->|"NotifyOperator activity"| SIGNALR
@@ -108,7 +115,7 @@ flowchart TB
     FOUNDRY -.->|"Managed Identity"| KV
 
     %% Observability
-    FUNC -->|"traces · exceptions · metrics"| APPI
+    FUNC -->|"FOUNDRY_PROMPT_TRACE\ntraces · exceptions · metrics"| APPI
     APPI --> LOG
 ```
 
@@ -123,11 +130,14 @@ flowchart TB
 | Service Bus | `sb-sentinel-intel-dev-erzrpo` | ✅ | `modules/servicebus.bicep` | T-041 |
 | App Service Plan | `asp-func-sentinel-intel-dev-erzrpo` | ✅ | `modules/functions.bicep` | T-041 |
 | Azure Functions | `func-sentinel-intel-dev-erzrpo` | ✅ | `modules/functions.bicep` | T-041 |
-| AI Search | `srch-sentinel-intel-dev-erzrpo` | 🔜 | `modules/search.bicep` | T-037 |
-| SignalR Service | `sigr-sentinel-intel-dev-erzrpo` | 🔜 | `modules/signalr.bicep` | T-030 |
-| Key Vault | `kv-sentinel-intel-erzrpo` | 🔜 | `modules/keyvault.bicep` | T-038 |
+| AI Search | `srch-sentinel-intel-dev-erzrpo` | ✅ | `modules/search.bicep` | T-037 |
+| SignalR Service | `sigr-sentinel-intel-dev-erzrpo` | 🟡 | `modules/signalr.bicep` | T-030 |
+| Key Vault | `kv-sentinel-intel-erzrpo` | ✅ | `modules/keyvault.bicep` | T-038 · T-041 |
 | Static Web App | `swa-sentinel-intel-dev` | 🔜 | `modules/swa.bicep` | T-032 |
-| AI Foundry Project | `aoai-sentinel-intel-dev-erzrpo` | 🔜 | `modules/foundry.bicep` | T-025 |
+| AI Foundry Hub + Project | `aoai-sentinel-intel-dev-erzrpo` | ✅ | `modules/agents.bicep` | T-025 · T-041 |
+| Orchestrator Agent | `asst_CNYK3TZIaOCH4OPKcP4N9B2r` | ✅ | `agents/create_agents.py` | T-024 |
+| Research Agent | `asst_NDuVHHTsxfRvY1mRSd7MtEGT` | ✅ | `agents/create_agents.py` | T-025 |
+| Document Agent | `asst_AXgt7fxnSnUh5WXauR27S40L` | ✅ | `agents/create_agents.py` | T-026 |
 
 ## Cosmos DB containers (`sentinel-intelligence`)
 
