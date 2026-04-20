@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🟡 IN PROGRESS  
+**Статус:** ✅ DONE  
 **Блокує:** Trustworthy demo evidence UX / operator confidence in recommendation package  
 **Залежить від:** T-026 (Document Agent), T-031 (Backend API), T-032 (Frontend core), T-037 (AI Search indexes)
 

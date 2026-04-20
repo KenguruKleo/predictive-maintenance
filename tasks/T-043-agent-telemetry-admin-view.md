@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🟠 HIGH  
-**Статус:** 🟡 IN PROGRESS  
+**Статус:** ✅ DONE  
 **Gap / Вимога:** Gap #4 (AI Observability), Gap #5 (Admin UX), Architecture scoring: Reliability / Performance / Cost
 
 ---

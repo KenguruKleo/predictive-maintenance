@@ -30,7 +30,7 @@
 | **#2 Security** | Identity, RBAC, Key Vault, network — відсутні | Окремий Security шар на діаграмі: Entra ID, Key Vault, Private Endpoints, RBAC roles |
 | **#3 Reliability** | Queuing, retry, DLQ, fallback — відсутні | Service Bus між SCADA→Functions, retry/DLQ позначки, Fallback mode |
 | **#4 RAI** | Confidence thresholds, content safety, observability | RAI layer: Content Safety, Confidence Gate, Observability (Azure Monitor) |
-| **#5 UX** | Operator UI не визначений | Додати конкретний operator UI (React portal with notification bell, unread queue, approval package, audit timeline) |
+| **#5 UX** | Operator UI не визначений | Додати конкретний operator UI (React portal with notification bell, unread queue, approval package, audit timeline) + підкреслити consistent status color language across dashboard/sidebar/timeline so users instantly recognize incident state |
 | **#6 IaC** | Немає deployment layer | GitHub Actions CI/CD + IaC (Bicep) у діаграмі |
 
 > Деталі кожного gap → [03 · Аналіз](../03-analysis.md#5-топ-6-gaps-для-виправлення)
@@ -216,6 +216,7 @@ Track A: GitHub + Azure + Azure AI Foundry
 - **Explainability** — оператор може розгорнути "чому AI так вирішив" і побачити конкретний параметр з SOP та відхилення від golden batch
 - **Real-time updates** — статус змінюється на екрані без перезавантаження (SignalR push); видно де зараз знаходиться кожен incident у pipeline
 - **Operator awareness** — header bell показує unread count, dropdown відкриває unread queue, а нові pending incidents підсвічуються в лівому rail навіть якщо оператор зараз на іншому екрані
+- **Consistent status color language** — одна й та сама кольорова схема для `pending_approval`, `escalated`, `approved`, `rejected`, `closed` використовується в dashboard, sidebar, manager queue, badges та status history timeline. Це зменшує cognitive load і дозволяє користувачу миттєво зчитувати стан інциденту без повторного читання тексту
 - **Role-based views** — оператор, менеджер, QA, аудитор — кожен бачить свій контекст, без зайвого шуму
 - **Command Palette (⌘K)** — швидка навігація між розділами без миші, як у VS Code або Linear. Це деталь, яка сигналізує: додаток зроблений для людей, що постійно ним користуються, а не для разового demo. Keyboard-first UX — ознака enterprise-grade продукту
 - **Infinite scroll / one-screen UX** — всі таблиці (інциденти, історія, шаблони) без класичної пагінації: оператор бачить повний список і може швидко знайти потрібне без зайвих кліків. Це не "адмінка для галочки", а робочий інструмент — все, що потрібно, доступно на одному екрані, без зайвих переходів і маніпуляцій. Якщо скролінг потрібен — він природний, а не "по 10 рядків". Це стандарт для сучасних бізнес-додатків, де швидкість і зручність важливіші за "красиву сторінку"

@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🟡 IN PROGRESS  
+**Статус:** ✅ DONE  
 **Блокує:** T-033 (approval UX)  
 **Залежить від:** T-031 (backend API), T-035 (RBAC)
 

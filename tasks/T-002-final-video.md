@@ -38,7 +38,8 @@
 [02:30–04:00]  LIVE DEMO — робочий додаток (← working implementation)
                Реальний flow: SCADA signal → agents → decision package
                → evidence verification state (verified vs unresolved)
-               → notification bell/unread highlight → human approval → audit trail
+               → notification bell/unread highlight → consistent status colors across UI
+               → human approval → audit trail
                Один конкретний сценарій: Granulator GR-204, vibration spike
 
 [04:00–04:30]  ARCHITECTURE SLIDE — один слайд (← T-001)
@@ -112,6 +113,10 @@ Notice the notification bell in the header: the operator gets a real-time alert,
 the unread counter increments, and the new incident is highlighted in the left rail.
 Opening the incident takes the operator directly into the approval package and
 clears the unread marker once the package is viewed.
+We also keep one consistent visual language for incident states:
+pending approval, escalated, approved, rejected, and closed use the same colors
+in the dashboard, sidebar, manager queue, badges, and status history timeline,
+so users can recognize the state at a glance without re-reading every label.
 If we want one extra visual proof point during recording, we can briefly switch the browser tab or window and show the optional browser popup notification after permission has been granted."
 
 ## Manual popup demo note

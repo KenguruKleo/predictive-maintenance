@@ -21,7 +21,7 @@
 > Дедлайн фінального submission: 1-й тиждень травня 2026  
 > Стек: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-032 (React frontend core — incident detail/timeline + header bell + toast stack + unread sidebar cues) · T-033 (Approval UX — static rail + dialog transcript + explicit notification acknowledge from bell/left rail) · T-034 (manager/auditor/IT-admin views — manager stats contract hardening) · T-039 (Reliability hardening) · T-040 (RAI observability) · T-043 (Agent telemetry admin delivery) · T-045 (Evidence citations quality)
+**Зараз в роботі:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-034 (manager/auditor/IT-admin views — manager stats contract hardening) · T-039 (Reliability hardening) · T-040 (RAI observability)
 
 > **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent реалізовані як sub-agents Foundry Orchestrator Agent.  
 > Durable викликає одну activity `run_foundry_agents` — Foundry керує pipeline Research → Document нативно.  
@@ -37,6 +37,10 @@
 - ✅ `run_foundry_agents.py` переписано під `azure-ai-agents` SDK
 
 **Останнє оновлення (20 квітня 2026):**
+- T-043/T-045 — підтверджено повністю реалізованими: T-043 — App Insights telemetry API + frontend admin telemetry page (з відомими SDK-обмеженнями sub-agent visibility, пост-демо cleanup); T-045 — canonical evidence citations, strict contract, excerpt backfill, unresolved state, historical links, деплой виконано, live e2e validation залишається demo-time smoke чеком; статуси оновлено на ✅ DONE
+- T-032/T-033 — frontend core та approval UX підтверджено повністю реалізованими: всі компоненти, хуки, сторінки та API-шар на місці (`IncidentTable`, `SeverityBadge`, `StatusBadge`, `AiAnalysis`, `EvidenceCitations`, `EventTimeline`, `ParameterExcursion`, `ApprovalPanel`, `AgentChat`, `RejectModal`, `ConfidenceBanner`, `DecisionPackage`, `DocumentPreviews`, `useIncidents`, `useSignalR`, `client.ts`, `incidents.ts`); статуси оновлено на ✅ DONE
+- T-002 — final-video scenario notes now explicitly call out the shared incident-status color language as a live-demo usability point: the narration should mention that the same visual status semantics are preserved across dashboard, sidebar, manager queue, badges, and status-history timeline so users read incident state instantly
+- T-001 — architecture-presentation task notes now explicitly call out consistent incident-status color language as part of UX Simplicity: the presentation should mention that the same visual status semantics are preserved across dashboard, sidebar, manager queue, badges, and timeline so operators and reviewers can recognize incident state at a glance
 - T-032 — status history timeline dots on incident detail were aligned with the same shared status token palette used by incident badges and sidebar states (`pending_approval`, `analyzing`, `executing`, `escalated`, `approved`, `rejected`, `closed`), so timeline colors now match incident-status colors consistently across the app; `frontend/npm run build` passed
 - T-034 — manager dashboard follow-up completed live: the updated `http_stats.py` projection was deployed to `func-sentinel-intel-dev-erzrpo`, and the live `/api/stats/summary` now returns `recent_decisions`; in the frontend, escalated status styling was also normalized onto the shared status token set (`index.css` + `StatusBadge`) so `escalated` is visually distinct from `pending_approval` across queue/cards/timeline/sidebar surfaces
 - T-034 — `Recent Decisions` on `/manager` is now backed by real backend data: `backend/triggers/http_stats.py` projects the latest finalized `approved` / `rejected` incident decisions (actor, AI confidence, QA override flag, response time) into `/api/stats/summary`, with focused pytest coverage in `tests/test_http_stats.py`; the previous frontend-only compatibility fallback remains in place for safety
@@ -107,8 +111,8 @@
 | T-028 | **[MCP servers](./tasks/T-028-mcp-servers.md)** — mcp-sentinel-db, mcp-qms, mcp-cmms (stdio) | — | 🔴 CRITICAL | ✅ DONE | T-025–T-027 |
 | T-029 | **[Human approval flow](./tasks/T-029-human-approval.md)** — POST /decision API + waitForExternalEvent | Gap #5 | 🔴 CRITICAL | ✅ DONE | — |
 | T-031 | **[Backend API Functions](./tasks/T-031-backend-api.md)** — incidents CRUD, templates, equipment, batches endpoints | Gap #5 | 🔴 CRITICAL | ✅ DONE | T-032 |
-| T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | T-033 |
-| T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | 🟡 IN PROGRESS | finals |
+| T-032 | **[React frontend — core](./tasks/T-032-frontend-core.md)** — incident list, details, status timeline | Gap #5 | 🔴 CRITICAL | ✅ DONE | — |
+| T-033 | **[React frontend — approval UX](./tasks/T-033-frontend-approval.md)** — decision package view + approve/reject/more-info buttons | Gap #5 | 🔴 CRITICAL | ✅ DONE | — |
 
 ### Важливі (Should-have)
 
@@ -118,8 +122,8 @@
 | T-022 | **[Azure Service Bus setup](./tasks/T-022-service-bus.md)** — alert-queue + DLQ config | Gap #3 | 🟠 HIGH | ✅ DONE | T-023 |
 | T-030 | **[Azure SignalR setup](./tasks/T-030-signalr.md)** — negotiate endpoint + notification service + unread notification center contract | Gap #5 | 🟠 HIGH | ✅ DONE | T-033 |
 | T-034 | **[React frontend — manager/auditor/IT views](./tasks/T-034-frontend-other-roles.md)** | Gap #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
-| T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | T-034 |
-| T-045 | **[Evidence citations quality + historical evidence links](./tasks/T-045-evidence-citation-quality.md)** — canonical document cards, strict citation contract, excerpt backfill, unresolved evidence state, historical incident linkability | Gap #4, #5 | 🟠 HIGH | 🟡 IN PROGRESS | — |
+| T-043 | **[Agent telemetry + admin incident view](./tasks/T-043-agent-telemetry-admin-view.md)** — App Insights trace delivery + normalized admin timeline per incident | Gap #4, #5 | 🟠 HIGH | ✅ DONE | — |
+| T-045 | **[Evidence citations quality + historical evidence links](./tasks/T-045-evidence-citation-quality.md)** — canonical document cards, strict citation contract, excerpt backfill, unresolved evidence state, historical incident linkability | Gap #4, #5 | 🟠 HIGH | ✅ DONE | — |
 | T-035 | **[RBAC setup](./tasks/T-035-rbac.md)** — Entra ID app registration, 5 roles, token validation in Functions | Gap #2 | 🟠 HIGH | ✅ DONE | T-031 |
 | T-036 | **[Document ingestion pipeline](./tasks/T-036-ingestion-pipeline.md)** — Blob → chunk → embed → AI Search (one-shot script; live triggers out of scope) | Gap #4 | 🟠 HIGH | ✅ DONE | T-037 |
 | T-037 | **[AI Search indexes + mock docs](./tasks/T-037-ai-search.md)** — 5 indexes, 9 docs, 117 chunks з HNSW vector search | Gap #4 | 🟠 HIGH | ✅ DONE | — |
@@ -154,7 +158,7 @@
 |---|---|
 | 24–25 квіт | T-027 (Execution Agent) · T-029 (human approval API) · T-030 (SignalR) |
 | 26–27 квіт | ✅ T-031 (backend API) · ✅ T-035 (RBAC) |
-| 28–29 квіт | T-032 (React core) · T-033 (approval UX) |
+| 28–29 квіт | ✅ T-032 (React core) · ✅ T-033 (approval UX) |
 | 30 квіт | T-034 (інші ролі frontend) · T-040 (RAI layer) · T-043 (agent telemetry admin view) |
 
 ### Week 3 (1–7 травня) — Polish + Submission

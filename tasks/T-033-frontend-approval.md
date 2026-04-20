@@ -3,7 +3,7 @@
 ← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
 
 **Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🟡 IN PROGRESS  
+**Статус:** ✅ DONE  
 **Блокує:** finals demo  
 **Залежить від:** T-032 (core frontend), T-029 (decision API), T-030 (SignalR)
 
