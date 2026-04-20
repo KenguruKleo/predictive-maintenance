@@ -15,7 +15,7 @@
 
 ---
 
-## Progress (19 квітня 2026)
+## Progress (19-20 квітня 2026)
 
 - [x] Frontend incident detail now reads only `ai_analysis.evidence_citations` for visible evidence cards.
 - [x] Backend normalization now emits canonical citations with `resolution_status` / `unresolved_reason` instead of relying on fake fallback titles.
@@ -24,7 +24,13 @@
 - [x] Historical citations now resolve to `/incidents/:id` deep links instead of pretending to be blob documents.
 - [x] Historical indexing now excludes `rejected` and non-approved closed incidents; only approved `closed` / `completed` precedents are indexed.
 - [x] Focused regression tests cover canonical dedupe, unresolved evidence, excerpt backfill, historical links, and approved-history indexing.
-- [ ] Live/manual validation on a real incident detail screen is still pending.
+- [x] Live/manual rebuild of `idx-incident-history` completed from current Cosmos incidents; the live index now contains `INC-2026-0005`, `INC-2026-0006`, and `INC-2026-0013`.
+- [x] Automatic history-index sync code was added to `finalize_audit`, covered by focused backend tests, and deployed to the live Function App.
+- [x] Direct historical retrieval path now returns live precedent hits for the same query the agent uses (`spray rate deviation criticality GR-204`).
+- [x] **Incident citations now generate proper `/incidents/{document_id}` URLs** — fixed `_citation_url()` to handle `type="incident"`, added 4 unit tests for URL generation.
+- [x] Document Agent prompts updated to explicitly require primary incident citation with `type: "incident"` and `document_id` in `evidence_citations`.
+- [x] Backend deployed with incident citation URL fix.
+- [ ] Full live end-to-end validation pending: requires fresh incident to be created and processed with updated backend code to confirm incident citations now render with proper deep links instead of showing "Missing link for incident citation".
 
 ---
 
