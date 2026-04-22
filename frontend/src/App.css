@@ -1441,6 +1441,54 @@
   border-top: var(--border);
 }
 
+.draft-block--confirmed {
+  background: var(--green-light, rgba(0, 135, 90, 0.06));
+  border: 1px solid rgba(0, 135, 90, 0.18);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.draft-block--ai-draft {
+  background: rgba(0, 82, 204, 0.04);
+  border: 1px dashed rgba(0, 82, 204, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-top: var(--space-2);
+  opacity: 0.8;
+}
+
+.draft-block-ai-draft-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0052cc;
+  background: rgba(0, 82, 204, 0.1);
+  border-radius: 4px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.draft-block--confirmed strong,
+.draft-block--ai-draft strong {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.draft-block-confirmed-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--green-dark, #006644);
+  background: rgba(0, 135, 90, 0.13);
+  border-radius: 4px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
 .decision-text-block strong,
 .approval-outcome-block strong,
 .draft-block strong {
@@ -1490,6 +1538,93 @@
   font-size: 12px;
   color: var(--text);
   overflow-wrap: anywhere;
+}
+
+/* ── Editable Draft Forms (T-052) ── */
+.draft-form {
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.1));
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.draft-form-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-1);
+}
+
+.draft-form-header strong {
+  font-size: 13px;
+  color: var(--text-heading);
+  font-weight: 600;
+}
+
+.draft-form-required {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--danger, #c0392b);
+  background: rgba(192, 57, 43, 0.09);
+  border-radius: 4px;
+  padding: 2px 7px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.draft-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.draft-form-field label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.draft-input,
+.draft-textarea {
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--text);
+  background: #fff;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.15));
+  border-radius: var(--radius-sm, 4px);
+  padding: 7px 10px;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.draft-input:focus,
+.draft-textarea:focus {
+  outline: none;
+  border-color: var(--blue, #0052cc);
+  box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.12);
+}
+
+.draft-textarea {
+  resize: vertical;
+  min-height: 66px;
+}
+
+.approval-blocked-hint {
+  font-size: 13px;
+  color: var(--danger, #c0392b);
+  background: rgba(192, 57, 43, 0.07);
+  border: 1px solid rgba(192, 57, 43, 0.2);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-3);
 }
 
 /* ── Evidence Citations ── */
@@ -1972,6 +2107,72 @@
   background: rgba(138, 75, 0, 0.14);
 }
 
+/* Agent recommendation badge */
+.agent-rec-badge {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+.agent-rec-badge--approve {
+  background: var(--status-approved-bg, #e6f7ec);
+  border-color: rgba(24, 107, 56, 0.25);
+  color: var(--status-approved-fg, #186b38);
+}
+.agent-rec-badge--reject {
+  background: var(--sev-moderate-bg, #fff4e0);
+  border-color: rgba(202, 125, 1, 0.3);
+  color: var(--sev-moderate-fg, #7a4800);
+}
+.agent-rec-badge-icon {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  padding: 4px 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.08);
+}
+.agent-rec-badge-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.agent-rec-badge-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.agent-rec-badge-verdict {
+  font-size: 13px;
+  font-weight: 700;
+}
+/* When used in DecisionPackage, add bottom spacing before the metric grid */
+.decision-section .agent-rec-badge {
+  margin-bottom: var(--space-3);
+}
+/* Overridden state — agent recommendation was rejected by operator */
+.agent-rec-badge--overridden {
+  background: var(--surface-2, #f4f5f7);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: var(--text-muted, #6b7280);
+  opacity: 0.75;
+}
+.agent-rec-badge--overridden .agent-rec-badge-verdict {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+.agent-rec-badge--overridden .agent-rec-badge-icon {
+  background: rgba(0, 0, 0, 0.05);
+}
+
 .approval-summary {
   font-size: 14px;
   color: var(--text);
@@ -2359,13 +2560,19 @@
 
 .incident-table tr:last-child td { border-bottom: none; }
 .incident-table tr:hover td { background: var(--gray-50); }
+.incident-table tr.incident-table-row--clickable { cursor: pointer; }
+.incident-table tr.incident-table-row--clickable:hover td { background: var(--blue-light, rgba(0,82,204,0.04)); }
 
 .incident-table a,
-.table-link {
+.table-link,
+.table-id-link {
   font-weight: 600;
   font-family: var(--font-mono);
   font-size: 12px;
+  color: var(--blue);
+  text-decoration: none;
 }
+.table-id-link:hover { text-decoration: underline; }
 
 .table-cell-title {
   max-width: 280px;
@@ -2388,6 +2595,115 @@
   padding: var(--space-4);
   font-size: 13px;
   color: var(--text-muted);
+}
+
+/* AI vs Human badge (audit trail / history) */
+.ai-vs-human-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ai-vs-human-badge--agreed {
+  background: var(--status-approved-bg, #e6f7ec);
+  color: var(--status-approved-fg, #186b38);
+  border: 1px solid rgba(24, 107, 56, 0.2);
+}
+.ai-vs-human-badge--override {
+  background: var(--sev-high-bg, #fff0f0);
+  color: var(--sev-high-fg, #b91c1c);
+  border: 1px solid rgba(185, 28, 28, 0.2);
+}
+.ai-vs-human-badge--pending {
+  background: var(--status-pending-bg, #fffbe6);
+  color: var(--sev-moderate-fg, #7a4800);
+  border: 1px solid rgba(202, 125, 1, 0.2);
+}
+
+/* Agreement rate KPI (RecentDecisions) */
+.agreement-rate-kpi {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 8px 14px;
+  margin-bottom: var(--space-3);
+  background: var(--bg-card);
+  border: var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+}
+.agreement-rate-kpi-label {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.agreement-rate-kpi-value {
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+.agreement-rate-kpi-value--good { color: var(--status-approved-fg, #186b38); }
+.agreement-rate-kpi-value--low  { color: var(--sev-high-fg, #b91c1c); }
+.agreement-rate-kpi-detail {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+/* AI recommendation chip (IncidentTable + history) */
+.ai-rec-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.ai-rec-chip--approve {
+  background: var(--status-approved-bg, #e6f7ec);
+  color: var(--status-approved-fg, #186b38);
+  border: 1px solid rgba(24, 107, 56, 0.2);
+}
+.ai-rec-chip--reject {
+  background: var(--sev-moderate-bg, #fff4e0);
+  color: var(--sev-moderate-fg, #7a4800);
+  border: 1px solid rgba(202, 125, 1, 0.25);
+}
+.ai-rec-chip--none {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.ai-rec-chip--overridden {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* Human decision chip (IncidentTable — shown after operator decides) */
+.ai-rec-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.human-dec-chip {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.human-dec-chip--approved {
+  background: var(--status-approved-bg, #e6f7ec);
+  color: var(--status-approved-fg, #186b38);
+  border: 1px solid rgba(24, 107, 56, 0.2);
+}
+.human-dec-chip--rejected {
+  background: var(--sev-high-bg, #fff0f0);
+  color: var(--sev-high-fg, #b91c1c);
+  border: 1px solid rgba(185, 28, 28, 0.2);
 }
 
 .pagination-end {

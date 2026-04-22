@@ -25,6 +25,42 @@ function getIncidentTitle(inc: Incident): string {
   return "—";
 }
 
+function HumanDecisionChip({ action }: { action?: string }) {
+  if (!action || action === "more_info") return null;
+  const isApproved = action === "approved";
+  return (
+    <span className={`human-dec-chip human-dec-chip--${isApproved ? "approved" : "rejected"}`}>
+      {isApproved ? "✓ APPROVED" : "✕ REJECTED"}
+    </span>
+  );
+}
+
+function AiRecCell({ inc }: { inc: Incident }) {
+  const aiRec = inc.ai_analysis?.agent_recommendation;
+  if (!aiRec) return <span className="ai-rec-chip ai-rec-chip--none">—</span>;
+
+  const isDecided = inc.status === "approved" || inc.status === "rejected";
+  const humanAction = inc.lastDecision?.action ?? inc.finalDecision?.action;
+  const isOverride =
+    inc.operatorAgreesWithAgent === false ||
+    (inc.operatorAgreesWithAgent == null &&
+      aiRec != null &&
+      humanAction != null &&
+      ((humanAction === "rejected" && aiRec === "APPROVE") ||
+        (humanAction === "approved" && aiRec === "REJECT")));
+
+  return (
+    <div className="ai-rec-cell">
+      <span
+        className={`ai-rec-chip ai-rec-chip--${aiRec === "APPROVE" ? "approve" : "reject"}${isOverride ? " ai-rec-chip--overridden" : ""}`}
+      >
+        {aiRec === "APPROVE" ? "✓ APPROVE" : "✕ REJECT"}
+      </span>
+      {isDecided && <HumanDecisionChip action={humanAction} />}
+    </div>
+  );
+}
+
 export default function IncidentTable({ incidents }: Props) {
   return (
     <div className="table-wrapper">
@@ -35,6 +71,7 @@ export default function IncidentTable({ incidents }: Props) {
             <th>Equipment</th>
             <th>Title</th>
             <th>Severity</th>
+            <th>AI Rec.</th>
             <th>Status</th>
             <th>Batch</th>
             <th>Date</th>
@@ -52,6 +89,9 @@ export default function IncidentTable({ incidents }: Props) {
               <td className="table-cell-title">{getIncidentTitle(inc)}</td>
               <td>
                 <SeverityBadge severity={inc.severity} />
+              </td>
+              <td>
+                <AiRecCell inc={inc} />
               </td>
               <td>
                 <StatusBadge status={inc.status} />
@@ -75,7 +115,7 @@ export default function IncidentTable({ incidents }: Props) {
           ))}
           {incidents.length === 0 && (
             <tr>
-              <td colSpan={7} className="table-empty">
+              <td colSpan={8} className="table-empty">
                 No incidents match your filters.
               </td>
             </tr>

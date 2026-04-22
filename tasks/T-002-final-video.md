@@ -164,8 +164,8 @@
 
 ### Backup scenarios
 
-1. Low-confidence recommendation banner
-    - Candidate: `INC-2026-0008` (`LOW_CONFIDENCE`, confidence warning, requires operator comment)
+1. Low-confidence recommendation banner (**promote to main cut** — covers 3-state confidence gate)
+    - Candidate: `INC-2026-0008` (`LOW_CONFIDENCE`, confidence ~0.55, banner visible, mandatory comment field)
 2. Conditional release with explicit disposition conditions
 3. Rejection path with operator reason
 4. Real-time unread routing in sidebar and bell
@@ -228,7 +228,7 @@
 | Час | Що на екрані | Що говоримо |
 | --- | --- | --- |
 | **00:00–00:07** | Title slide: `Sentinel Intelligence` + subtitle `GMP Deviation & CAPA Operations Assistant` | "In GMP manufacturing, one deviation can trigger thirty to sixty minutes of manual investigation." |
-| **00:07–00:15** | Hook slide: `45 min -> < 5 min` + `Governed AI assistance` | "Sentinel Intelligence brings that below five minutes with AI, human approval, and traceability at every step." |
+| **00:07–00:15** | Hook slide: `45 min -> < 2 min` + `Governed AI assistance` | "Sentinel Intelligence brings that below two minutes — end to end — with AI, human approval, and traceability at every step." |
 | **00:15–00:25** | Operations Dashboard with incident counts, analytics table, footer live status. | "This is the live operations dashboard, showing active incidents, status trends, and real-time system connectivity at a glance." |
 | **00:25–00:35** | Open bell dropdown, show unread sidebar item, click incident. | "A new incident appears in the bell and unread queue, then opens directly into the decision workflow for the operator." |
 | **00:35–00:55** | Incident detail summary + parameter excursion. Pause on equipment, batch, measured value, limits. | "Notice that the operator does not see raw telemetry alone. They get the equipment, the affected batch, the measured value, the validated range, the duration, and the severity in one view. That is the context needed for a regulated decision." |
@@ -237,14 +237,14 @@
 | **01:35–01:50** | Batch Release Recommendation + conditions. | "Here the judge should notice that the system does not stop at diagnosis. It recommends the batch path and clearly states the conditions that must be met before release." |
 | **01:50–02:05** | `After Approval` section with CAPA actions, work order draft, audit entry draft. | "This is not just analysis. The system prepares CAPA actions, a work order draft, and an audit entry draft before execution begins, so downstream work is already structured for review." |
 | **02:05–02:20** | Need More Info transcript or available actions. | "If the operator needs more context, they can ask a follow-up question, and that conversation remains attached to the incident for traceability instead of disappearing outside the workflow." |
-| **02:20–02:35** | Prepared incident in waiting/manual-review state with no final recommendation. | "This is the governed fallback path. When the AI conclusion is not ready, the system withholds unsafe output instead of inventing an answer or pretending the evidence is sufficient." |
-| **02:35–02:50** | Stay on waiting state / status history. | "The user sees an explicit waiting or manual-review state, and that uncertainty is visible in the workflow itself. This is a governed assistant, not a confident but unreliable chatbot." |
+| **02:20–02:35** | Incident with `LOW_CONFIDENCE` banner (e.g. `INC-2026-0008`, confidence ~0.55). Show banner + mandatory comment field. | "When confidence falls below the threshold, the system shows a warning banner and requires the operator to leave a comment before deciding. The operator still decides — there is no automatic escalation. This is a governed co-pilot, not an override machine." |
+| **02:35–02:50** | Pivot to `BLOCKED` state incident (`INC-2026-0010`, confidence 0.31, empty decision package). | "When the AI pipeline cannot produce a grounded result at all, the state is different: the recommendation is withheld entirely and the operator sees an empty form for manual entry. The incident is not lost — it stays in the workflow with a full audit trail. The system degrades gracefully instead of fabricating an answer." |
 | **02:50–03:08** | QA Manager view: Manager Dashboard + Escalation Queue. | "If the incident is not handled in time, the workflow escalates to QA with the full context preserved. The important detail here is that the case is reassigned, not restarted, so review continues without losing history." |
 | **03:08–03:25** | Recent Decisions table with AI confidence, override, response time. | "This manager view is where governance becomes measurable. Response time shows operational speed, AI confidence shows model certainty, and human override shows where people corrected or challenged the recommendation." |
 | **03:25–03:40** | Auditor view: History & Audit filters + click `Export CSV`. | "For auditors, the incident log is filterable and exportable, so the current audit set can be downloaded in one click. That makes the workflow easy to review offline." |
 | **03:40–03:55** | IT Admin view: Incident Telemetry summary with trace counters and token totals. | "Administrators can inspect trace counts, failures, rounds, duration, and token usage for each incident. This is the operational layer for troubleshooting prompts, agent runs, and cost-related governance." |
-| **03:55–04:08** | Architecture slide reveal step 1: Track A + Durable + Foundry + AI Search. | "This is Track A: GitHub, Azure, and Azure AI Foundry. Durable Functions orchestrate the workflow, and Foundry agents drive research and document synthesis." |
-| **04:08–04:20** | Architecture slide reveal step 2 and 3: Service Bus, Cosmos DB, SignalR, MCP, Entra ID / RBAC. | "AI Search grounds answers. Service Bus absorbs bursts. Cosmos stores state. SignalR pushes updates. MCP stays pluggable, and Entra ID with RBAC governs access." |
+| **03:55–04:08** | Architecture slide reveal step 1: Track A + two-level orchestration. | "This is Track A: GitHub, Azure, and Azure AI Foundry. The architecture has two separate orchestration levels: Durable Functions handle the stateful workflow — incident creation, HITL pause, retry, and escalation. Azure AI Foundry handles AI reasoning — research, synthesis, and tool calls. Each level has a distinct responsibility." |
+| **04:08–04:20** | Architecture slide reveal step 2 and 3: Service Bus, Cosmos DB, SignalR, MCP, security + CI/CD layer. | "AI Search grounds answers in validated documents. Service Bus absorbs alert bursts. Cosmos stores durable state. SignalR pushes real-time updates. MCP keeps integrations pluggable. Security runs on PIM just-in-time access, Conditional Access with MFA, and Defender for Cloud. The Foundry eval gate in CI/CD blocks any deployment where AI quality regresses." |
 | **04:20–04:40** | KPI slide: before/after numbers. | "The result is a production-ready pattern for pharma operations: faster deviation handling, standardized decision support, and full traceability for regulated environments. In practice, it reduces investigation time while keeping approvals, escalation, and evidence review inside one governed flow." |
 | **04:40–04:52** | Closing product screenshot or KPI slide. | "Instead of chasing documents and approvals manually, operators get a governed decision package in minutes, with evidence, actions, and next steps already structured." |
 | **04:52–05:00** | Final branded closing frame. | "This is Sentinel Intelligence, built for governed pharma operations at scale." |
@@ -253,7 +253,8 @@
 
 - Тримати паузу 1-2 секунди на `Verified` / `Unresolved` badges, щоб judges встигли це прочитати
 - Не показувати live login, role switching або технічні transition steps. Ролі змінювати між takes і зводити в монтажі
-- У segment `02:20–02:50` не треба пояснювати backend failure детально. Головне донести: **system withholds unsafe output**
+- У segment `02:20–02:50` показати **два різних стани**: `LOW_CONFIDENCE` (оператор вирішує сам, з банером) і `BLOCKED` (пустий decision package, ручне заповнення). Це три-state confidence gate — ключовий RAI differentiator
+- `operator_agrees_with_agent` прапор записується при Approve і Reject разом з причиною rejection, яка йде назад до SCADA/MES як feedback. Якщо є час у монтажі — показати rejection path як окремий beat
 - Якщо показуємо `After Approval` section, не читати всі поля з draft objects. Достатньо коротко назвати: `CAPA actions`, `work order draft`, `audit entry draft`
 - На architecture slide робити поетапне reveal у 3 кроки: `Track A + orchestration`, потім `AI Search / Service Bus / Cosmos / SignalR / MCP`, потім `Entra ID / RBAC / HITL`
 - Якщо approval click ламає pacing, можна не тиснути кнопку у happy path, а тільки показати available actions і audit timeline окремим cut

@@ -55,7 +55,7 @@ bp = df.Blueprint()
 @bp.durable_client_input(client_name="client")
 async def http_decision(
     req: func.HttpRequest,
-    client: df.DurableOrchestrationClient,
+    client,
 ) -> func.HttpResponse:
     """Accept operator decision and raise external event on Durable orchestrator."""
     incident_id: str = req.route_params.get("incident_id", "")
@@ -103,6 +103,19 @@ async def http_decision(
     if action == "more_info" and not body.get("question"):
         return _error(400, "'question' is required when action=more_info")
 
+    # Parse optional operator-confirmed draft fields
+    work_order_draft = body.get("work_order_draft") or None
+    audit_entry_draft = body.get("audit_entry_draft") or None
+    if work_order_draft is not None and not isinstance(work_order_draft, dict):
+        return _error(400, "'work_order_draft' must be an object")
+    if audit_entry_draft is not None and not isinstance(audit_entry_draft, dict):
+        return _error(400, "'audit_entry_draft' must be an object")
+    if action == "approved":
+        if not work_order_draft or not str(work_order_draft.get("description", "")).strip():
+            return _error(400, "'work_order_draft.description' is required when action=approved")
+        if not audit_entry_draft or not str(audit_entry_draft.get("description", "")).strip():
+            return _error(400, "'audit_entry_draft.description' is required when action=approved")
+
     body_user_id = str(body.get("user_id", "") or "").strip()
     if body_user_id and body_user_id != caller_id:
         logger.warning(
@@ -142,12 +155,28 @@ async def http_decision(
 
     # Raise the operator_decision event to resume the orchestrator
     now_iso = datetime.now(timezone.utc).isoformat()
+
+    # Compute operator_agrees_with_agent
+    agent_rec = str(body.get("agent_recommendation") or "").strip().upper() or None
+    if agent_rec and agent_rec not in ("APPROVE", "REJECT"):
+        agent_rec = None
+    if agent_rec and action in ("approved", "rejected"):
+        decision_positive = action == "approved"
+        agent_positive = agent_rec == "APPROVE"
+        operator_agrees = decision_positive == agent_positive
+    else:
+        operator_agrees = None  # more_info or no agent recommendation
+
     event_data = {
         "action": action,
         "user_id": caller_id,
         "role": workflow_role,
         "reason": body.get("reason", ""),
         "question": body.get("question", ""),
+        "agent_recommendation": agent_rec,
+        "operator_agrees_with_agent": operator_agrees,
+        "work_order_draft": work_order_draft,
+        "audit_entry_draft": audit_entry_draft,
     }
 
     try:
@@ -224,20 +253,24 @@ def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
     approval_tasks = db.get_container_client("approval-tasks")
     task_id = f"approval-{incident_id}"
     try:
-        approval_tasks.patch_item(
-            item=task_id,
-            partition_key=incident_id,
-            patch_operations=[
+        _patch_ops = [
                 {"op": "set", "path": "/status", "value": task_status},
                 {"op": "set", "path": "/decision", "value": decision},
                 {"op": "set", "path": "/decidedBy", "value": decision["user_id"]},
                 {"op": "set", "path": "/decidedAt", "value": now_iso},
                 {"op": "set", "path": "/updatedAt", "value": now_iso},
-            ],
+            ]
+        if decision.get("work_order_draft"):
+            _patch_ops.append({"op": "set", "path": "/operatorWorkOrderDraft", "value": decision["work_order_draft"]})
+        if decision.get("audit_entry_draft"):
+            _patch_ops.append({"op": "set", "path": "/operatorAuditEntryDraft", "value": decision["audit_entry_draft"]})
+        approval_tasks.patch_item(
+            item=task_id,
+            partition_key=incident_id,
+            patch_operations=_patch_ops,
         )
     except CosmosResourceNotFoundError:
-        approval_tasks.create_item(
-            {
+        _create_doc = {
                 "id": task_id,
                 "incidentId": incident_id,
                 "durableInstanceId": f"durable-{incident_id}",
@@ -247,18 +280,23 @@ def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
                 "decidedAt": now_iso,
                 "updatedAt": now_iso,
             }
-        )
+        if decision.get("work_order_draft"):
+            _create_doc["operatorWorkOrderDraft"] = decision["work_order_draft"]
+        if decision.get("audit_entry_draft"):
+            _create_doc["operatorAuditEntryDraft"] = decision["audit_entry_draft"]
+        approval_tasks.create_item(_create_doc)
 
-    patch_incident_by_id(
-        db,
-        incident_id,
-        [
-            {"op": "set", "path": "/status", "value": incident_status},
-            {"op": "set", "path": "/lastDecision", "value": decision},
-            {"op": "set", "path": "/updatedAt", "value": now_iso},
-            {"op": "set", "path": "/updated_at", "value": now_iso},
-        ],
-    )
+    incident_patch_ops = [
+        {"op": "set", "path": "/status", "value": incident_status},
+        {"op": "set", "path": "/lastDecision", "value": decision},
+        {"op": "set", "path": "/updatedAt", "value": now_iso},
+        {"op": "set", "path": "/updated_at", "value": now_iso},
+    ]
+    if decision.get("work_order_draft"):
+        incident_patch_ops.append({"op": "set", "path": "/operatorWorkOrderDraft", "value": decision["work_order_draft"]})
+    if decision.get("audit_entry_draft"):
+        incident_patch_ops.append({"op": "set", "path": "/operatorAuditEntryDraft", "value": decision["audit_entry_draft"]})
+    patch_incident_by_id(db, incident_id, incident_patch_ops)
 
     events = db.get_container_client("incident_events")
     events.upsert_item(

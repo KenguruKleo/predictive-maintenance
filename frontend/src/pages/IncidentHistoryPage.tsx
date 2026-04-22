@@ -21,6 +21,8 @@ function exportIncidentsToCSV(incidents: Incident[]): void {
     { header: "Unit", value: (i) => i.unit ?? "" },
     { header: "Risk Level", value: (i) => i.ai_analysis?.risk_level ?? "" },
     { header: "AI Confidence", value: (i) => i.ai_analysis?.confidence != null ? String(i.ai_analysis.confidence) : "" },
+    { header: "AI Recommendation", value: (i) => i.ai_analysis?.agent_recommendation ?? "" },
+    { header: "Operator Agrees With AI", value: (i) => i.operatorAgreesWithAgent != null ? String(i.operatorAgreesWithAgent) : "" },
     { header: "Root Cause", value: (i) => i.ai_analysis?.root_cause_hypothesis ?? i.ai_analysis?.root_cause ?? "" },
     { header: "Assigned To", value: (i) => i.assigned_to ?? "" },
     { header: "Created At", value: (i) => i.created_at ?? i.reported_at ?? "" },

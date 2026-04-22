@@ -1,7 +1,9 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Incident, IncidentEvent } from "../../types/incident";
+import type { AuditEntryDraft, WorkOrderDraft } from "../../types/approval";
 import { useSubmitDecision } from "../../hooks/useIncidents";
 import ConfidenceBanner from "./ConfidenceBanner";
+import AgentRecommendationBadge from "./AgentRecommendationBadge";
 import RejectModal from "./RejectModal";
 import AgentChat from "./AgentChat";
 import StatusBadge from "../IncidentList/StatusBadge";
@@ -10,9 +12,10 @@ interface Props {
   incident: Incident;
   events: IncidentEvent[];
   canMakeDecision: boolean;
+  draftState?: { workOrder: WorkOrderDraft; auditEntry: AuditEntryDraft };
 }
 
-export default function ApprovalPanel({ incident, events, canMakeDecision }: Props) {
+export default function ApprovalPanel({ incident, events, canMakeDecision, draftState }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showQuestionComposer, setShowQuestionComposer] = useState(false);
   const decision = useSubmitDecision(incident.id);
@@ -31,6 +34,27 @@ export default function ApprovalPanel({ incident, events, canMakeDecision }: Pro
   const isAwaitingAgents = incident.status === "awaiting_agents";
   const shouldShowChat = isPending || isAwaitingAgents || hasChatTranscript;
 
+  // Derive whether the operator overrode the agent's recommendation
+  const agentRec = incident.ai_analysis?.agent_recommendation;
+  const lastAction = incident.lastDecision?.action;
+  const agentWasOverridden =
+    incident.operatorAgreesWithAgent === false ||
+    (incident.operatorAgreesWithAgent == null &&
+      agentRec != null &&
+      lastAction != null &&
+      ((lastAction === "rejected" && agentRec === "APPROVE") ||
+        (lastAction === "approved" && agentRec === "REJECT")));
+
+  // BLOCKED = AI provided no draft at all (both WO and AuditEntry title/description are empty)
+  const aiHasDraft = !!(
+    incident.ai_analysis?.work_order_draft || incident.ai_analysis?.audit_entry_draft
+  );
+  const isBlocked = !aiHasDraft;
+  const draftsFilledEnough =
+    !isBlocked ||
+    !!(draftState?.workOrder.description && draftState?.auditEntry.description);
+  const approveDisabled = decision.isPending || (isPending && isBlocked && !draftsFilledEnough);
+
   useEffect(() => {
     if (!isPending) {
       setShowQuestionComposer(false);
@@ -46,11 +70,20 @@ export default function ApprovalPanel({ incident, events, canMakeDecision }: Pro
 
 
   const handleApprove = () => {
-    decision.mutate({ action: "approved" });
+    decision.mutate({
+      action: "approved",
+      agent_recommendation: incident.ai_analysis?.agent_recommendation,
+      work_order_draft: draftState?.workOrder,
+      audit_entry_draft: draftState?.auditEntry,
+    });
   };
 
   const handleReject = (reason: string) => {
-    decision.mutate({ action: "rejected", reason });
+    decision.mutate({
+      action: "rejected",
+      reason,
+      agent_recommendation: incident.ai_analysis?.agent_recommendation,
+    });
     setShowRejectModal(false);
   };
 
@@ -92,6 +125,12 @@ export default function ApprovalPanel({ incident, events, canMakeDecision }: Pro
       </div>
 
       {incident.ai_analysis && <ConfidenceBanner analysis={incident.ai_analysis} />}
+      {incident.ai_analysis?.agent_recommendation && isPending && (
+        <AgentRecommendationBadge recommendation={incident.ai_analysis.agent_recommendation} />
+      )}
+      {incident.ai_analysis?.agent_recommendation && !isPending && !isAwaitingAgents && agentWasOverridden && (
+        <AgentRecommendationBadge recommendation={incident.ai_analysis.agent_recommendation} overridden />
+      )}
 
       {decisionSummary && !isPending && !isAwaitingAgents && (
         <div className={`approval-summary approval-summary--primary approval-summary--${decisionSummary.tone}`}>
@@ -138,11 +177,16 @@ export default function ApprovalPanel({ incident, events, canMakeDecision }: Pro
 
       {isPending && canMakeDecision && (
         <>
+          {isBlocked && !draftsFilledEnough && (
+            <p className="approval-blocked-hint">
+              AI was unable to generate a work order or audit entry. Fill in the forms in the Decision Package before approving.
+            </p>
+          )}
           <div className="decision-buttons decision-buttons--triple">
             <button
               className="btn btn--approve"
               onClick={handleApprove}
-              disabled={decision.isPending}
+              disabled={approveDisabled}
             >
               Approve
             </button>

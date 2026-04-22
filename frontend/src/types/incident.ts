@@ -101,6 +101,7 @@ export interface AiAnalysis {
   disposition_conditions?: string[];
   work_order_draft?: Record<string, unknown>;
   audit_entry_draft?: Record<string, unknown>;
+  agent_recommendation?: "APPROVE" | "REJECT";
 }
 
 export interface DocumentDraft {
@@ -125,6 +126,8 @@ export interface LastDecision {
   role?: string;
   reason?: string;
   question?: string;
+  agent_recommendation?: "APPROVE" | "REJECT";
+  operator_agrees_with_agent?: boolean | null;
 }
 
 export interface Incident {
@@ -159,6 +162,10 @@ export interface Incident {
   lastDecision?: LastDecision;
   finalDecision?: LastDecision;
   rejectionReason?: string;
+  agentRecommendation?: "APPROVE" | "REJECT";
+  operatorAgreesWithAgent?: boolean | null;
+  operatorWorkOrderDraft?: Record<string, unknown>;
+  operatorAuditEntryDraft?: Record<string, unknown>;
 }
 
 export interface IncidentEvent {

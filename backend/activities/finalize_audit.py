@@ -45,6 +45,8 @@ def finalize_audit(input_data: dict) -> dict:
             {"op": "set", "path": "/closedAt", "value": now_iso},
             {"op": "set", "path": "/updatedAt", "value": now_iso},
             {"op": "set", "path": "/finalDecision", "value": decision},
+            {"op": "set", "path": "/agentRecommendation", "value": decision.get("agent_recommendation")},
+            {"op": "set", "path": "/operatorAgreesWithAgent", "value": decision.get("operator_agrees_with_agent")},
         ],
     )
 
@@ -72,6 +74,8 @@ def finalize_audit(input_data: dict) -> dict:
         "actor_type": "system",
         "finalStatus": final_status,
         "decision": decision,
+        "agentRecommendation": decision.get("agent_recommendation"),
+        "operatorAgreesWithAgent": decision.get("operator_agrees_with_agent"),
         "executionResult": exec_result,
         "details": f"Audit finalized. Incident status set to {final_status}.",
         "closedAt": now_iso,

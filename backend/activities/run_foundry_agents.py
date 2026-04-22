@@ -644,6 +644,7 @@ def _build_prompt(
                         "text_excerpt": "...",
                     }
                 ],
+                "agent_recommendation": "APPROVE",
                 "work_order_draft": {
                     "title": "...",
                     "description": "...",
@@ -673,6 +674,8 @@ def _build_prompt(
         "",
         "Every field above is required except execution_error, which may be null when tool execution succeeds.",
         "Carry forward tool_calls_log from the Research Agent and preserve work_order_id/audit_entry_id from the Document Agent tool execution.",
+        "Set agent_recommendation to APPROVE if the deviation requires CAPA action (risk high/critical/medium). "
+        "Set to REJECT only if this is clearly a false positive or sensor error with no physical deviation confirmed. "
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",
@@ -935,6 +938,20 @@ def _normalize_agent_result(
         previous_ai_result=previous_ai_result or {},
         operator_questions=operator_questions or [],
     )
+    # Normalize agent_recommendation: keep APPROVE/REJECT as-is, derive from risk_level as fallback
+    raw_rec = str(result.get("agent_recommendation") or "").strip().upper()
+    if raw_rec in ("APPROVE", "REJECT"):
+        result["agent_recommendation"] = raw_rec
+    else:
+        risk = str(result.get("risk_level") or "").upper()
+        if risk in ("BLOCKED", "LOW_CONFIDENCE") or result.get("manual_review_required"):
+            result["agent_recommendation"] = None
+        elif risk in ("HIGH", "CRITICAL", "MEDIUM"):
+            result["agent_recommendation"] = "APPROVE"
+        elif risk == "LOW":
+            result["agent_recommendation"] = "REJECT"
+        else:
+            result["agent_recommendation"] = None
     return result
 
 

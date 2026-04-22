@@ -13,6 +13,8 @@ export interface RecentDecision {
   decision: "approved" | "rejected";
   ai_confidence: number;
   human_override: boolean;
+  agent_recommendation?: "APPROVE" | "REJECT";
+  operator_agrees_with_agent?: boolean | null;
   decided_at: string;
   response_time_minutes: number;
 }

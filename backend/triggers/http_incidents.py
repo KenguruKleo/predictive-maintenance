@@ -226,6 +226,9 @@ def _slim_incident(doc: dict) -> dict:
         "confidence": ai.get("confidence"),
         "assigned_to": wf.get("assigned_to"),
         "current_step": wf.get("current_step"),
+        "ai_analysis": {"agent_recommendation": ai.get("agent_recommendation")} if ai else None,
+        "operatorAgreesWithAgent": doc.get("operatorAgreesWithAgent"),
+        "lastDecision": doc.get("lastDecision"),
     }
 
 

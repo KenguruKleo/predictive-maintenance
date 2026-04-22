@@ -210,8 +210,18 @@ def _persist_execution_artifacts(
     equipment_id = incident.get("equipment_id") or incident.get("equipmentId") or "unknown"
     actions = capa_plan.get("actions", [])
     first_action = actions[0] if actions else {}
-    work_order_draft = ai_result.get("work_order_draft") if isinstance(ai_result.get("work_order_draft"), dict) else {}
-    audit_entry_draft = ai_result.get("audit_entry_draft") if isinstance(ai_result.get("audit_entry_draft"), dict) else {}
+
+    # Prefer operator-confirmed drafts stored in approval-tasks over AI-generated ones
+    _ai_wo = ai_result.get("work_order_draft") if isinstance(ai_result.get("work_order_draft"), dict) else {}
+    _ai_ae = ai_result.get("audit_entry_draft") if isinstance(ai_result.get("audit_entry_draft"), dict) else {}
+    try:
+        _approval_tasks = db.get_container_client("approval-tasks")
+        _task_doc = _approval_tasks.read_item(f"approval-{incident_id}", partition_key=incident_id)
+        work_order_draft = _task_doc.get("operatorWorkOrderDraft") or _ai_wo
+        audit_entry_draft = _task_doc.get("operatorAuditEntryDraft") or _ai_ae
+    except Exception:  # noqa: BLE001
+        work_order_draft = _ai_wo
+        audit_entry_draft = _ai_ae
 
     container = db.get_container_client("capa-plans")
     year = datetime.now(timezone.utc).strftime("%Y")

@@ -39,7 +39,8 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
             query=(
                 "SELECT c.id, c.incident_number, c.status, c.severity, "
                 "c.ai_analysis.risk_level AS risk_level, c.ai_analysis.confidence AS confidence, "
-                "c.createdAt, c.created_at, c.reported_at, c.closedAt, c.finalDecision "
+                "c.createdAt, c.created_at, c.reported_at, c.closedAt, c.finalDecision, "
+                "c.agentRecommendation, c.operatorAgreesWithAgent "
                 "FROM c"
             ),
             enable_cross_partition_query=True,
@@ -127,6 +128,8 @@ def _build_recent_decisions(rows: list[dict]) -> list[dict]:
             "decision": action,
             "ai_confidence": _coerce_float(row.get("confidence")),
             "human_override": _normalize_decision_role(final_decision.get("role")) == "qa-manager",
+            "agent_recommendation": row.get("agentRecommendation"),
+            "operator_agrees_with_agent": row.get("operatorAgreesWithAgent"),
             "decided_at": decided_at.isoformat(),
             "response_time_minutes": response_time_minutes,
         })

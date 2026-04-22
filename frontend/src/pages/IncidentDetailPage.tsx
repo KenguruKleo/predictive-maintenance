@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
@@ -11,6 +12,7 @@ import StatusBadge from "../components/IncidentList/StatusBadge";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Breadcrumb from "../components/Layout/Breadcrumb";
 import type { ParameterExcursion as ParamExcursion } from "../types/incident";
+import type { AuditEntryDraft, WorkOrderDraft } from "../types/approval";
 
 function getActiveDecisionRole(
   targetRole?: string,
@@ -35,6 +37,9 @@ export default function IncidentDetailPage() {
   if (eventsError) console.warn("[EventTimeline] events fetch failed:", eventsError);
   const { hasAnyRole, hasRole } = useAuth();
 
+  // Draft forms — initialised from AI analysis once the incident loads
+  const [draftState, setDraftState] = useState<{ workOrder: WorkOrderDraft; auditEntry: AuditEntryDraft } | null>(null);
+
   if (isLoading) return <div className="loading">Loading incident...</div>;
   if (error || !incident)
     return <div className="error-banner">Incident not found.</div>;
@@ -54,6 +59,24 @@ export default function IncidentDetailPage() {
   );
 
   const showApproval = canSubmitDecision;
+
+  // Initialise draft state from AI analysis when user can approve (once only)
+  const aiAnalysis = incident.ai_analysis;
+  const editableDrafts =
+    canSubmitDecision && hasAnyRole("operator", "qa-manager")
+      ? (draftState ?? {
+          workOrder: {
+            title: (aiAnalysis?.work_order_draft as WorkOrderDraft | undefined)?.title ?? "",
+            description: (aiAnalysis?.work_order_draft as WorkOrderDraft | undefined)?.description ?? "",
+            priority: (aiAnalysis?.work_order_draft as WorkOrderDraft | undefined)?.priority ?? "",
+          },
+          auditEntry: {
+            deviation_type: (aiAnalysis?.audit_entry_draft as AuditEntryDraft | undefined)?.deviation_type ?? "",
+            gmp_clause: (aiAnalysis?.audit_entry_draft as AuditEntryDraft | undefined)?.gmp_clause ?? "",
+            description: (aiAnalysis?.audit_entry_draft as AuditEntryDraft | undefined)?.description ?? "",
+          },
+        })
+      : undefined;
 
   const showReadonlyChat =
     !showApproval &&
@@ -139,7 +162,11 @@ export default function IncidentDetailPage() {
           )}
 
           <ErrorBoundary inline section="Decision Package">
-            <DecisionPackage incident={incident} />
+            <DecisionPackage
+              incident={incident}
+              editableDrafts={editableDrafts}
+              onDraftChange={canSubmitDecision ? setDraftState : undefined}
+            />
           </ErrorBoundary>
 
           <ErrorBoundary inline section="Batch Disposition">
@@ -162,7 +189,12 @@ export default function IncidentDetailPage() {
 
           {(showApproval || showReadonlyChat || showDecisionSummary) && (
             <ErrorBoundary inline section="Approval Panel">
-              <ApprovalPanel incident={incident} events={events} canMakeDecision={canSubmitDecision} />
+              <ApprovalPanel
+                incident={incident}
+                events={events}
+                canMakeDecision={canSubmitDecision}
+                draftState={editableDrafts ?? undefined}
+              />
             </ErrorBoundary>
           )}
 

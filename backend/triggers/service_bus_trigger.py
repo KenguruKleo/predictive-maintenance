@@ -35,7 +35,7 @@ bp = df.Blueprint()
 @bp.durable_client_input(client_name="client")
 async def service_bus_start_orchestrator(
     msg: func.ServiceBusMessage,
-    client: df.DurableOrchestrationClient,
+    client,
 ) -> None:
     """Consume an alert message and start the incident orchestrator."""
     raw_body = msg.get_body().decode("utf-8")
