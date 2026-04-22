@@ -20,6 +20,7 @@ Blueprints registered here:
   - triggers.http_batches          (T-031) GET /api/batches/current/{equipment_id}
   - triggers.http_templates        (T-031) GET/PUT /api/templates[/{id}]
   - triggers.http_stats            (T-031) GET /api/stats/summary, GET /api/stats/decisions
+  - triggers.timer_watchdog        Timer every 5 min — auto-recover stuck Durable orchestrators
 """
 
 from pathlib import Path
@@ -59,6 +60,7 @@ from triggers.http_signalr import bp as signalr_bp
 from triggers.http_stats import bp as stats_bp
 from triggers.http_templates import bp as templates_bp
 from triggers.service_bus_trigger import bp as sb_trigger_bp
+from triggers.timer_watchdog import bp as watchdog_bp
 
 app = df.DFApp(http_auth_level=func.AuthLevel.FUNCTION)
 
@@ -80,6 +82,9 @@ app.register_functions(stats_bp)
 
 # ── Service Bus trigger ───────────────────────────────────────────────────
 app.register_functions(sb_trigger_bp)
+
+# ── Watchdog timer trigger ────────────────────────────────────────────────
+app.register_functions(watchdog_bp)
 
 # ── Durable orchestrator ──────────────────────────────────────────────────
 app.register_functions(orchestrator_bp)
