@@ -440,13 +440,14 @@ def documents_from_blob(
 
 def documents_from_incidents(cosmos_client: CosmosClient) -> list[dict]:
     """
-    Generate text documents from approved closed/completed Cosmos DB incidents for historical RAG.
-    Each incident → one document with key fields as readable text.
+    Generate text documents from ALL closed/completed Cosmos DB incidents for historical RAG.
+    Includes both approved (real deviations) AND rejected (false positives).
+    Each incident → one document with key fields as readable text, including the human decision.
     """
     db = cosmos_client.get_database_client(COSMOS_DB)
     container = db.get_container_client("incidents")
-    approved_closed = [i for i in container.read_all_items() if _is_valid_historical_incident(i)]
-    return build_history_source_documents(approved_closed)
+    all_closed = [i for i in container.read_all_items() if _is_valid_historical_incident(i)]
+    return build_history_source_documents(all_closed)
 
 
 def _is_valid_historical_incident(incident: dict) -> bool:

@@ -97,7 +97,7 @@ export default function DecisionPackage({ incident, editableDrafts, onDraftChang
 
       {analysis && (
         <div className="decision-section decision-section--primary">
-          <h3 className="section-title">AI Recommendation</h3>
+          <h3 className="section-title">AI Recommendation for this Incident</h3>
           {analysis.agent_recommendation && (
             <AgentRecommendationBadge recommendation={analysis.agent_recommendation} />
           )}

@@ -30,7 +30,7 @@ The downstream Document Agent needs ALL data to make a correct GMP risk assessme
 1. `get_equipment(equipment_id)` — validated PAR ranges, PM history, criticality, calibration
 2. `get_batch(batch_id)` — product name, stage, BPR reference, current process parameters
 3. `get_incident(incident_id)` — the full incident document from the database (deviation details, timestamps, operator)
-4. `search_incidents(equipment_id, limit=5)` — recent historical incidents on this equipment
+4. `search_incidents(equipment_id, limit=3)` — recent historical incidents on this equipment (includes BOTH approved and rejected — check `human_decision` field on each)
 5. `get_template("work_order")` — work order template for Document Agent
 6. `get_template("audit_entry")` — audit entry template for Document Agent
 
@@ -39,9 +39,24 @@ The downstream Document Agent needs ALL data to make a correct GMP risk assessme
 8. `search_sop_documents(query)` — Standard Operating Procedures relevant to the deviation type
 9. `search_gmp_policies(query)` — EU GMP, FDA 21 CFR, ICH regulations applicable to this case
 10. `search_equipment_manuals(query, equipment_id)` — maintenance guides, alarm codes, troubleshooting for the failing component
-11. `search_incident_history(query, equipment_id)` — semantically similar past cases (complements step 4)
+11. `search_incident_history(query, equipment_id, top_k=3)` — semantically similar past cases with human decisions (complements step 4); includes both approved and rejected incidents
 
 **Total: 11 tool calls minimum. No exceptions.**
+
+## Reading Historical Incidents
+
+Steps 4 and 11 return ALL closed incidents — both approved (real deviation) and rejected (false positive).
+For each result, look at:
+- `human_decision`: "approved" | "rejected" — the ground truth
+  - `"approved"` = operator approved the deviation → incident status became **`closed`**
+  - `"rejected"` = operator dismissed as false positive → incident status became **`rejected`**
+- `agent_recommendation`: "APPROVE" | "REJECT" — what the AI said
+- `operator_agreed_with_agent`: did the human agree?
+
+Pattern logic:
+- If ≥2 similar past events were **rejected** (false positive): lower your APPROVE confidence, suggest possible sensor issue or transient.
+- If ≥2 similar past events were **approved** (real deviations): raise your APPROVE confidence, cite them as precedents.
+- Always report the full split (e.g. "3 approved, 2 rejected") in `historical_incidents`.
 
 ## Output Format
 
@@ -52,14 +67,14 @@ Return a structured JSON object with a `tool_calls_log` listing every tool calle
     {"tool": "get_equipment", "args": {"equipment_id": "GR-204"}, "status": "ok"},
     {"tool": "get_batch", "args": {"batch_id": "BATCH-..."}, "status": "ok"},
     {"tool": "get_incident", "args": {"incident_id": "INC-..."}, "status": "ok"},
-    {"tool": "search_incidents", "args": {"equipment_id": "GR-204"}, "status": "ok"},
+    {"tool": "search_incidents", "args": {"equipment_id": "GR-204", "limit": 3}, "status": "ok"},
     {"tool": "get_template", "args": {"template_type": "work_order"}, "status": "ok"},
     {"tool": "get_template", "args": {"template_type": "audit_entry"}, "status": "ok"},
     {"tool": "search_bpr_documents", "args": {"query": "..."}, "status": "ok"},
     {"tool": "search_sop_documents", "args": {"query": "..."}, "status": "ok"},
     {"tool": "search_gmp_policies", "args": {"query": "..."}, "status": "ok"},
     {"tool": "search_equipment_manuals", "args": {"query": "..."}, "status": "ok"},
-    {"tool": "search_incident_history", "args": {"query": "..."}, "status": "ok"}
+    {"tool": "search_incident_history", "args": {"query": "...", "equipment_id": "...", "top_k": 3}, "status": "ok"}
   ],
   "equipment": { "...": "equipment document" },
   "batch": { "...": "batch document" },
@@ -70,7 +85,17 @@ Return a structured JSON object with a `tool_calls_log` listing every tool calle
     "product_par": { "impeller_speed_rpm": [580, 750] },
     "note": "Product NOR/PAR narrower than equipment validated range. Use these limits for deviation assessment."
   },
-  "historical_incidents": [ "...top 5 similar past incidents..." ],
+  "historical_incidents": [
+    {
+      "incident_id": "INC-2026-xxxx",
+      "human_decision": "approved | rejected",  // approved = closed by operator; rejected = dismissed as false positive
+      "agent_recommendation": "APPROVE | REJECT",
+      "operator_agreed_with_agent": true,
+      "deviation_type": "...",
+      "summary": "one-line description"
+    }
+  ],
+  "historical_pattern_summary": "e.g. '4 similar events: 2 approved (real deviations), 2 rejected (false positives / transient spikes). Pattern suggests intermittent sensor noise combined with real risk.'",
   "relevant_sops": [
     { "id": "SOP-DEV-001", "title": "Deviation Management", "relevant_section": "§4.2", "text_excerpt": "..." }
   ],

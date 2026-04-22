@@ -49,6 +49,15 @@ function AiRecCell({ inc }: { inc: Incident }) {
       ((humanAction === "rejected" && aiRec === "APPROVE") ||
         (humanAction === "approved" && aiRec === "REJECT")));
 
+  // When operator agreed with the AI, show only the human decision chip (no duplication)
+  if (isDecided && !isOverride) {
+    return (
+      <div className="ai-rec-cell">
+        <HumanDecisionChip action={humanAction} />
+      </div>
+    );
+  }
+
   return (
     <div className="ai-rec-cell">
       <span
@@ -56,7 +65,7 @@ function AiRecCell({ inc }: { inc: Incident }) {
       >
         {aiRec === "APPROVE" ? "✓ APPROVE" : "✕ REJECT"}
       </span>
-      {isDecided && <HumanDecisionChip action={humanAction} />}
+      {isDecided && isOverride && <HumanDecisionChip action={humanAction} />}
     </div>
   );
 }

@@ -63,6 +63,7 @@ Field definitions:
 | 19 | `work_order_id` | string or null | Set after calling create_work_order, null if call fails |
 | 20 | `audit_entry_id` | string or null | Set after calling create_audit_entry, null if call fails |
 | 21 | `operator_dialogue` | string | Human-facing message for transcript. Round 0: short summary of recommendation. Follow-up rounds: first say what operator question you reviewed, then say clearly whether recommendation/root cause changed or stayed the same, and why. Do not simply repeat the recommendation text. |
+| 22 | `agent_recommendation` | string | EXACTLY one of: `APPROVE` or `REJECT`. Use APPROVE if risk_level is medium/high/critical (deviation requires CAPA). Use REJECT if risk_level is low AND the deviation is a transient/startup spike, sensor noise, or false positive with no confirmed physical fault, no batch quality impact, and no recurrence pattern. |
 
 ### Follow-up Dialogue Quality Gate
 - If this is a follow-up round, `operator_dialogue` must directly answer the operator's latest question in plain language.

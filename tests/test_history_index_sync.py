@@ -55,17 +55,41 @@ def test_build_history_index_documents_uses_incident_title_and_equipment(monkeyp
     assert docs[0]["document_type"] == "incident_history"
 
 
-def test_sync_historical_incident_deletes_non_eligible_docs(monkeypatch) -> None:
-    fake_client = _FakeSearchClient(existing_ids=["INC-2026-0005-chunk-000"])
+def test_sync_historical_incident_upserts_rejected_status_incident(monkeypatch) -> None:
+    """Rejected-status incidents (false positives) must be indexed too."""
+    fake_client = _FakeSearchClient(existing_ids=[])
     monkeypatch.setattr("shared.history_index._get_search_client", lambda: fake_client)
+    monkeypatch.setattr("shared.history_index.embed", lambda text: [0.0] * 3)
 
     result = sync_historical_incident(
         {
             "id": "INC-2026-0005",
             "status": "rejected",
             "title": "Spray Rate Deviation on GR-204",
+            "reported_at": "2026-04-16T09:00:00Z",
+            "lastDecision": {"action": "rejected", "reason": "Transient sensor spike"},
         }
     )
 
-    assert result == {"action": "deleted", "count": 1, "incident_id": "INC-2026-0005"}
-    assert fake_client.deleted == [{"id": "INC-2026-0005-chunk-000"}]
+    assert result["action"] == "upserted"
+    assert result["human_decision"] == "rejected"
+    assert len(fake_client.uploaded) == 1
+    assert "HUMAN DECISION: REJECTED" in fake_client.uploaded[0]["text"]
+
+
+def test_sync_historical_incident_deletes_non_final_docs(monkeypatch) -> None:
+    """Open/pending incidents that are not finalized should be removed from the index."""
+    fake_client = _FakeSearchClient(existing_ids=["INC-2026-0006-chunk-000"])
+    monkeypatch.setattr("shared.history_index._get_search_client", lambda: fake_client)
+
+    result = sync_historical_incident(
+        {
+            "id": "INC-2026-0006",
+            "status": "pending_approval",
+            "title": "Pending incident",
+        }
+    )
+
+    assert result["action"] == "deleted"
+    assert result["count"] == 1
+    assert fake_client.deleted == [{"id": "INC-2026-0006-chunk-000"}]

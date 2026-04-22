@@ -120,18 +120,30 @@ def search_gmp_policies(query: str, top_k: int = 5) -> list[dict[str, Any]]:
 def search_incident_history(
     query: str,
     equipment_id: str | None = None,
-    top_k: int = 5,
+    top_k: int = 3,
 ) -> list[dict[str, Any]]:
     """
     Semantic + vector search in historical GMP deviation incidents.
 
-    Use this to find similar past cases — same equipment, same deviation type,
-    or similar root causes. Useful for identifying patterns and proven remediation.
+    The index contains ALL closed incidents — both approved (real deviations)
+    AND rejected (false positives / transient events dismissed by operators).
+    Each result text includes a clear "HUMAN DECISION:" label:
+      - "HUMAN DECISION: APPROVED" — the operator confirmed this was a real deviation
+        (incident status = closed, approved by operator).
+      - "HUMAN DECISION: REJECTED" — the operator dismissed this as a false positive
+        (incident status = rejected, dismissed without corrective action).
+
+    IMPORTANT for reasoning: Use the human decision to calibrate your recommendation.
+    If similar past events were consistently REJECTED, treat the current event with
+    lower alarm — it may be another false positive. If similar past events were
+    consistently APPROVED, treat the current event seriously.
+
+    Also check "Operator agreed with agent" to understand whether the AI was correct.
 
     Args:
         query:        Natural language description of the current deviation.
         equipment_id: Optional — filter to same equipment history only.
-        top_k:        Number of results to return (default 5).
+        top_k:        Number of results to return (default 8).
     """
     filter_expr = f"equipment_ids/any(e: e eq '{equipment_id}')" if equipment_id else None
     return search_index(IDX_INCIDENTS, query, top_k, filter_expr)

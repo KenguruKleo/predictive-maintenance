@@ -322,9 +322,13 @@ def main() -> None:
 
     for s in scenarios:
         payload = dict(s["payload"])
-        if fresh_suffix and "alert_id" in payload:
-            orig_id = payload["alert_id"]
-            payload["alert_id"] = f"{orig_id}-{fresh_suffix}"
+        if fresh_suffix:
+            if "alert_id" in payload:
+                orig_id = payload["alert_id"]
+                payload["alert_id"] = f"{orig_id}-{fresh_suffix}"
+            # Update detected_at to the actual current time so each fresh run
+            # has a distinct timestamp in Cosmos (not the module-load-time NOW).
+            payload["detected_at"] = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         send_alert(url, payload, s["name"])
 
     print(f"\n{'='*60}")

@@ -130,12 +130,22 @@ def get_incident(incident_id: str) -> dict[str, Any]:
 
 
 @mcp.tool()
-def search_incidents(equipment_id: str, limit: int = 5) -> list[dict[str, Any]]:
+def search_incidents(equipment_id: str, limit: int = 3) -> list[dict[str, Any]]:
     """
     Find recent incidents for a given equipment_id.
 
-    Returns up to `limit` incidents sorted newest first.
-    Use this to find historical cases and patterns for the same equipment.
+    Returns up to `limit` incidents sorted newest first. Each result includes:
+    - human_decision: "approved" | "rejected" | "more_info" | null
+      "approved" = operator confirmed this was a REAL deviation requiring action.
+      "rejected" = operator dismissed this as a false positive / transient spike / no action needed.
+    - agent_recommendation: "APPROVE" | "REJECT" (what the AI recommended)
+    - operator_agreed: whether human agreed with the AI recommendation
+    - deviation details (parameter, measured_value, unit, deviation_type)
+    - ai_analysis summary (risk_level, confidence, root_cause_hypothesis)
+
+    IMPORTANT for reasoning: Use human_decision to understand whether past similar
+    events were real deviations (approved) or false positives (rejected). This is
+    the ground truth for pattern recognition and recommendation calibration.
 
     Example: search_incidents("GR-204", limit=3)
     """
@@ -148,7 +158,50 @@ def search_incidents(equipment_id: str, limit: int = 5) -> list[dict[str, Any]]:
         )
     )
     items.sort(key=lambda x: x.get("created_at", ""), reverse=True)
-    return [_clean(i) for i in items[:limit]]
+
+    results = []
+    for doc in items[:limit]:
+        ai = doc.get("ai_analysis") or {}
+        last_dec = doc.get("lastDecision") or {}
+        human_action = last_dec.get("action")
+        agent_rec = ai.get("agent_recommendation") or last_dec.get("agent_recommendation")
+
+        # Determine operator_agreed
+        if human_action and agent_rec:
+            op_agreed = (human_action == "approved" and agent_rec == "APPROVE") or \
+                        (human_action == "rejected" and agent_rec == "REJECT")
+        else:
+            op_agreed = doc.get("operatorAgreesWithAgent")
+
+        results.append({
+            "incident_id": doc.get("id"),
+            "created_at": doc.get("created_at") or doc.get("reported_at"),
+            "status": doc.get("status"),
+            # Human decision — the ground truth
+            "human_decision": human_action,
+            "human_decision_reason": last_dec.get("reason"),
+            "human_decided_by": last_dec.get("user_id"),
+            # AI recommendation
+            "agent_recommendation": agent_rec,
+            "operator_agreed_with_agent": op_agreed,
+            # Deviation facts
+            "deviation_type": doc.get("deviation_type"),
+            "parameter": doc.get("parameter"),
+            "measured_value": doc.get("measured_value"),
+            "unit": doc.get("unit"),
+            "upper_limit": doc.get("upper_limit"),
+            "lower_limit": doc.get("lower_limit"),
+            "duration_seconds": doc.get("duration_seconds"),
+            "severity": doc.get("severity"),
+            "batch_id": doc.get("batch_id"),
+            # AI analysis summary
+            "risk_level": ai.get("risk_level"),
+            "confidence": ai.get("confidence"),
+            "root_cause": ai.get("root_cause_hypothesis") or ai.get("root_cause"),
+            "batch_disposition": ai.get("batch_disposition"),
+        })
+
+    return results
 
 
 @mcp.tool()

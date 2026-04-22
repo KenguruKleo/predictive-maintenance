@@ -11,8 +11,8 @@ export default function RejectModal({ onConfirm, onCancel }: Props) {
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <h3>Reject Incident</h3>
-        <p>Please provide a reason for rejection (required for audit trail).</p>
+        <h3>Close Incident — No Action</h3>
+        <p>The incident will be closed without CAPA execution. Please provide a reason for the audit trail.</p>
         <textarea
           className="reject-textarea"
           placeholder="Reason for rejection..."
@@ -30,7 +30,7 @@ export default function RejectModal({ onConfirm, onCancel }: Props) {
             disabled={reason.trim().length < 10}
             onClick={() => onConfirm(reason.trim())}
           >
-            Confirm Rejection
+            Close Without Action
           </button>
         </div>
       </div>

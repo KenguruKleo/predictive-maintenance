@@ -11,10 +11,12 @@ export default function AgentRecommendationBadge({ recommendation, overridden }:
       <span className="agent-rec-badge-icon">AI</span>
       <div className="agent-rec-badge-body">
         <span className="agent-rec-badge-label">
-          {overridden ? "AI Recommendation (overridden)" : "AI Recommendation"}
+          {overridden ? "AI recommendation (operator overrode)" : "AI recommendation"}
         </span>
         <strong className="agent-rec-badge-verdict">
-          {isApprove ? "✓ APPROVE — action recommended" : "✕ REJECT — no action required"}
+          {isApprove
+            ? "✓ APPROVE — incident confirmed, action required"
+            : "✕ REJECT — transient / no action required"}
         </strong>
       </div>
     </div>

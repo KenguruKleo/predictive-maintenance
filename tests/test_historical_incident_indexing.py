@@ -33,7 +33,7 @@ class _FakeCosmosClient:
         return _FakeDatabase(self._items)
 
 
-def test_documents_from_incidents_only_indexes_approved_closed_or_completed_cases() -> None:
+def test_documents_from_incidents_indexes_all_finalized_cases() -> None:
     docs = documents_from_incidents(
         _FakeCosmosClient(
             [
@@ -62,22 +62,31 @@ def test_documents_from_incidents_only_indexes_approved_closed_or_completed_case
                 {
                     "id": "INC-2026-0003",
                     "status": "rejected",
+                    "lastDecision": {"action": "rejected", "reason": "Transient sensor spike"},
                     "equipment_id": "GR-204",
-                    "title": "Rejected case",
+                    "title": "Rejected false-positive case",
                     "severity": "major",
                     "reported_at": "2026-04-16T09:00:00Z",
                     "deviation_type": "spray_rate",
-                    "ai_analysis": {"recommendation": "Ignore this case."},
+                    "ai_analysis": {"recommendation": "Investigate sensor."},
                 },
                 {
                     "id": "INC-2026-0004",
                     "status": "closed",
                     "equipment_id": "GR-204",
-                    "title": "Closed without approval signal",
+                    "title": "Closed without explicit approval signal",
                     "severity": "major",
                     "reported_at": "2026-04-15T09:00:00Z",
                     "deviation_type": "spray_rate",
-                    "ai_analysis": {"recommendation": "Should not be indexed."},
+                    "ai_analysis": {"recommendation": "Should still be indexed."},
+                },
+                {
+                    "id": "INC-2026-0005",
+                    "status": "open",
+                    "equipment_id": "GR-204",
+                    "title": "Still open",
+                    "severity": "minor",
+                    "reported_at": "2026-04-20T09:00:00Z",
                 },
             ]
         )
@@ -85,6 +94,11 @@ def test_documents_from_incidents_only_indexes_approved_closed_or_completed_case
 
     filenames = {doc["filename"] for doc in docs}
 
-    assert filenames == {"INC-2026-0001.txt", "INC-2026-0002.txt"}
-    assert all("Rejected case" not in doc["text"] for doc in docs)
-    assert all("Closed without approval signal" not in doc["text"] for doc in docs)
+    # All closed/completed/rejected are indexed
+    assert filenames == {"INC-2026-0001.txt", "INC-2026-0002.txt", "INC-2026-0003.txt", "INC-2026-0004.txt"}
+    # Open incident is NOT indexed
+    assert "INC-2026-0005.txt" not in filenames
+    # Rejected case text contains the human decision label
+    rejected_doc = next(d for d in docs if d["filename"] == "INC-2026-0003.txt")
+    assert "HUMAN DECISION: REJECTED" in rejected_doc["text"]
+    assert "Transient sensor spike" in rejected_doc["text"]

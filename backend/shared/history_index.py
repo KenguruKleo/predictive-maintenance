@@ -17,18 +17,23 @@ SEARCH_WRITE_KEY = os.getenv("AZURE_SEARCH_ADMIN_KEY") or os.getenv("AZURE_SEARC
 
 
 def is_historical_incident_eligible(incident: dict) -> bool:
+    """All finalized incidents are indexed — closed (approved), rejected (false positive), and completed.
+    Rejected false-positive cases are equally valuable for the agent to reason
+    about pattern recognition (e.g. this vibration spike is always a transient)."""
     status = str(incident.get("status") or "").strip().lower()
-    if status not in {"closed", "completed"}:
-        return False
+    return status in {"closed", "completed", "rejected"}
 
+
+def _get_human_decision(incident: dict) -> tuple[str, str]:
+    """Return (action, reason) from lastDecision or finalDecision."""
+    for key in ("lastDecision", "finalDecision"):
+        dec = incident.get(key)
+        if isinstance(dec, dict) and dec.get("action"):
+            return str(dec["action"]).lower(), str(dec.get("reason") or "")
+    # Legacy approved markers
     if incident.get("approvedAt") or incident.get("approvedBy") or incident.get("approved_by"):
-        return True
-
-    final_decision = incident.get("finalDecision")
-    if isinstance(final_decision, dict) and str(final_decision.get("action") or "").lower() == "approved":
-        return True
-
-    return False
+        return "approved", ""
+    return "", ""
 
 
 def incident_to_history_source_doc(incident: dict) -> dict | None:
@@ -51,6 +56,22 @@ def incident_to_history_source_doc(incident: dict) -> dict | None:
     regulatory_reference = _stringify_text(_first_non_empty(ai.get("regulatory_reference"), ai.get("regulatory_refs")))
     batch_disposition = _stringify_text(ai.get("batch_disposition"))
 
+    human_action, human_reason = _get_human_decision(incident)
+    agent_rec = _stringify_text(
+        _first_non_empty(ai.get("agent_recommendation"), incident.get("agent_recommendation"))
+    )
+    last_dec = incident.get("lastDecision") or incident.get("finalDecision") or {}
+    op_agreed = last_dec.get("operator_agrees_with_agent")
+    op_agreed_str = "yes" if op_agreed is True else ("no" if op_agreed is False else "unknown")
+
+    # Human decision label — the ground truth for future pattern learning
+    if human_action == "approved":
+        human_decision_label = "HUMAN DECISION: APPROVED — operator confirmed this was a real GMP deviation requiring corrective action."
+    elif human_action == "rejected":
+        human_decision_label = "HUMAN DECISION: REJECTED — operator dismissed this as a false positive (transient spike, sensor noise, or otherwise not a real deviation). No corrective action was required."
+    else:
+        human_decision_label = "HUMAN DECISION: not recorded"
+
     text = "\n".join(
         [
             f"Incident ID: {incident_id}",
@@ -61,6 +82,10 @@ def incident_to_history_source_doc(incident: dict) -> dict | None:
             f"Root cause: {root_cause}",
             f"Classification: {classification}",
             f"Risk level: {risk_level}",
+            f"Agent recommendation: {agent_rec}",
+            f"Operator agreed with agent: {op_agreed_str}",
+            human_decision_label,
+            f"Human decision reason: {human_reason}" if human_reason else "",
             f"Recommendation: {recommendation}",
             f"CAPA: {capa}",
             f"Regulatory reference: {regulatory_reference}",
@@ -122,10 +147,13 @@ def sync_historical_incident(incident: dict) -> dict:
         if not documents:
             return {"action": "skipped", "reason": "incident not eligible"}
         client.upload_documents(documents=documents)
-        return {"action": "upserted", "count": len(documents), "incident_id": incident_id}
+        human_action, _ = _get_human_decision(incident)
+        return {"action": "upserted", "count": len(documents), "incident_id": incident_id, "human_decision": human_action or "none"}
 
+    # Delete only if still in-progress (open/queued/analyzing/pending_approval/etc.)
+    status = str(incident.get("status") or "").strip().lower()
     deleted = delete_historical_incident(incident_id, client=client)
-    return {"action": "deleted", "count": deleted, "incident_id": incident_id}
+    return {"action": "deleted", "count": deleted, "incident_id": incident_id, "reason": f"status={status} not final"}
 
 
 def delete_historical_incident(incident_id: str, *, client: SearchClient | None = None) -> int:

@@ -195,7 +195,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
               onClick={() => setShowRejectModal(true)}
               disabled={decision.isPending}
             >
-              Reject
+              Decline
             </button>
             <button
               className="btn btn--secondary"
@@ -271,35 +271,52 @@ function getDecisionSummary(incident: Incident): DecisionSummary | null {
     ? "rejected"
     : String(decision?.action || (closureReason ? "rejected" : "")).trim().toLowerCase();
   const actor = formatDecisionActor(decision?.user_id, decision?.role);
+  const agentRec = incident.ai_analysis?.agent_recommendation ?? incident.agentRecommendation;
+
+  // Human-readable label for what the AI recommended about the incident
+  function agentRecLabel(rec: string | undefined): string | undefined {
+    if (rec === "APPROVE") return "APPROVE — incident confirmed, action recommended";
+    if (rec === "REJECT") return "REJECT — transient / no action required";
+    return undefined;
+  }
 
   if (action === "rejected") {
-    const detail = operatorRejectComment || closureReason || "No explicit rejection comment was recorded.";
-    const secondaryDetail = operatorRejectComment && closureReason && closureReason !== operatorRejectComment
-      ? closureReason
-      : undefined;
+    const closureComment = operatorRejectComment || closureReason;
+    const detail = closureComment || "No explicit closure comment was recorded.";
+    const agentRecText = agentRecLabel(agentRec);
+    const operatorAgreed = agentRec === "REJECT"; // operator closed w/o action → agrees with REJECT
 
     return {
-      title: "Recommendation rejected",
-      lead: operatorRejectComment
-        ? "The operator rejected the AI recommendation and closed the incident without CAPA execution."
-        : "The AI recommendation was rejected and the incident was closed without CAPA execution.",
-      detailLabel: operatorRejectComment ? "Operator rejection comment" : "Closure reason",
+      title: "Incident closed — no action taken",
+      lead: closureComment
+        ? "The operator closed the incident without CAPA execution."
+        : "The incident was closed without CAPA execution.",
+      detailLabel: closureComment ? "Closure reason" : "Closure note",
       detail,
       actor: formatDecisionActor(rejectedDecision?.user_id, rejectedDecision?.role) ?? actor,
       tone: "rejected",
-      secondaryDetailLabel: secondaryDetail ? "System closure note" : undefined,
-      secondaryDetail,
+      secondaryDetailLabel: agentRecText ? "AI recommendation" : undefined,
+      secondaryDetail: agentRecText
+        ? `${agentRecText}${operatorAgreed ? " — operator agreed" : " — operator overrode"}`
+        : undefined,
     };
   }
 
   if (action === "approved") {
+    const agentRecText = agentRecLabel(agentRec);
+    const operatorAgreed = agentRec === "APPROVE";
+
     return {
-      title: "Recommendation approved",
-      lead: "The recommendation was approved and moved forward for CAPA execution.",
+      title: "Incident approved for CAPA action",
+      lead: "The incident was approved and moved forward for CAPA execution.",
       detailLabel: "Approval note",
       detail: decision?.reason,
       actor,
       tone: "approved",
+      secondaryDetailLabel: agentRecText ? "AI recommendation" : undefined,
+      secondaryDetail: agentRecText
+        ? `${agentRecText}${operatorAgreed ? " — operator agreed" : " — operator overrode"}`
+        : undefined,
     };
   }
 

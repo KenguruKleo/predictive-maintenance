@@ -644,7 +644,7 @@ def _build_prompt(
                         "text_excerpt": "...",
                     }
                 ],
-                "agent_recommendation": "APPROVE",
+                "agent_recommendation": "APPROVE | REJECT",
                 "work_order_draft": {
                     "title": "...",
                     "description": "...",
@@ -675,7 +675,9 @@ def _build_prompt(
         "Every field above is required except execution_error, which may be null when tool execution succeeds.",
         "Carry forward tool_calls_log from the Research Agent and preserve work_order_id/audit_entry_id from the Document Agent tool execution.",
         "Set agent_recommendation to APPROVE if the deviation requires CAPA action (risk high/critical/medium). "
-        "Set to REJECT only if this is clearly a false positive or sensor error with no physical deviation confirmed. "
+        "Set to REJECT if the deviation is a transient/startup spike, sensor noise, or false positive with NO physical deviation confirmed AND NO history of recurrence requiring investigation. "
+        "Examples of REJECT: single 8-second motor current spike during startup with no fault found, single sensor blip auto-cleared. "
+        "Examples of APPROVE: sustained excursion >1 min, confirmed equipment fault, batch quality impact, repeat pattern requiring CAPA. "
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",
