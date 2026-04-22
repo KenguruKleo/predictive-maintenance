@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NavLink } from "react-router-dom";
+import {
+  Layers,
+  FolderClock,
+  LayoutDashboard,
+  Gauge,
+  FileStack,
+} from "lucide-react";
 import { useAuth } from "../../hooks/useAuth";
 import { useInfiniteActiveIncidents } from "../../hooks/useIncidents";
 import ActiveIncidentItem from "./ActiveIncidentItem";
@@ -7,103 +14,6 @@ import ActiveIncidentItem from "./ActiveIncidentItem";
 const MIN_WIDTH = 180;
 const MAX_WIDTH = 420;
 const DEFAULT_WIDTH = 240;
-
-type NavIconProps = React.SVGProps<SVGSVGElement>;
-
-function OperationsIcon(props: NavIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <rect x="4" y="4" width="16" height="16" rx="2.5" />
-      <path d="M9 8.5h6" />
-      <path d="M9 12h6" />
-      <path d="M9 15.5h4" />
-      <circle cx="7" cy="8.5" r="0.85" fill="currentColor" stroke="none" />
-      <circle cx="7" cy="12" r="0.85" fill="currentColor" stroke="none" />
-      <circle cx="7" cy="15.5" r="0.85" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function HistoryAuditIcon(props: NavIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M4 9V7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2Z" />
-      <path d="M4 9h16" />
-      <path d="M8.5 13h7" />
-      <path d="M8.5 16.5h4.5" />
-    </svg>
-  );
-}
-
-function ManagerDashboardIcon(props: NavIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <rect x="4" y="4" width="16" height="16" rx="2.5" />
-      <path d="M8 15.5V11" />
-      <path d="M12 15.5V8" />
-      <path d="M16 15.5V13" />
-      <path d="M7 18h10" />
-    </svg>
-  );
-}
-
-function TelemetryIcon(props: NavIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M5 15a7 7 0 0 1 14 0" />
-      <path d="M12 15l3.5-3.5" />
-      <path d="M8 18.5h8" />
-      <circle cx="12" cy="15" r="1.25" fill="currentColor" stroke="none" />
-    </svg>
-  );
-}
-
-function TemplatesIcon(props: NavIconProps) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M8 4.5h6l3 3V19a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2Z" />
-      <path d="M14 4.5v4h4" />
-      <path d="M9 11h6" />
-      <path d="M9 14.5h6" />
-      <path d="M9 18h4" />
-    </svg>
-  );
-}
 
 function useSidebarResize() {
   const [width, setWidth] = useState<number>(() => {
@@ -152,13 +62,13 @@ const NAV_GROUPS = [
       {
         to: "/",
         label: "Operations",
-        icon: OperationsIcon,
+        icon: Layers,
         roles: ["operator", "qa-manager", "it-admin"],
       },
       {
         to: "/history",
         label: "History & Audit",
-        icon: HistoryAuditIcon,
+        icon: FolderClock,
         roles: ["*"],
       },
     ],
@@ -169,19 +79,19 @@ const NAV_GROUPS = [
       {
         to: "/manager",
         label: "Manager Dashboard",
-        icon: ManagerDashboardIcon,
+        icon: LayoutDashboard,
         roles: ["qa-manager", "it-admin"],
       },
       {
         to: "/telemetry",
         label: "Telemetry",
-        icon: TelemetryIcon,
+        icon: Gauge,
         roles: ["qa-manager", "auditor", "it-admin"],
       },
       {
         to: "/templates",
         label: "Templates",
-        icon: TemplatesIcon,
+        icon: FileStack,
         roles: ["it-admin"],
       },
     ],

@@ -99,6 +99,7 @@ def notify_operator(input_data: dict) -> dict:
         patch_operations = [
             {"op": "set", "path": "/status", "value": incident_status},
             {"op": "set", "path": "/ai_analysis", "value": ai_result},
+            {"op": "set", "path": "/agentRecommendation", "value": ai_result.get("agent_recommendation")},
             {"op": "set", "path": "/title", "value": ai_result.get("title") or _fallback_title(ai_result)},
             {"op": "set", "path": "/workflow_state", "value": {
                 "durable_instance_id": f"durable-{incident_id}",

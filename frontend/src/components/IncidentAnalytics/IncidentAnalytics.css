@@ -81,3 +81,22 @@
   color: var(--gray-700);
   transform: translateX(2px);
 }
+
+.analytics-count-link {
+  display: inline-block;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-heading);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  padding: 2px 6px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.analytics-count-link:hover,
+.analytics-count-link:focus-visible {
+  background: var(--gray-100);
+  color: var(--primary);
+  text-decoration: underline;
+}

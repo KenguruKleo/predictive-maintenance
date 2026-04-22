@@ -1,4 +1,4 @@
-# T-002 · Фінальне відео (5 хвилин)
+# T-002 · Фінальне відео (до 10 хвилин)
 
 ← [04 · План дій](../04-action-plan.md) · [01 · Вимоги §9](../01-requirements.md#9-deliverables-по-фазах)
 
@@ -14,38 +14,47 @@
 
 ## Чому це критично
 
-> ⚡ **5 хвилин = рішення про top 10.**
-> Judges повинні побачити **working demo**, а не тільки conceptual pitch. Тому відео будуємо навколо реального продукту, а не навколо анімації.
+> ⚡ **До 10 хвилин = рішення про top 10.**
+> Judges повинні побачити **working demo**, а не тільки conceptual pitch. Тому відео будуємо навколо реального продукту, а не навколо анімації. Додатковий час використовуємо щоб показати глибину — editable AI drafts, AI vs Human agreement, feedback loop.
 
 ---
 
-## Структура відео (5 хв = 300 сек)
+## Структура відео (до 10 хв = ~600 сек)
 
 ```text
 [00:00–00:15]  HOOK
                Problem + value claim
 
-[00:15–02:20]  LIVE DEMO — Operator workflow
-               Dashboard → bell → unread queue → incident detail
-               → summary → recommendation → evidence verification
-               → batch disposition → CAPA/work order/audit drafts
+[00:15–02:30]  LIVE DEMO — Operator workflow
+               Dashboard → bell → incident detail
+               → summary → recommendation badge → evidence verification
+               → batch disposition → CAPA actions
+               → editable WO draft + audit entry draft (T-052)
+               → BLOCKED state: empty mandatory forms, Approve disabled
                → follow-up Q&A → approval actions → status history
 
-[02:20–02:50]  SAFE FAILURE STATE
-               waiting/manual-review state instead of fabricated answer
+[02:30–03:10]  CONFIDENCE GATE — три стани
+               LOW_CONFIDENCE banner + mandatory comment
+               BLOCKED state: пустий decision package, ручне заповнення
 
-[02:50–03:25]  QA MANAGER VIEW
-               Escalation queue + recent decisions + override/response metrics
+[03:10–04:00]  QA MANAGER VIEW
+               Escalation queue → continue review
+               Recent Decisions: AI Rec. badge, agreement KPI, infinite scroll (T-043, T-054)
 
-[03:25–03:55]  AUDITOR / IT ADMIN VIEW
-               History filters + CSV export + telemetry + token usage
+[04:00–04:30]  INCIDENT LIST — AI Rec. column
+               AgentRecommendationBadge в кожному рядку
+               AiVsHumanBadge в Recent Decisions і History
 
-[03:55–04:20]  ARCHITECTURE SLIDE
+[04:30–05:00]  AUDITOR / IT ADMIN VIEW
+               History filters + CSV export (з AI rec column) + telemetry + token usage
+
+[05:00–06:00]  ARCHITECTURE SLIDE
                Track A, Durable orchestration, Foundry agents, MCP,
                Service Bus, Cosmos DB, AI Search, SignalR, Entra ID / RBAC
+               Alert feedback loop до SCADA/MES при Reject (T-053)
 
-[04:20–05:00]  IMPACT + CLOSE
-               KPI + regulated workflow value + closing brand frame
+[06:00–07:00]  IMPACT + CLOSE
+               KPI + три-state confidence gate differentiator + GxP audit trail + closing
 ```
 
 ---
@@ -55,13 +64,16 @@
 - **Working product** — judges бачать не mock concept, а реальні role-based screens і incident states
 - **Document & citation verification** — у decision package evidence явно розділене на **Verified** і **Unresolved**. Це закриває вимогу про separate document/citation verification
 - **Human-in-the-loop** — operator може approve / reject / ask for more info; без людського рішення workflow не завершує CAPA execution
+- **Editable AI drafts** (T-052) — оператор редагує WO і audit entry draft перед Approve; при BLOCKED стані форми пусті і **обов'язкові** — це GxP differentiator: людина підтверджує не просто "approve", а конкретний зміст документа
+- **AI vs Human agreement** (T-054) — `AgentRecommendationBadge` і `AiVsHumanBadge` скрізь: у списку інцидентів, у Recent Decisions, в CSV export. Governance стає вимірюваним
 - **Closed-loop actionability** — decision package показує batch disposition, CAPA actions, work order draft і audit entry draft ще до execution step
 - **RBAC** — різні ролі бачать різні surfaces: Operator, QA Manager, Auditor, IT Admin
-- **Safe failure behavior** — якщо agent conclusion не готовий або не grounded, UI не вигадує відповідь і не маскує невизначеність
+- **Three-state confidence gate** — NORMAL / LOW_CONFIDENCE (banner + mandatory comment) / BLOCKED (empty forms + manual fill)
 - **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views
 - **Long-running autonomy** — workflow може чекати 24h і більше без втрати стану, з escalation до QA
-- **Traceability & observability** — status history, telemetry page, audit export, incident timeline
-- **Operational oversight** — manager surfaces already show recent decisions, AI confidence, response time, and human override signals
+- **Traceability & observability** — status history, telemetry page, audit export, incident timeline, AI recommendations у CSV
+- **Operational oversight** — manager surfaces show AI recommendation, AI confidence, response time, human override, agreement rate KPI
+- **Infinite scroll** (T-043) — Recent Decisions підвантажує більше записів при скролі — показує що система масштабується на великі обсяги даних
 
 ---
 
@@ -71,17 +83,20 @@
 
 - Operations Dashboard з active incidents і status-based prioritization
 - Incident Analytics table з period × status counts
+- **Incident list — AI Rec. column** з `AgentRecommendationBadge` (APPROVE / REJECT label з кольором) (T-054)
 - Notification bell з unread badge
 - Sidebar з unread incident queue, timestamps, equipment, unread dot
 - Footer live/offline indicator + active incident count
 - Incident summary: equipment, batch, stage, parameter, measured value, limits, duration, severity
 - Parameter excursion block
+- **`AgentRecommendationBadge`** у decision package (APPROVE / REJECT icon + label) (T-054)
 - AI recommendation: risk, confidence, classification, batch disposition, recommended action, root cause
 - Evidence citations: document type, verified/unresolved status, relevance score, unresolved reason, deep link
 - Batch Release Recommendation + disposition conditions
 - CAPA actions list
-- Work order draft
-- Audit entry draft
+- **Editable Work Order draft form** — оператор редагує поля (equipment, type, priority, title, description) (T-052)
+- **Editable Audit entry draft form** — оператор редагує поля (deviation type, batch reference, action taken, comments) (T-052)
+- **BLOCKED state: пусті форми, обов'язкові для заповнення, Approve disabled до заповнення** (T-052)
 - Approve / Reject / Need More Info controls
 - Agent conversation transcript / follow-up Q&A
 - Low confidence banner when applicable
@@ -91,13 +106,15 @@
 ### QA Manager
 
 - Manager Dashboard stats cards: total, pending, escalated, resolved
+- **AI–Operator Agreement KPI** (% where operator agreed with AI recommendation) (T-054)
 - Escalation Queue
-- Recent Decisions table with AI confidence, human override, response time
+- **Recent Decisions table**: AI Rec. (`AgentRecommendationBadge`), `AiVsHumanBadge` (agreement icon), AI confidence, human override, response time (T-054)
+- **Infinite scroll** у Recent Decisions — scrolling loads next page automatically (T-043)
 - Continue review on escalated incidents with full context preserved
 
 ### Auditor
 
-- History & Audit table
+- History & Audit table — **включає AI Rec. і agreement columns** (T-054)
 - Filters: search, status, severity, date range
 - CSV export of loaded incidents
 - Read-only traceability surfaces
@@ -130,57 +147,50 @@
 
 ### Main cut scenarios
 
-1. **Operator happy path**
+1. **Operator happy path — full editable draft flow** (T-052)
     - Primary candidate: `INC-2026-0001` (GR-204, pending approval, medium risk, conditional release)
-    - Backup candidate: `INC-2026-0006` (MIX-102, pending approval, conditional release)
-    - Show: dashboard → bell → incident detail → recommendation → verified/unresolved evidence → batch disposition → CAPA/work order/audit drafts
-    - Proves: end-to-end flow, AI Fit, explainability, closed-loop actionability
+    - Show: dashboard → AI Rec. badge in incident list → bell → incident detail → `AgentRecommendationBadge` (APPROVE) → evidence (verified/unresolved) → batch disposition → CAPA actions → **edit WO draft fields** → **edit Audit entry fields** → Approve enabled → click Approve
+    - Proves: AI recommendation is visible upfront, operator edits structured documents not just clicks OK, GxP traceability
 
 2. **Follow-up question / Need More Info**
-    - Show: recorded transcript or prepared follow-up response inside the same incident
+    - Show: recorded transcript або prepared follow-up response inside the same incident
     - Proves: human-in-the-loop is iterative, not only approve/reject
 
-3. **Safe failure / withheld output**
-    - Strong candidate: `INC-2026-0010` (BLOCKED, confidence `0.31`, no recommendation, auto-escalated by policy)
-    - Show: incident with no final recommendation yet, explicit waiting/manual-review state
-    - Proves: system does not fabricate unsafe output
+3. **BLOCKED state — mandatory form fill** (T-052)
+    - Strong candidate: `INC-2026-0010` (BLOCKED, confidence `0.31`, no recommendation)
+    - Show: incident з порожніми WO і audit entry forms, поля marked required, Approve button disabled; operator fills in mandatory fields → Approve becomes enabled
+    - Proves: system enforces human accountability for decisions — người підписує конкретний документ, а не просто "клікає"
 
-4. **QA escalation**
+4. **Low confidence — mandatory comment**
+    - Candidate: `INC-2026-0008` (`LOW_CONFIDENCE`, confidence ~0.55)
+    - Show: warning banner + mandatory comment field before any decision
+    - Proves: three-state confidence gate (NORMAL / LOW_CONFIDENCE / BLOCKED)
+
+5. **QA escalation**
     - Primary candidate: `INC-2026-0007` (24h timeout escalation to QA Manager)
     - Show: escalated incident in Manager Dashboard / Escalation Queue
     - Proves: long-running workflow, timeout escalation, continuity of state
 
-5. **Manager oversight**
-    - Show: Recent Decisions table with AI confidence, human override, response time
-    - Proves: measurable governance and operational oversight
+6. **Manager oversight — AI vs Human + infinite scroll** (T-043, T-054)
+    - Show: Recent Decisions table з `AgentRecommendationBadge`, `AiVsHumanBadge` (✅ agreed / ⚠️ overridden), AI confidence, response time → scroll down to trigger next page load
+    - Proves: measurable governance, infinite scroll scalability
 
-6. **Auditor export**
-    - Show: History & Audit filters + CSV export click
-    - Proves: inspection readiness and auditability
+7. **Auditor export + AI columns** (T-054)
+    - Show: History & Audit з AI Rec. і agreement columns → Export CSV click
+    - Proves: inspection readiness and auditability including AI recommendation tracking
 
-7. **Admin telemetry**
+8. **Admin telemetry**
     - Show: telemetry summary + token totals + trace/failure counters
     - Proves: observability, prompt traceability, token governance
-
-### Backup scenarios
-
-1. Low-confidence recommendation banner (**promote to main cut** — covers 3-state confidence gate)
-    - Candidate: `INC-2026-0008` (`LOW_CONFIDENCE`, confidence ~0.55, banner visible, mandatory comment field)
-2. Conditional release with explicit disposition conditions
-3. Rejection path with operator reason
-4. Real-time unread routing in sidebar and bell
-5. Template management for IT Admin
 
 ### Setup checks before recording
 
 - Verify one incident has clear **Verified** and **Unresolved** evidence rows
-- Prefer to validate this on the same happy-path incident before recording, otherwise swap to the best evidence-rich pending incident
-- Verify one incident is in waiting/manual-review or `awaiting_agents` style state
-- If no dedicated waiting-state incident exists in the seed, use `INC-2026-0010` as the safe-failure / withheld-output proof point
-- Verify one incident is in `escalated` state
-- `INC-2026-0007` should be the first escalation candidate to test
+- Verify `INC-2026-0001` has `ai_analysis.work_order_draft` і `ai_analysis.audit_entry_draft` populated — inits the editable forms
+- Verify `INC-2026-0010` is in BLOCKED state з confidence ≤ 0.35 — forms empty, Approve disabled
+- Verify one incident is in `escalated` state (`INC-2026-0007`)
+- Verify Recent Decisions table has **more than 20 entries** щоб продемонструвати infinite scroll
 - Verify telemetry for chosen admin incident contains trace items and token counts
-- Verify Recent Decisions table is populated
 - Verify a follow-up transcript exists, or record that scenario separately as its own take
 
 ---
@@ -189,12 +199,12 @@
 
 | Параметр | Значення |
 | --- | --- |
-| Тривалість | ≤ 5:10 хвилин (hard limit) |
+| Тривалість | ≤ 10:10 хвилин (hard limit) |
 | Мова | **English** |
 | Субтитри | Обов'язкові (judges можуть дивитись без звуку) |
 | Формат | MP4 |
 | Якість відео | ≥ 1080p |
-| Розмір файлу | ≤ 300 MB |
+| Розмір файлу | ≤ 500 MB |
 
 ---
 
@@ -211,54 +221,16 @@
 
 ## Recording notes
 
-- Не записувати як один take. Краще 4-5 чистих сегментів і змонтувати їх в один безшовний flow
+- Не записувати як один take. Краще 6-8 чистих сегментів і змонтувати їх в один безшовний flow
 - Не витрачати час на live sign-in. Використати `e2e` auth mode і перемикати ролі між takes
-- Основний happy path — один конкретний incident: **Granulator GR-204**
-- Окремо підготувати incident у **waiting/manual-review** state для safe failure beat
+- Основний happy path — один конкретний incident: **Granulator GR-204** (`INC-2026-0001`)
+- Підготувати окремо: `INC-2026-0008` для LOW_CONFIDENCE beat, `INC-2026-0010` для BLOCKED beat, `INC-2026-0007` для QA escalation beat
+- **Editable forms take**: seed `INC-2026-0001` повинен мати `work_order_draft` і `audit_entry_draft` в `ai_analysis` → перевірити перед записом
+- **Infinite scroll take**: Recent Decisions повинна мати 20+ записів → перевірити seed або генерувати через `scripts/seed_cosmos.py`
 - Якщо є prepared transcript, у happy path показати `Need More Info` loop як already recorded conversation, а не live typing
-- Для manager beat краще мати дані з `Recent Decisions`, де видно `AI Confidence`, `Override`, `Response Time`
+- Для manager beat показати `AiVsHumanBadge` — де ✅ (operator agreed) і ⚠️ (operator overrode AI). Краще мати мікс обох в Recent Decisions
 - Для admin beat цілитись у incident з telemetry summary, де є `Prompt Tokens`, `Completion Tokens`, `Total Tokens`
 - Optional only: browser popup notification. Не робити його критичним для фінального cut
-- Optional backup beats only if after dry-run ще є запас: `History & Audit` filters, `Quick Jump` palette, `Document Templates` page для IT Admin
-
----
-
-## Сценарій відео (по секундах, узгоджений з новим темпом)
-
-| Час | Що на екрані | Що говоримо |
-| --- | --- | --- |
-| **00:00–00:07** | Title slide: `Sentinel Intelligence` + subtitle `GMP Deviation & CAPA Operations Assistant` | "In GMP manufacturing, one deviation can trigger thirty to sixty minutes of manual investigation." |
-| **00:07–00:15** | Hook slide: `45 min -> < 2 min` + `Governed AI assistance` | "Sentinel Intelligence brings that below two minutes — end to end — with AI, human approval, and traceability at every step." |
-| **00:15–00:25** | Operations Dashboard with incident counts, analytics table, footer live status. | "This is the live operations dashboard, showing active incidents, status trends, and real-time system connectivity at a glance." |
-| **00:25–00:35** | Open bell dropdown, show unread sidebar item, click incident. | "A new incident appears in the bell and unread queue, then opens directly into the decision workflow for the operator." |
-| **00:35–00:55** | Incident detail summary + parameter excursion. Pause on equipment, batch, measured value, limits. | "Notice that the operator does not see raw telemetry alone. They get the equipment, the affected batch, the measured value, the validated range, the duration, and the severity in one view. That is the context needed for a regulated decision." |
-| **00:55–01:15** | AI recommendation block. Pause on risk, confidence, classification, batch disposition. | "The recommendation is more than a summary. It includes risk, confidence, classification, and the proposed batch disposition, so the operator can see both what the system suggests and how certain it is about that suggestion." |
-| **01:15–01:35** | Evidence section. Hold on verified and unresolved evidence rows. | "This is one of the most important screens. Verified citations are grounded in retrieved source material, while unresolved items stay visibly unresolved, so the user can distinguish evidence from assumptions before approving anything in a regulated workflow." |
-| **01:35–01:50** | Batch Release Recommendation + conditions. | "Here the judge should notice that the system does not stop at diagnosis. It recommends the batch path and clearly states the conditions that must be met before release." |
-| **01:50–02:05** | `After Approval` section with CAPA actions, work order draft, audit entry draft. | "This is not just analysis. The system prepares CAPA actions, a work order draft, and an audit entry draft before execution begins, so downstream work is already structured for review." |
-| **02:05–02:20** | Need More Info transcript or available actions. | "If the operator needs more context, they can ask a follow-up question, and that conversation remains attached to the incident for traceability instead of disappearing outside the workflow." |
-| **02:20–02:35** | Incident with `LOW_CONFIDENCE` banner (e.g. `INC-2026-0008`, confidence ~0.55). Show banner + mandatory comment field. | "When confidence falls below the threshold, the system shows a warning banner and requires the operator to leave a comment before deciding. The operator still decides — there is no automatic escalation. This is a governed co-pilot, not an override machine." |
-| **02:35–02:50** | Pivot to `BLOCKED` state incident (`INC-2026-0010`, confidence 0.31, empty decision package). | "When the AI pipeline cannot produce a grounded result at all, the state is different: the recommendation is withheld entirely and the operator sees an empty form for manual entry. The incident is not lost — it stays in the workflow with a full audit trail. The system degrades gracefully instead of fabricating an answer." |
-| **02:50–03:08** | QA Manager view: Manager Dashboard + Escalation Queue. | "If the incident is not handled in time, the workflow escalates to QA with the full context preserved. The important detail here is that the case is reassigned, not restarted, so review continues without losing history." |
-| **03:08–03:25** | Recent Decisions table with AI confidence, override, response time. | "This manager view is where governance becomes measurable. Response time shows operational speed, AI confidence shows model certainty, and human override shows where people corrected or challenged the recommendation." |
-| **03:25–03:40** | Auditor view: History & Audit filters + click `Export CSV`. | "For auditors, the incident log is filterable and exportable, so the current audit set can be downloaded in one click. That makes the workflow easy to review offline." |
-| **03:40–03:55** | IT Admin view: Incident Telemetry summary with trace counters and token totals. | "Administrators can inspect trace counts, failures, rounds, duration, and token usage for each incident. This is the operational layer for troubleshooting prompts, agent runs, and cost-related governance." |
-| **03:55–04:08** | Architecture slide reveal step 1: Track A + two-level orchestration. | "This is Track A: GitHub, Azure, and Azure AI Foundry. The architecture has two separate orchestration levels: Durable Functions handle the stateful workflow — incident creation, HITL pause, retry, and escalation. Azure AI Foundry handles AI reasoning — research, synthesis, and tool calls. Each level has a distinct responsibility." |
-| **04:08–04:20** | Architecture slide reveal step 2 and 3: Service Bus, Cosmos DB, SignalR, MCP, security + CI/CD layer. | "AI Search grounds answers in validated documents. Service Bus absorbs alert bursts. Cosmos stores durable state. SignalR pushes real-time updates. MCP keeps integrations pluggable. Security runs on PIM just-in-time access, Conditional Access with MFA, and Defender for Cloud. The Foundry eval gate in CI/CD blocks any deployment where AI quality regresses." |
-| **04:20–04:40** | KPI slide: before/after numbers. | "The result is a production-ready pattern for pharma operations: faster deviation handling, standardized decision support, and full traceability for regulated environments. In practice, it reduces investigation time while keeping approvals, escalation, and evidence review inside one governed flow." |
-| **04:40–04:52** | Closing product screenshot or KPI slide. | "Instead of chasing documents and approvals manually, operators get a governed decision package in minutes, with evidence, actions, and next steps already structured." |
-| **04:52–05:00** | Final branded closing frame. | "This is Sentinel Intelligence, built for governed pharma operations at scale." |
-
-### Delivery notes
-
-- Тримати паузу 1-2 секунди на `Verified` / `Unresolved` badges, щоб judges встигли це прочитати
-- Не показувати live login, role switching або технічні transition steps. Ролі змінювати між takes і зводити в монтажі
-- У segment `02:20–02:50` показати **два різних стани**: `LOW_CONFIDENCE` (оператор вирішує сам, з банером) і `BLOCKED` (пустий decision package, ручне заповнення). Це три-state confidence gate — ключовий RAI differentiator
-- `operator_agrees_with_agent` прапор записується при Approve і Reject разом з причиною rejection, яка йде назад до SCADA/MES як feedback. Якщо є час у монтажі — показати rejection path як окремий beat
-- Якщо показуємо `After Approval` section, не читати всі поля з draft objects. Достатньо коротко назвати: `CAPA actions`, `work order draft`, `audit entry draft`
-- На architecture slide робити поетапне reveal у 3 кроки: `Track A + orchestration`, потім `AI Search / Service Bus / Cosmos / SignalR / MCP`, потім `Entra ID / RBAC / HITL`
-- Якщо approval click ламає pacing, можна не тиснути кнопку у happy path, а тільки показати available actions і audit timeline окремим cut
-- Якщо follow-up transcript не готовий, не робити live typing в основному cut. Краще показати prepared transcript або викинути цей beat на користь telemetry/export
 
 ---
 
@@ -269,17 +241,66 @@
 
 ---
 
+## Сценарій відео (по секундах, узгоджений з новим темпом)
+
+| Час | Що на екрані | Що говоримо |
+| --- | --- | --- |
+| **00:00–00:07** | Title slide: `Sentinel Intelligence` + subtitle `GMP Deviation & CAPA Operations Assistant` | "In GMP manufacturing, one deviation can trigger thirty to sixty minutes of manual investigation." |
+| **00:07–00:15** | Hook slide: `45 min -> < 2 min` + `Governed AI assistance` | "Sentinel Intelligence brings that below two minutes — end to end — with AI, human approval, and traceability at every step." |
+| **00:15–00:25** | Operations Dashboard з incident counts, analytics table, footer live status. | "This is the live operations dashboard, showing active incidents, status trends, and real-time system connectivity at a glance." |
+| **00:25–00:35** | Incident list — показати AI Rec. column з `AgentRecommendationBadge` (зелений APPROVE / червоний REJECT). | "Notice that the AI recommendation is visible directly in the incident list — before the operator even opens the case. Each row shows whether the system recommends approval or rejection, so triage starts immediately." |
+| **00:35–00:50** | Open bell dropdown, show unread sidebar item, click incident. | "A new incident appears in the bell and unread queue, then opens directly into the decision workflow for the operator." |
+| **00:50–01:10** | Incident detail summary + parameter excursion. Pause on equipment, batch, measured value, limits. | "Notice that the operator does not see raw telemetry alone. They get the equipment, the affected batch, the measured value, the validated range, the duration, and the severity in one view. That is the context needed for a regulated decision." |
+| **01:10–01:28** | `AgentRecommendationBadge` у decision package (APPROVE з іконкою). AI recommendation block — risk, confidence, classification, batch disposition. | "The recommendation is visible immediately with a clear APPROVE or REJECT label. Below that, the operator sees risk, confidence, classification, and the proposed batch disposition, so they can see both what the system suggests and how certain it is." |
+| **01:28–01:50** | Evidence section. Hold on verified and unresolved evidence rows. | "This is one of the most important screens. Verified citations are grounded in retrieved source material, while unresolved items stay visibly unresolved, so the user can distinguish evidence from assumptions before approving anything in a regulated workflow." |
+| **01:50–02:05** | Batch Release Recommendation + conditions. CAPA actions list. | "The system does not stop at diagnosis. It recommends the batch path with explicit conditions that must be met before release, and prepares the full CAPA action list." |
+| **02:05–02:30** | **Editable WO draft form** — scroll to Work Order section, show editable fields (equipment, type, priority, title, description). Operator modifies one field (e.g., priority or description). | "This is where T-052 changes the GxP story. The operator is not just clicking Approve on an AI output — they are editing and confirming the actual work order document. Every field is pre-populated by the AI from the incident context, but the operator owns the final content." |
+| **02:30–02:50** | **Editable Audit entry draft form** — scroll to Audit section, show deviation type, batch reference, action taken, comments fields. | "Same pattern for the audit entry: AI fills the draft, operator reviews and confirms each field. Only when both forms are complete does the Approve button become active. This is a governed co-authorship model, not a rubber stamp." |
+| **02:50–03:10** | Click Approve. Status changes → show status history / audit timeline. | "Approval commits both the work order and audit entry to the record. The status timeline updates immediately, and the decision is locked in with operator identity, timestamp, and confirmed document content." |
+| **03:10–03:25** | Incident with `LOW_CONFIDENCE` banner (INC-2026-0008, confidence ~0.55). Show banner + mandatory comment field. | "When confidence falls below the threshold, the system shows a warning banner and requires the operator to leave a comment before deciding. The operator still decides — there is no automatic escalation. This is a governed co-pilot, not an override machine." |
+| **03:25–03:50** | Pivot to `BLOCKED` state incident (INC-2026-0010, confidence 0.31). Show empty WO and audit forms with red required indicators. Approve button visibly disabled. Operator fills mandatory field → Approve becomes enabled. | "When the AI pipeline cannot produce a grounded result at all, the state is different: the recommendation is withheld entirely and both document forms are empty, with every mandatory field marked required. The operator cannot approve until those fields are filled. This is not a bypass — it is an enforcement point." |
+| **03:50–04:10** | QA Manager view: Manager Dashboard → stats cards → **AI–Operator Agreement KPI widget**. | "If the incident is not handled in time, the workflow escalates to QA with the full context preserved. At the top of the manager dashboard you can see the AI–operator agreement rate — in this session, operators agreed with the AI recommendation eighty-three percent of the time. That is a measurable governance signal." |
+| **04:10–04:35** | Escalation Queue → Recent Decisions table. Show `AgentRecommendationBadge` column, `AiVsHumanBadge` (✅ agreed / ⚠️ overridden), AI confidence, response time. | "The Recent Decisions table shows every resolved case with the AI recommendation, whether the operator agreed or overridden it, AI confidence, and response time. Governance is now measurable at a glance." |
+| **04:35–04:50** | Scroll down у Recent Decisions — показати loading spinner, нові рядки завантажуються (infinite scroll). | "The table uses infinite scroll to load additional records on demand — this same view scales to hundreds of decisions without pagination clicks." |
+| **04:50–05:05** | Auditor view: History & Audit table з AI Rec. і agreement columns. Click `Export CSV`. | "For auditors, the incident log includes the AI recommendation and agreement status in every row and is exportable in one click. That makes the full audit set — including AI outputs — available for offline review." |
+| **05:05–05:20** | IT Admin view: Incident Telemetry summary з trace counters і token totals. | "Administrators can inspect trace counts, failures, rounds, duration, and token usage for each incident. This is the operational layer for troubleshooting prompts, agent runs, and cost-related governance." |
+| **05:20–05:35** | Architecture slide reveal step 1: Track A + two-level orchestration. | "This is Track A: GitHub, Azure, and Azure AI Foundry. The architecture has two separate orchestration levels: Durable Functions handle the stateful workflow — incident creation, HITL pause, retry, and escalation. Azure AI Foundry handles AI reasoning — research, synthesis, and tool calls. Each level has a distinct responsibility." |
+| **05:35–05:55** | Architecture slide reveal step 2: Service Bus, Cosmos DB, AI Search, SignalR, MCP, Entra ID, CI/CD. | "AI Search grounds answers in validated documents. Service Bus absorbs alert bursts. Cosmos stores durable state. SignalR pushes real-time updates. MCP keeps integrations pluggable. Security runs on PIM just-in-time access, Conditional Access with MFA, and Defender for Cloud. The Foundry eval gate in CI/CD blocks any deployment where AI quality regresses." |
+| **05:55–06:05** | Architecture slide highlight: alert feedback loop arrow from Reject back to SCADA/MES. | "When an operator rejects a recommendation, the operator-agrees-with-agent flag and the rejection reason are recorded and flow back toward the source system. Every decision enriches the operational record — this is a closed-loop, not a one-way advisory." |
+| **06:05–06:25** | KPI slide: before/after numbers + three-state confidence gate summary. | "The result is a production-ready pattern for pharma operations: faster deviation handling, standardized decision support, and full traceability for regulated environments. The three-state confidence gate — normal, low confidence, and blocked — means the system never fabricates a confident answer when it cannot be grounded." |
+| **06:25–06:40** | Closing product screenshot або KPI slide. | "Instead of chasing documents and approvals manually, operators get a governed decision package in minutes, with evidence, actions, and next steps already structured — and with editable drafts that make every approval a confirmed human act, not just a click." |
+| **06:40–06:50** | Final branded closing frame. | "This is Sentinel Intelligence, built for governed pharma operations at scale." |
+
+### Delivery notes
+
+- Тримати паузу 1-2 секунди на `Verified` / `Unresolved` badges, `AgentRecommendationBadge`, і `AiVsHumanBadge` — щоб judges встигли прочитати
+- Не показувати live login, role switching або технічні transition steps. Ролі змінювати між takes і зводити в монтажі
+- **Editable forms beat (02:05–02:50)** — найважливіший новий beat. Треба щоб seed incident `INC-2026-0001` мав `ai_analysis.work_order_draft` і `ai_analysis.audit_entry_draft` populated. Показати саме редагування, а не просто скрол
+- **BLOCKED beat (03:25–03:50)** — `INC-2026-0010` повинен бути в стані де Approve disabled. Показати момент коли оператор заповнює одне поле і Approve стає enabled — це drama moment
+- **Infinite scroll beat (04:35–04:50)** — переконатись що є 20+ записів у Recent Decisions. Scroll повільно, щоб spinner був видимий
+- `operator_agrees_with_agent` прапор записується при Approve і Reject. `AiVsHumanBadge` показує цей результат. Якщо є час — показати reject path де badge стає ⚠️
+- На architecture slide робити поетапне reveal у 3 кроки: orchestration → services → feedback loop
+- Якщо approval click ламає pacing, можна показати available actions і audit timeline окремим cut замість live click
+
+---
+
 ## Definition of Done
 
 - [ ] Повний сценарій (script) написаний та схвалений командою
 - [ ] [T-001](./T-001-architecture-presentation.md) architecture slides готові
-- [ ] Покадровий таймінг dry-run перевірений: narration вкладається в 5:00 без поспіху
-- [ ] Підготовлено мінімум 4 demo states: operator happy path, waiting/manual-review state, QA escalation state, auditor/admin traceability state
+- [ ] Покадровий таймінг dry-run перевірений: narration вкладається в 7:00 без поспіху (запас 3 хв на монтажні паузи та transitions)
+- [ ] Підготовлено мінімум 5 demo states: operator happy path + editable drafts, LOW_CONFIDENCE, BLOCKED mandatory fill, QA escalation, auditor/admin traceability
 - [ ] Evidence verification state (**verified** vs **unresolved**) чітко видно у recorded demo
+- [ ] **Editable WO та Audit entry forms** показані з реальним редагуванням поля (T-052)
+- [ ] **BLOCKED state** показує Approve disabled → оператор заповнює → Approve enabled (T-052)
+- [ ] **`AgentRecommendationBadge`** видно в incident list і в decision package (T-054)
+- [ ] **`AiVsHumanBadge`** видно в Recent Decisions (T-054)
+- [ ] **AI–Operator Agreement KPI** видно в Manager Dashboard (T-054)
+- [ ] **Infinite scroll** у Recent Decisions показано (scroll → spinner → нові рядки) (T-043)
 - [ ] Live demo записаний clean segments для монтажу
 - [ ] Відео змонтовано в єдиний файл
 - [ ] Субтитри додані та перевірені
-- [ ] Тривалість ≤ 5:10
+- [ ] Тривалість ≤ 10:10
 - [ ] Переглянуто командою та схвалено
 - [ ] Завантажено на платформу хакатону до дедлайну
 

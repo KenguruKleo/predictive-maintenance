@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getIncidents } from "../api/incidents";
 import Filters from "../components/IncidentList/Filters";
@@ -48,16 +48,26 @@ function exportIncidentsToCSV(incidents: Incident[]): void {
 const PAGE_SIZE = 20;
 
 export default function IncidentHistoryPage() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  function getQueryParam(name: string) {
-    return new URLSearchParams(location.search).get(name) || "";
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // All filter state lives in the URL — read directly from params
+  const search = searchParams.get("search") ?? "";
+  const status = (searchParams.get("status") ?? "") as IncidentStatus | "";
+  const severity = (searchParams.get("severity") ?? "") as Severity | "";
+  const dateFrom = searchParams.get("date_from") ?? "";
+  const dateTo = searchParams.get("date_to") ?? "";
+
+  function setParam(key: string, value: string) {
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) next.set(key, value);
+        else next.delete(key);
+        return next;
+      },
+      { replace: true },
+    );
   }
-  const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<IncidentStatus | "">("");
-  const [severity, setSeverity] = useState<Severity | "">("");
-  const [dateFrom, setDateFrom] = useState(() => getQueryParam("date_from"));
-  const [dateTo, setDateTo] = useState(() => getQueryParam("date_to"));
 
   const filters = {
     search: search || undefined,
@@ -98,7 +108,7 @@ export default function IncidentHistoryPage() {
     const ro = new ResizeObserver(() => {
       document.documentElement.style.setProperty(
         "--filter-bar-height",
-        `${el.offsetHeight}px`
+        `${el.offsetHeight}px`,
       );
     });
     ro.observe(el);
@@ -116,22 +126,11 @@ export default function IncidentHistoryPage() {
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0.1 },
     );
     observer.observe(el);
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
-
-  // Sync filter state with URL if changed via UI
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    if (dateFrom) params.set("date_from", dateFrom); else params.delete("date_from");
-    if (dateTo) params.set("date_to", dateTo); else params.delete("date_to");
-    const url = location.pathname + (params.toString() ? `?${params}` : "");
-    if (url !== location.pathname + location.search) {
-      navigate(url, { replace: true });
-    }
-  }, [dateFrom, dateTo, location.pathname, location.search, navigate]);
 
   return (
     <div className="page-history">
@@ -141,15 +140,15 @@ export default function IncidentHistoryPage() {
       <div className="history-sticky-bar" ref={stickyBarRef}>
         <Filters
           search={search}
-          onSearchChange={setSearch}
+          onSearchChange={(v) => setParam("search", v)}
           status={status}
-          onStatusChange={setStatus}
+          onStatusChange={(v) => setParam("status", v)}
           severity={severity}
-          onSeverityChange={setSeverity}
+          onSeverityChange={(v) => setParam("severity", v)}
           dateFrom={dateFrom}
-          onDateFromChange={setDateFrom}
+          onDateFromChange={(v) => setParam("date_from", v)}
           dateTo={dateTo}
-          onDateToChange={setDateTo}
+          onDateToChange={(v) => setParam("date_to", v)}
         />
         <div className="history-meta">
           <span>Showing {incidents.length} of {total} incidents</span>

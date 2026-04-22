@@ -1,5 +1,24 @@
 import type { Incident } from "../../types/incident";
 
+/**
+ * Fixed ordered list of statuses to always show as columns in analytics,
+ * regardless of what's actually in the current data set.
+ */
+export const ANALYTICS_STATUSES = [
+  "open",
+  "ingested",
+  "analyzing",
+  "awaiting_agents",
+  "pending_approval",
+  "escalated",
+  "approved",
+  "in_progress",
+  "executed",
+  "completed",
+  "rejected",
+  "closed",
+] as const;
+
 // Group incidents by period (e.g., day) and status
 export function groupIncidentsByPeriodAndStatus(
   incidents: Incident[],
@@ -38,12 +57,17 @@ function getWeekNumber(date: Date) {
 
 export function getStatusLabel(status: string) {
   switch (status) {
+    case "open": return "Open";
+    case "ingested": return "Ingested";
+    case "analyzing": return "Analyzing";
+    case "awaiting_agents": return "Awaiting Agents";
     case "pending_approval": return "Pending Approval";
     case "escalated": return "Escalated";
-    case "analyzing": return "Analyzing";
-    case "ingested": return "Ingested";
-    case "open": return "Open";
     case "approved": return "Approved";
+    case "in_progress": return "In Progress";
+    case "executed": return "Executed";
+    case "completed": return "Completed";
+    case "rejected": return "Rejected";
     case "closed": return "Closed";
     default: return status;
   }

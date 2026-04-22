@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import type React from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import type { RecentDecision } from "../../types/stats";
@@ -64,7 +65,7 @@ export default function RecentDecisions() {
   return (
     <div>
       <AgreementRateKpi decisions={decisions} />
-      <div className="table-wrapper">
+      <div className="table-wrapper" style={{ "--filter-bar-height": "0px" } as React.CSSProperties}>
         <table className="incident-table">
           <thead>
             <tr>

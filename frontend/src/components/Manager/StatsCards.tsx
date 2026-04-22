@@ -1,23 +1,47 @@
+import { Activity, Clock, TrendingUp, ShieldCheck } from "lucide-react";
 import type { StatsSummary } from "../../types/stats";
 
 interface Props {
   stats: StatsSummary;
 }
 
+const CARDS = [
+  {
+    key: "total_incidents" as const,
+    label: "TOTAL",
+    Icon: Activity,
+    variant: "total",
+  },
+  {
+    key: "pending_approval" as const,
+    label: "PENDING",
+    Icon: Clock,
+    variant: "pending",
+  },
+  {
+    key: "escalated" as const,
+    label: "ESCALATED",
+    Icon: TrendingUp,
+    variant: "escalated",
+  },
+  {
+    key: "resolved" as const,
+    label: "RESOLVED",
+    Icon: ShieldCheck,
+    variant: "resolved",
+  },
+];
+
 export default function StatsCards({ stats }: Props) {
-  const cards = [
-    { label: "Total", value: stats.total_incidents, icon: "📊" },
-    { label: "Pending", value: stats.pending_approval, icon: "⏳" },
-    { label: "Escalated", value: stats.escalated, icon: "⏫" },
-    { label: "Resolved", value: stats.resolved, icon: "✅" },
-  ];
   return (
     <div className="stats-cards">
-      {cards.map((c) => (
-        <div key={c.label} className="stat-card">
-          <span className="stat-icon">{c.icon}</span>
-          <span className="stat-value">{c.value}</span>
-          <span className="stat-label">{c.label}</span>
+      {CARDS.map(({ key, label, Icon, variant }) => (
+        <div key={key} className={`stat-card stat-card--${variant}`}>
+          <div className="stat-icon-wrap">
+            <Icon className="stat-icon-svg" strokeWidth={1.5} />
+          </div>
+          <span className="stat-value">{stats[key]}</span>
+          <span className="stat-label">{label}</span>
         </div>
       ))}
     </div>

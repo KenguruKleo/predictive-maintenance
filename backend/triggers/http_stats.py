@@ -169,7 +169,7 @@ def _build_all_decisions(rows: list[dict]) -> list[dict]:
             "operator": _format_decision_actor(final_decision),
             "decision": action,
             "ai_confidence": _coerce_float(row.get("confidence")),
-            "human_override": _normalize_decision_role(final_decision.get("role")) == "qa-manager",
+            "human_override": row.get("operatorAgreesWithAgent") is False,
             "agent_recommendation": row.get("agentRecommendation"),
             "operator_agrees_with_agent": row.get("operatorAgreesWithAgent"),
             "decided_at": decided_at.isoformat(),

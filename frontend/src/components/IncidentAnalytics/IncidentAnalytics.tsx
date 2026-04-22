@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Incident } from "../../types/incident";
-import { groupIncidentsByPeriodAndStatus, getStatusLabel, getPeriodLabel } from "./analyticsUtils";
+import { groupIncidentsByPeriodAndStatus, getStatusLabel, getPeriodLabel, ANALYTICS_STATUSES } from "./analyticsUtils";
 import { Link } from "react-router-dom";
 import "./IncidentAnalytics.css";
 
@@ -12,10 +12,11 @@ export default function IncidentAnalytics({ incidents }: IncidentAnalyticsProps)
   // Group by period (e.g., day) and status
   const grouped = useMemo(() => groupIncidentsByPeriodAndStatus(incidents), [incidents]);
 
-  // Get all unique periods and statuses
   const periods = Object.keys(grouped);
-  const statuses = Array.from(
-    new Set(periods.flatMap((p) => Object.keys(grouped[p])))
+
+  // Only show status columns that have at least one non-zero value across all periods
+  const statuses = ANALYTICS_STATUSES.filter((s) =>
+    periods.some((p) => (grouped[p][s] ?? 0) > 0)
   );
 
   return (
@@ -42,11 +43,23 @@ export default function IncidentAnalytics({ incidents }: IncidentAnalyticsProps)
                     {getPeriodLabel(period)}
                   </Link>
                 </td>
-                {statuses.map((status) => (
-                  <td key={status} className="analytics-count-cell">
-                    {grouped[period][status] || 0}
-                  </td>
-                ))}
+              {statuses.map((status) => {
+                  const count = grouped[period][status] ?? 0;
+                  return (
+                    <td key={status} className="analytics-count-cell">
+                      {count > 0 ? (
+                        <Link
+                          to={`/history?date_from=${period}&date_to=${period}&status=${encodeURIComponent(status)}`}
+                          className="analytics-count-link"
+                        >
+                          {count}
+                        </Link>
+                      ) : (
+                        0
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
