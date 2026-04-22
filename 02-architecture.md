@@ -785,6 +785,35 @@ PaaS: publicNetworkAccess = Disabled після PE активації
 - **`MAX_MORE_INFO_ROUNDS = 3`** — захист від нескінченного `more_info` циклу.
 - **24h HITL timeout** → Durable `create_timer` + race-pattern escalate до QA Manager.
 
+### 17.5 Orchestrator Watchdog — автовиявлення та відновлення
+
+Azure Durable Functions зберігають стан у Azure Storage Tables. Якщо Function App перезапускається під час деплою або оркестратор впав — Cosmos DB залишається у статусі `pending_approval`, але Durable instance зникає (NOT_FOUND). Operator не може подати рішення.
+
+**Рішення — `orchestrator_watchdog` Timer Trigger (кожні 5 хвилин):**
+
+```
+┌───────────────────────────────────────────────────────┐
+│  Timer Trigger  ─►  Cosmos query (stuck statuses)     │
+│  every 5 min        open / queued / analyzing /       │
+│                     analyzing_agents → > 15 min old   │
+│                     pending_approval → > 2 min old    │
+│                                                        │
+│  For each candidate:                                   │
+│    client.get_status("durable-{incident_id}")          │
+│    ├─ Running / Pending → SKIP (healthy)               │
+│    └─ NOT_FOUND / Failed / null → REQUEUE              │
+│         └─ publish_alert(payload) → Service Bus        │
+│              └─ fresh orchestrator starts              │
+└───────────────────────────────────────────────────────┘
+```
+
+**Ключові властивості:**
+- **Два типи виявлення:**
+  - *Stuck analysis* — `open/queued/analyzing/analyzing_agents` старше порогу (15 хв за замовчуванням)
+  - *Orphaned approval* — `pending_approval` + Durable NOT_FOUND (grace period 2 хв)
+- **Idempotent recovery** — лише republish до Service Bus; orchestrator сам переставить статус у Cosmos при старті
+- **Safety cap** — не більше 10 відновлень за один запуск
+
 ### 17.2 Fallback & circuit breaker
 
 - **Fallback mode:** якщо Foundry Agent недоступний або валидація citations fail → operator отримує pre-filled manual CAPA template замість AI-рекомендацій + explicit `degraded_mode=true` у UI.

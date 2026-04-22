@@ -46,6 +46,8 @@
                Track A, Durable orchestration, Foundry agents, MCP,
                Service Bus, Cosmos DB, AI Search, SignalR, Entra ID / RBAC
                Alert feedback loop до SCADA/MES при Reject (T-053)
+               **Watchdog recovery:** Timer Trigger (5 хв) виявляє stuck/orphaned
+               orchestrators → auto-requeue до Service Bus без втрати бізнес-контексту
 
 [06:30–07:15]  IMPACT + CLOSE
                KPI + три-state confidence gate differentiator + GxP audit trail + closing
