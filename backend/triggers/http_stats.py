@@ -18,7 +18,49 @@ logger = logging.getLogger(__name__)
 bp = func.Blueprint()
 
 ALLOWED_ROLES = ["QAManager", "ITAdmin"]
-RECENT_DECISIONS_LIMIT = 10
+DECISIONS_DEFAULT_PAGE_SIZE = 20
+
+
+@bp.route(route="stats/decisions", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
+def get_decisions(req: func.HttpRequest) -> func.HttpResponse:
+    """Return paginated closed decisions for the Manager Dashboard infinite scroll."""
+    try:
+        roles = get_caller_roles(req)
+        require_any_role(roles, ALLOWED_ROLES)
+    except AuthError as exc:
+        return _error(exc.status_code, exc.message)
+
+    try:
+        page = max(1, int(req.params.get("page") or 1))
+        page_size = min(100, max(1, int(req.params.get("page_size") or DECISIONS_DEFAULT_PAGE_SIZE)))
+    except (TypeError, ValueError):
+        return _error(400, "Invalid page or page_size parameter")
+
+    try:
+        container = get_container("incidents")
+        all_rows = list(container.query_items(
+            query=(
+                "SELECT c.id, c.incident_number, c.status, "
+                "c.ai_analysis.confidence AS confidence, "
+                "c.createdAt, c.created_at, c.reported_at, c.closedAt, c.finalDecision, "
+                "c.agentRecommendation, c.operatorAgreesWithAgent "
+                "FROM c"
+            ),
+            enable_cross_partition_query=True,
+        ))
+        all_decisions = _build_all_decisions(all_rows)
+        total = len(all_decisions)
+        offset = (page - 1) * page_size
+        items = all_decisions[offset: offset + page_size]
+        return _json({
+            "items": items,
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+        })
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("get_decisions failed: %s", exc)
+        return _error(500, "Internal server error")
 
 
 @bp.route(route="stats/summary", methods=["GET"], auth_level=func.AuthLevel.ANONYMOUS)
@@ -53,7 +95,7 @@ def get_stats_summary(req: func.HttpRequest) -> func.HttpResponse:
         high_risk = 0
         closed_statuses = {"closed", "rejected", "completed"}
         high_risk_levels = {"high", "critical"}
-        recent_decisions = _build_recent_decisions(all_rows)
+        recent_decisions = _build_all_decisions(all_rows)[:10]
 
         for row in all_rows:
             st = row.get("status") or ""
@@ -99,7 +141,7 @@ def _error(status: int, message: str) -> func.HttpResponse:
     )
 
 
-def _build_recent_decisions(rows: list[dict]) -> list[dict]:
+def _build_all_decisions(rows: list[dict]) -> list[dict]:
     items: list[dict] = []
 
     for row in rows:
@@ -135,7 +177,7 @@ def _build_recent_decisions(rows: list[dict]) -> list[dict]:
         })
 
     items.sort(key=lambda item: item.get("decided_at") or "", reverse=True)
-    return items[:RECENT_DECISIONS_LIMIT]
+    return items
 
 
 def _coerce_float(value) -> float:

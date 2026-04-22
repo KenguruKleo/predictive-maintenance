@@ -2,7 +2,7 @@ import { expect, test, type APIRequestContext, type Page } from "@playwright/tes
 
 const STORAGE_KEY = "sentinel:e2e-auth";
 
-type TestRole = "operator" | "it-admin";
+type TestRole = "operator" | "it-admin" | "qa-manager";
 
 interface TestAuthState {
   userId: string;
@@ -12,7 +12,9 @@ interface TestAuthState {
 }
 
 function toMockRoleHeader(role: TestRole): string {
-  return role === "it-admin" ? "ITAdmin" : "Operator";
+  if (role === "it-admin") return "ITAdmin";
+  if (role === "qa-manager") return "QAManager";
+  return "Operator";
 }
 
 async function applyMockAuth(page: Page, authState: TestAuthState): Promise<void> {
@@ -131,4 +133,31 @@ test("it admin can navigate from incident detail to telemetry", async ({ page, r
   await expect(page).toHaveURL(new RegExp(`/telemetry\\?incidentId=${incidentId}$`));
   await expect(page.getByRole("heading", { name: "Incident Telemetry" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Operations Dashboard" })).toHaveCount(0);
+});
+
+test("qa-manager dashboard loads recent decisions with infinite scroll", async ({ page }) => {
+  const authState: TestAuthState = {
+    userId: "manager.smoke",
+    displayName: "Manager Smoke",
+    email: "manager.smoke@local.test",
+    roles: ["qa-manager"],
+  };
+
+  await applyMockAuth(page, authState);
+  await page.goto("/manager");
+
+  await expect(page.getByRole("heading", { name: "Manager Dashboard" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Recent Decisions" })).toBeVisible();
+
+  // Table should render at least one row once data loads
+  const firstRow = page.locator(".incident-table tbody tr").first();
+  await expect(firstRow).toBeVisible({ timeout: 10_000 });
+
+  // Clickable row — clicking incident number link navigates to incident detail
+  const firstLink = page.locator(".incident-table tbody .table-id-link").first();
+  const incidentNumber = await firstLink.textContent();
+  expect(incidentNumber).toMatch(/INC-/);
+
+  await firstLink.click();
+  await expect(page).toHaveURL(new RegExp(`/incidents/${incidentNumber}`));
 });

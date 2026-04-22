@@ -19,7 +19,7 @@ Blueprints registered here:
   - triggers.http_equipment        (T-031) GET /api/equipment/{id}
   - triggers.http_batches          (T-031) GET /api/batches/current/{equipment_id}
   - triggers.http_templates        (T-031) GET/PUT /api/templates[/{id}]
-  - triggers.http_stats            (T-031) GET /api/stats/summary
+  - triggers.http_stats            (T-031) GET /api/stats/summary, GET /api/stats/decisions
 """
 
 from pathlib import Path

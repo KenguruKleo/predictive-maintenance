@@ -1,5 +1,5 @@
 import client from "./client";
-import type { StatsSummary } from "../types/stats";
+import type { StatsSummary, RecentDecision } from "../types/stats";
 
 interface RawStatsSummary {
   total_incidents?: number;
@@ -9,6 +9,13 @@ interface RawStatsSummary {
   recent_decisions?: StatsSummary["recent_decisions"];
   by_status?: Record<string, number>;
   open_incidents?: number;
+}
+
+export interface DecisionsPage {
+  items: RecentDecision[];
+  total: number;
+  page: number;
+  page_size: number;
 }
 
 function getStatusCount(byStatus: Record<string, number>, status: string): number {
@@ -39,4 +46,11 @@ function normalizeStatsSummary(data: RawStatsSummary): StatsSummary {
 export async function getStats(): Promise<StatsSummary> {
   const { data } = await client.get<RawStatsSummary>("/stats/summary");
   return normalizeStatsSummary(data ?? {});
+}
+
+export async function getDecisions(page: number, pageSize: number): Promise<DecisionsPage> {
+  const { data } = await client.get<DecisionsPage>("/stats/decisions", {
+    params: { page, page_size: pageSize },
+  });
+  return data;
 }

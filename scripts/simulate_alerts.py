@@ -163,6 +163,34 @@ SCENARIOS = [
             # 'unit' intentionally omitted
         },
     },
+    {
+        "id": 7,
+        "name": "MIX-102 Motor Current — borderline transient (REJECT expected)",
+        "description": (
+            "Motor current 1.2% above upper limit for only 8 seconds during mixer start-up. "
+            "Transient spike well within equipment tolerance; no batch impact; "
+            "no historical pattern. Agent should recommend REJECT / no action required."
+        ),
+        "payload": {
+            "alert_id": "SCADA-2026-0417-007",
+            "equipment_id": "MIX-102",
+            "deviation_type": "process_parameter_excursion",
+            "parameter": "motor_current_amp",
+            "measured_value": 40.5,
+            "lower_limit": 0,
+            "upper_limit": 40,
+            "unit": "A",
+            "duration_seconds": 8,
+            "detected_by": "plc_monitor",
+            "detected_at": NOW,
+            "batch_id": "BATCH-2026-0417-MIX102",
+            "notes": (
+                "Start-up transient. Equipment log shows identical spikes on 3 prior "
+                "start-up events this week, all auto-cleared. No product exposure risk. "
+                "Maintenance confirmed no mechanical fault."
+            ),
+        },
+    },
 ]
 
 

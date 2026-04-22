@@ -1,10 +1,10 @@
+import { useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import type { RecentDecision } from "../../types/stats";
+import { getStats } from "../../api/stats";
 import AiVsHumanBadge from "../Approval/AiVsHumanBadge";
-
-interface Props {
-  decisions: RecentDecision[];
-}
+import { useInfiniteDecisions } from "../../hooks/useDecisions";
 
 function AgreementRateKpi({ decisions }: { decisions: RecentDecision[] }) {
   const decided = decisions.filter((d) => d.operator_agrees_with_agent != null);
@@ -22,7 +22,45 @@ function AgreementRateKpi({ decisions }: { decisions: RecentDecision[] }) {
   );
 }
 
-export default function RecentDecisions({ decisions }: Props) {
+export default function RecentDecisions() {
+  const {
+    data,
+    isLoading,
+    isError,
+    isFetchingNextPage,
+    fetchNextPage,
+    hasNextPage,
+  } = useInfiniteDecisions();
+
+  // Fallback: if dedicated endpoint isn't deployed yet, use data from the summary query
+  const { data: stats } = useQuery({
+    queryKey: ["stats"],
+    queryFn: getStats,
+    enabled: isError,
+  });
+
+  const decisions: RecentDecision[] = isError
+    ? (stats?.recent_decisions ?? [])
+    : (data?.pages.flatMap((p) => p.items) ?? []);
+
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+
+  if (isLoading && !isError) return <p className="table-loading">Loading decisions…</p>;
+
   return (
     <div>
       <AgreementRateKpi decisions={decisions} />
@@ -73,6 +111,8 @@ export default function RecentDecisions({ decisions }: Props) {
           </tbody>
         </table>
       </div>
+      <div ref={sentinelRef} style={{ height: 1 }} />
+      {isFetchingNextPage && <p className="table-loading">Loading more…</p>}
     </div>
   );
 }

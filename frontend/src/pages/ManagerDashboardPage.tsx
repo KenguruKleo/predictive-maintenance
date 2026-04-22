@@ -25,7 +25,7 @@ export default function ManagerDashboardPage() {
       <EscalationQueue incidents={escalated?.items ?? []} />
 
       <h2 className="section-heading">Recent Decisions</h2>
-      <RecentDecisions decisions={stats.recent_decisions} />
+      <RecentDecisions />
     </div>
   );
 }
