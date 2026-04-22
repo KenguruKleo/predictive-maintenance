@@ -1,135 +1,67 @@
-# T-010 · Cartoon / Анімація «До і Після»
+# T-010 · Cartoon / Анімація «До і Після» (Descoped)
 
 ← [04 · План дій](../04-action-plan.md) · [T-002 · Фінальне відео](./T-002-final-video.md)
 
 | Поле | Значення |
 |---|---|
 | **ID** | T-010 |
-| **Пріоритет** | 🟠 HIGH |
-| **Статус** | 🔜 TODO |
-| **Залежності** | Немає (незалежна задача) |
-| **Блокує** | [T-002](./T-002-final-video.md) (відео потребує ці вставки) |
-| **Тривалість** | 2 × ~60 сек = ~120 сек готового матеріалу |
+| **Пріоритет** | 🟡 LOW |
+| **Статус** | ✅ CLOSED (descoped for finals) |
+| **Залежності** | Немає |
+| **Блокує** | Нічого |
+| **Тривалість** | Не планується для finals submission |
 
 ---
 
-## Мета
+## Рішення
 
-Створити deux cartoon/animated сцени для вставки у фінальне відео:
-1. **AS-IS** — як виглядає deviation handling сьогодні (без додатку)
-2. **TO-BE** — той самий сценарій з додатком
+Cartoon прибрано з critical path finals.
 
-> Judges запам'ятають **story**, не технічні деталі. Це ключовий диференціатор відео.
+Фінальне відео [T-002](./T-002-final-video.md) переходить у **demo-first** формат:
 
----
+1. живий walkthrough додатка
+2. role-based screens: Operator, QA Manager, Auditor / IT Admin
+3. короткі architecture slides замість анімаційних вставок
 
-## Концепція
-
-**Герой:** Оператор **Ivan** — типовий production operator у фармацевтичному виробництві.  
-**Сценарій:** Granulator GR-204 дає vibration spike (той самий що у live demo).  
-**Два світи** — той самий Ivan, та сама ситуація, але повністю різний досвід.
+> Причина: judging requirement акцентує **working demo**. Уже наявний продукт краще показує value, governance і AI behavior, ніж окремий cartoon block.
 
 ---
 
-## Сцена 1 — AS-IS (без додатку) ≈ 60 сек
+## Чому це знято з плану
 
-```
-Сцена: виробничий цех, монітор з алертом
-
-1. Ivan бачить червоний alert на екрані
-2. Бере товсту папку з SOP зі стелажу, гортає сторінки (стрес на обличчі)
-3. Піднімає трубку, телефонує ("Maria, we have a problem on Line 2...")
-4. Чекає — годинник тікає — 20 хвилин
-5. Maria передзвонює, вони разом вирішують що робити
-6. Ivan вручну заповнює паперову CAPA форму (три копії)
-7. Відправляє email для аудиту
-8. Годинник показує +45 хвилин від початку
-9. Ivan виглядає знищеним і стресованим
-
-Текст на екрані: "45 minutes. Manual. Error-prone."
-```
+- Менше production risk перед дедлайном
+- Більше judging value: більше часу у відео йде на реальний продукт
+- Уже наявні екрани покривають story: decision package, evidence verification, escalation, traceability, RBAC
+- Architecture slide дає контекст без дублювання окремою анімацією
 
 ---
 
-## Сцена 2 — TO-BE (з додатком) ≈ 60 сек
+## Що замінює cartoon у відео
 
-```
-Сцена: той самий цех, той самий монітор
-
-1. Ivan бачить той самий червоний alert
-2. На екрані одразу з'являється Decision Package:
-   ┌──────────────────────────────────────────┐
-   │ ⚠ DEVIATION — HIGH RISK                  │
-   │ Granulator GR-204 · Vibration: 2.8g      │
-   │ → Bearing failure predicted              │
-   │                                          │
-   │ RECOMMENDATION (SOP-MAINT-044):          │
-   │ 1. Stop, inspect bearing                 │
-   │ 2. Replace per PM-PROC-019               │
-   │                                          │
-   │ Based on: CAPA-2023-0847 (similar case)  │
-   │                                          │
-   │  [✅ Approve]  [❌ Deny]  [💬 Ask]        │
-   └──────────────────────────────────────────┘
-3. Ivan читає (5 секунд), натискає [Approve]
-4. Анімація: work order летить у систему, audit trail генерується
-5. Годинник показує +4 хвилини
-6. Ivan посміхається, повертається до роботи
-
-Текст на екрані: "4 minutes. Automated. GMP compliant."
-```
+- **Hook slide** — одна проблема + одна цифра
+- **Operator demo** — recommendation, confidence, verified vs unresolved evidence, approval actions
+- **Safe failure state** — waiting/manual-review без fabricated conclusion
+- **QA escalation** — escalation queue і long-running workflow
+- **Auditor / IT Admin** — telemetry, auditability, export
+- **Architecture slide** — backend topology behind the product
 
 ---
 
-## Вибір інструменту
+## Якщо повернемось до задачі після submission
 
-> Потрібно обговорити і обрати **один** варіант.
+Cartoon можна повернути як:
 
-| Інструмент | Pros | Cons | Ціна |
-|---|---|---|---|
-| [Vyond](https://www.vyond.com) | Professional cartoon characters, lipSync, ready GMP/factory scenes | Платний | $49/міс |
-| [Animaker](https://www.animaker.com) | Простіший, є factory templates | Менш polish | від $12/міс |
-| [Rive](https://rive.app) | Interactive, developer-friendly, безкоштовний basic | Потребує більше часу на create | Безкоштовно / $42/міс pro |
-| PowerPoint Morph + screen record | Швидко, безкоштовно, вже маємо | Не cartoon-style, менш engaging | Безкоштовно |
-| Adobe Express / Canva animated | Простий, дає animated look, темплейти | Обмежений, не справжній cartoon | від $0 |
-| [Powtoon](https://www.powtoon.com) | Cartoon style, темплейти офісних сцен | Менш кастомізований | від $20/міс |
-
-**Моя рекомендація:** Vyond або Animaker — мають готові factory/office character sets, що зекономить час на промальовку персонажів.
-
----
-
-## Storyboard (деталізований, заповнюємо перед production)
-
-> Заповнити побудово перед тим як починати анімацію
-
-### AS-IS — поскадровий
-
-| Кадр | Тривалість | Що відбувається | Текст/Звук |
-|---|---|---|---|
-| 1 | 5с | Wide shot цеху, обладнання | SFX: factory hum |
-| 2 | 5с | Zoom на монітор Ivan, alert з'являється | SFX: alert beep |
-| 3 | 8с | Ivan тягнеться до полиці з SOP папками | Music: тривожна |
-| 4 | ... | ... | ... |
-
-### TO-BE — поскадровий
-
-| Кадр | Тривалість | Що відбувається | Текст/Звук |
-|---|---|---|---|
-| 1 | 3с | Той самий цех alert | SFX: alert beep |
-| 2 | 5с | Decision Package з'являється на екрані | Music: спокійна |
-| 3 | 5с | Ivan читає, натискає Approve | |
-| 4 | ... | ... | ... |
+- optional storytelling asset для marketing/demo day version
+- opening bumper для довшого product video
+- post-finals polish asset, якщо лишиться час
 
 ---
 
 ## Definition of Done
 
-- [ ] Інструмент обраний та доступ налаштований
-- [ ] Storyboard для обох сцен заповнений і схвалений
-- [ ] AS-IS сцена (≤ 65 сек) готова
-- [ ] TO-BE сцена (≤ 65 сек) готова
-- [ ] Якість: ≥ 1080p, smooth animation
-- [ ] Переданий до [T-002](./T-002-final-video.md) для монтажу
+- [x] Задача офіційно прибрана з critical path finals
+- [x] [T-002](./T-002-final-video.md) більше не залежить від cartoon
+- [x] [04-action-plan](../04-action-plan.md) синхронізований з demo-first strategy
 
 ---
 

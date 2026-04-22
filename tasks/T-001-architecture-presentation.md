@@ -114,6 +114,9 @@ Track A: GitHub + Azure + Azure AI Foundry
 - Пояснити **чому** Durable Orchestrator (stateful, retry, long-running), **чому** окремі агенти (Research / Document / Execution), чому Human-in-the-loop
 - Показати що система ВИРІШУЄ: час реакції з 30–60 хв → < 5 хв, GMP-compliant документи, аудит кожного кроку
 - Показати "провали" без системи (ручна координація, помилки в документах, пропущені SLA)
+- **Innovation differentiator** — це не chatbot і не anomaly detector. Це перший клас рішень: **multi-agent regulated workflow**, де кожен агент має свою відповідальність (Research грундує, Document синтезує, Execution виконує), а MCP сервери є pluggable compliance layer. Організація може підключити свій CMMS або QMS без зміни жодного рядка agent-логіки. Нового класу рішення для GMP-regulated галузей
+
+> 📌 Slide pitch: *"Not a chatbot. Not an anomaly detector. A multi-agent regulated workflow — built for GMP from the ground up."*
 
 ---
 
@@ -145,6 +148,7 @@ Track A: GitHub + Azure + Azure AI Foundry
   - Назвати це **"pluggable integration layer"**
 - **Azure AI Foundry** — дозволяє перенастроїти агента під конкретну організацію через system prompt або tool configuration, без зміни коду
 - Реюзабільність: той самий orchestrator + agents framework може бути задеплоєний для іншої галузі (інші MCP сервери, інші prompts — той самий pipeline)
+- **MVP scope — обмежений лише даними:** але це **production-ready система** у всьому іншому. Щоб масштабувати — потрібно тільки підключити нові легкі MCP сервери для доступу до нових даних (новий CMMS, новий QMS, нові SOP в AI Search індекс). Жодних змін в агентах, оркестраторі чи CI/CD pipeline. Архітектура **не змінюється**. Це "Build–Scale–Reuse" за дизайном
 
 > 📌 Slide pitch: *"The process is universal. The integrations are configurable."*
 
@@ -159,8 +163,12 @@ Track A: GitHub + Azure + Azure AI Foundry
 - **Push-нотифікації** — SignalR доставляє оновлення статусу у реальному часі. Відповідні люди бачать нову задачу одразу, без polling і без «а я не помітив email»
 - **Dead Letter Queue** — якщо обробка провалилась після всіх retry, повідомлення не губиться, а потрапляє в DLQ з повним контекстом для діагностики та ручного перезапуску
 - **Retry policy** — кожен крок має явну retry-логіку з backoff; транзієнтні збої (мережа, throttling) обробляються автоматично
+- **Model timeout handling** — якщо виклик Foundry agent не повернув відповідь за timeout window, Durable orchestrator перехоплює exception, логує timeout event і переводить incident у manual review без краша всього workflow. Агент не блокує pipeline назавжди — завжди є explicit fallback
+- **Latency SLO** — end-to-end від SCADA alert до готового decision package: **< 5 хвилин**. Це не KPI на папері — це hard SLO, яке система досягає за рахунок async queuing (Service Bus), паралельного збагачення контексту і Foundry agent pipeline без blocking HTTP calls
+- **Token budgets / Cost controls** — кожен incident має обмежений token budget; gpt-4o-mini для Research (збір фактів), gpt-4o для Document (синтез і draft). Pay-per-execution: немає алертів — нема витрат. SOP caching зменшує повторні embedding lookups. Вартість одного incident обраховується і логується (`incident_total_tokens`, `incident_cost_usd`)
+- **Degraded / manual-only mode** — якщо AI pipeline недоступний (Foundry rate limit, AI Search down, мережева партиція), система переходить у degraded mode: оператор отримує SignalR notification про degraded стан, incident відкривається з порожнім decision package для ручного заповнення, всі дані збережені в Cosmos DB і доступні. Жодних втрат інцидентів, жодного тихого ігнорування. Після відновлення AI pipeline — incident може бути повторно оброблений
 
-> 📌 Slide pitch: *"The system doesn't fail silently. It queues, retries, escalates — and always tells someone."*
+> 📌 Slide pitch: *"The system doesn't fail silently. It queues, retries, escalates — and always tells someone."
 
 ---
 
@@ -173,6 +181,7 @@ Track A: GitHub + Azure + Azure AI Foundry
   - **Internal Audit** — повний trail по інциденту: від alert до виконаної CAPA, хто підтвердив, які документи
   - **External Audit / Regulatory** — read-only view для GMP інспекторів: immutable logs, signed approvals
 - Зовнішній аудитор не має доступу до операційних даних — тільки до audit trail
+- **One-click CSV export** — аудитор вивантажує повний список інцидентів у CSV одним кліком для inspection-readiness review та офлайн аналізу. Нульових запитів до IT під час інспекції
 - Це дозволяє **пройти 21 CFR Part 11 / GMP інспекцію** без "а покажіть нам базу даних"
 
 ---
@@ -185,6 +194,7 @@ Track A: GitHub + Azure + Azure AI Foundry
 - **Alerting** — якщо агент не відповів за N секунд → автоматичний fallback до мануального процесу
 - **Distributed tracing** — кожен інцидент має correlation ID, можна відстежити весь шлях від alert до закриття
 - **Agent telemetry by incident (Admin view)** — окрема сторінка для IT Admin/QA: хронологія викликів agent -> sub-agent -> tools по конкретному incident (run IDs, duration, retries, помилки, токени, estimated cost). Це критично для tuning prompt/tool конфігурації та пост-мортем аналізу
+- **Model lifecycle / Foundry Evaluation** — evaluation pipeline в GitHub Actions запускає Foundry eval після кожного deploy: перевіряє якість відповідей агентів на тестових інцидентах і порівнює з baseline. Якщо eval score знижується — deploy блокується. Versioning і rollback агентів — через Foundry governed deployment. Жодних «тихих» деградацій моделі у production
 
 ---
 
@@ -195,13 +205,15 @@ Track A: GitHub + Azure + Azure AI Foundry
 
 - **Confidence gate** — агент повертає не просто відповідь, а разом з confidence score. Якщо score нижче порогу → ескалація до людини, а не вгадування. AI не може "видати" рекомендацію без достатньо доказів
 - **Evidence gating** — кожна рекомендація в decision package має посилання на конкретний SOP/BPR документ та конкретний параметр. Якщо джерела нема — рекомендація блокується
+- **Evidence verification state** — кожне посилання перевіряється проти реального джерельного документа: URL, секція та текст. Верифіковані цитати і unresolved показуються **окремо** в decision package — оператор відразу бачить що є фактом, що потребує QA review. AI не може видати непідтверджене посилання як верифіковане
 - **Hallucination controls** — RAG over validated documents (AI Search); агент відповідає тільки на основі верифікованих SOP/CAPA, не "з голови"
 - **Prompt injection defense** — вхідний текст від SCADA/MES проходить валідацію та санітизацію; Content Safety API фільтрує шкідливий або маніпулятивний контент
 - **Content Safety** — Azure AI Content Safety перевіряє вхід і вихід агентів; блокує аномальні запити
 - **Human-in-the-loop як RAI механізм** — не просто зручність, а вимога для GxP: AI пропонує, людина вирішує і бере відповідальність. Кожне рішення підписане конкретною людиною
 - **Agent observability** — всі виклики агентів трасуються в App Insights: який prompt, яка модель, яка відповідь, скільки токенів. Пост-фактум аналіз можливий
+- **Pipeline exception contract** — визначені явні exception шляхи: якщо Research Agent повертає порожній результат → Document Agent отримує `no_grounding` стан і блокує рекомендацію; якщо confidence gate fails → incident переходить у `needs_review` замість автоматичного approve; якщо Execution Agent не може створити work order → workflow зупиняється з explicit error state, не мовчки пропускає крок. Кожен exception логується і трасується
 
-> 📌 Slide pitch: *"The AI suggests. The human decides. The system proves it."*
+> 📌 Slide pitch: *"The AI suggests. The human decides. The system proves it."
 
 ---
 
@@ -248,14 +260,20 @@ Track A: GitHub + Azure + Azure AI Foundry
 
 ---
 
-### Що ще варто додати в такому ключі
+### Покриття scoring dimensions — фінальний стан
 
-| Потенційний шар | Pitch | Scoring dimension |
+| Scoring dimension | Де в нотатках | Стан |
 |---|---|---|
-| **Cost & Token Efficiency** | Pay-per-execution: немає алертів — нема витрат; token budgets обмежують вартість одного інциденту; caching для повторних SOP запитів | Reliability / Performance / Cost (10) |
-| **Platform Fit / Track A** | Показати явно: GitHub repo + Actions CI/CD + Bicep IaC + AI Foundry. Вся інфра відтворювана за < 30 хв. Zero manual deployments | Platform Fit (10) |
-| **MVP Scope / Build–Scale–Reuse** | Ми взяли один актив (GR-204 granulator), один клас відхилення (vibration deviation), одну лінію (Plant-01 Line-2). Це навмисне звуження MVP. Production scale = розширення MCP серверів, не реархітектура | Build–Scale–Reuse (10) |
-| **Innovation Differentiator** | Не chatbot, не anomaly detector. Multi-agent regulated workflow з MCP як pluggable compliance layer — нового класу рішення | Innovation (10) |
+| **Clarity & Flow** (10) | Шар 1: end-to-end flow + exception contract | ✅ Covered |
+| **Platform Fit** (10) | Шар 0: deployment topology + Track A; Шар 6: CI/CD + Bicep IaC | ✅ Covered |
+| **Data / Governance / Security** (10) | Шар 2: Entra ID, RBAC, Key Vault, VNet, encryption, 21 CFR | ✅ Covered |
+| **Reliability / Performance / Cost** (10) | Шар 4: Service Bus, retry, DLQ, SLO, token budgets, timeout, degraded mode | ✅ Covered |
+| **Scalability / Integration / Provisioning** (10) | Шар 3: MCP pluggable layer, API contracts, MVP → production scale | ✅ Covered |
+| **Value & KPI Impact** (10) | Шар 9: AS-IS/TO-BE цифри, GMP regulated context | ✅ Covered |
+| **Innovation** (10) | Шар 1: multi-agent regulated workflow differentiator | ✅ Covered |
+| **AI Fit** (10) | Шар 7: confidence gate, evidence gating, hallucination controls, RAI, pipeline exceptions | ✅ Covered |
+| **UX Simplicity** (10) | Шар 8: decision package, approval ergonomics, role-based views, Command Palette | ✅ Covered |
+| **Build–Scale–Reuse** (10) | Шар 3: MVP scope + production-ready architecture + MCP reuse | ✅ Covered |
 
 ---
 

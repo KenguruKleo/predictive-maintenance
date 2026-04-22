@@ -34,3 +34,8 @@
 | T-042 | [T-042-cicd.md](./T-042-cicd.md) |
 | T-043 | [T-043-agent-telemetry-admin-view.md](./T-043-agent-telemetry-admin-view.md) |
 | T-045 | [T-045-evidence-citation-quality.md](./T-045-evidence-citation-quality.md) |
+| T-047 | [T-047-vnet-private-endpoints.md](./T-047-vnet-private-endpoints.md) |
+| T-048 | [T-048-jit-conditional-access.md](./T-048-jit-conditional-access.md) |
+| T-049 | [T-049-war-easy-wins.md](./T-049-war-easy-wins.md) |
+| T-050 | [T-050-recovery-runbook.md](./T-050-recovery-runbook.md) |
+| T-051 | [T-051-load-testing.md](./T-051-load-testing.md) |

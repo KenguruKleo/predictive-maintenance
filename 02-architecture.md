@@ -2,250 +2,66 @@
 
 ← [README](./README.md) · [01 Вимоги](./01-requirements.md) · [03 Аналіз](./03-analysis.md) · [04 План дій](./04-action-plan.md)
 
-> **Призначення:** Живий документ архітектури. Містить те, що ми **подали** (AS-SUBMITTED), і буде оновлюватись у міру implementation. Кожна зміна повинна бути перевірена через [чеклист вимог](./01-requirements.md#10-чеклист-відповідності-живий).
+> **Призначення:** цільова архітектура Sentinel Intelligence — як система має виглядати у production (TO-BE). Пов'язані документи (історія, ADR, скорочення прототипу) перераховані у розділі [Related documents](#related-documents) наприкінці.
 
 ---
 
 ## Зміст
-1. [Версія подана (AS-SUBMITTED)](#1-версія-подана-as-submitted)
-2. [Компонентна схема](#2-компонентна-схема)
-3. [Потік даних](#3-потік-даних)
-4. [Компоненти — деталі](#4-компоненти--деталі)
-5. [Джерела даних](#5-джерела-даних)
-6. [Ролі та стейкхолдери](#6-ролі-та-стейкхолдери)
-7. [AS-IS vs TO-BE процес](#7-as-is-vs-to-be-процес)
-8. [Поточна версія (IN-PROGRESS)](#8-поточна-версія-in-progress)
-   - [8.9 Два рівні оркестрації](#89-два-рівні-оркестрації)
-   - [8.10 ADR-001: HITL механізм](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native)
-   - [8.10b ADR-002: Foundry Connected Agents vs ручна оркестрація агентів](#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація)
-   - [8.11 Розбивка на Azure Functions](#811-розбивка-на-azure-functions--повна-карта)
-   - [8.12 Azure SignalR — контракт](#812-azure-signalr--контракт)
-   - [8.13 Шар документів — Ingestion Architecture](#813-шар-документів--ingestion-architecture)
-  - [8.14 Agent Observability — Prompt Trace Path](#814-agent-observability--prompt-trace-path)
-9. [Changelog архітектури](#9-changelog-архітектури)
+
+1. [Overview](#1-overview)
+2. [Процеси AS-IS vs TO-BE](#2-процеси-as-is-vs-to-be)
+3. [High-level architecture](#3-high-level-architecture)
+4. [End-to-end data flow](#4-end-to-end-data-flow)
+5. [Component catalog](#5-component-catalog)
+6. [Two-level orchestration](#6-two-level-orchestration)
+7. [Agent design](#7-agent-design)
+8. [Human-in-the-loop](#8-human-in-the-loop)
+9. [Data persistence](#9-data-persistence)
+10. [RAG vs Direct data access](#10-rag-vs-direct-data-access)
+11. [Backend API surface](#11-backend-api-surface)
+12. [Azure Functions map](#12-azure-functions-map)
+13. [Real-time layer — SignalR](#13-real-time-layer--signalr)
+14. [Document ingestion](#14-document-ingestion)
+15. [Agent observability](#15-agent-observability)
+16. [Security architecture](#16-security-architecture)
+17. [Reliability architecture](#17-reliability-architecture)
+18. [Operational Excellence & Performance](#18-operational-excellence--performance)
+19. [Responsible AI](#19-responsible-ai)
+20. [Identity, roles & RBAC](#20-identity-roles--rbac)
+21. [Technical stack](#21-technical-stack)
+22. [Related documents](#related-documents)
 
 ---
 
-## 1. Версія подана (AS-SUBMITTED)
+## 1. Overview
 
-> Дата подачі: 26 березня 2026  
-> Автор: Kostiantyn Yemelianov  
-> Оцінка: 71/100 → [Детальний аналіз](./03-analysis.md)
+**Sentinel Intelligence** — AI-powered multi-agent Operations Assistant на Azure AI Foundry для GMP-виробництва.
 
-### Назва рішення
-**Deviation Management & CAPA in GMP Manufacturing**  
-Predictive maintenance Approach — Operations Assistant
+Система:
 
-### Загальний опис
-AI-powered multi-agent Operations Assistant на **Azure AI Foundry**, який:
-- Детектує anomaly/deviation events із SCADA/MES/IoT сигналів
-- Збагачує їх batch/equipment контекстом
-- Знаходить рішення через RAG на SOP/BPR/CAPA history
-- Генерує CAPA рекомендації та audit-ready звіти
-- **Обов'язкова** human approval перед виконанням work order
+- детектує anomaly/deviation events із SCADA/MES/IoT сигналів;
+- збагачує їх контекстом (batch, equipment, validated parameters);
+- виконує агентне reasoning через RAG на SOP / BPR / GMP / CAPA history та MCP-tool доступ до структурованих даних;
+- генерує CAPA рекомендації, work-order draft та audit-ready записи;
+- зупиняється на mandatory human approval перед будь-яким execution (GxP requirement);
+- логує повний agent + business трейс для compliance та post-mortem аналізу.
 
----
+**Стейкхолдери:**
 
-## 2. Компонентна схема
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║          COMPANY DATA LAYER (Azure AI Search / RAG)         ║
-║  ┌─────────────┐ ┌──────────────┐ ┌──────────────────────┐  ║
-║  │ SOP          │ │ GMP Rules /  │ │ Deviation & CAPA     │  ║
-║  │ Repository   │ │ Policies     │ │ History              │  ║
-║  └─────────────┘ └──────────────┘ └──────────────────────┘  ║
-╚══════════════════════════════════════════════════════════════╝
-           ↑ RAG Search          ↑ Azure MCP           ↑ Azure MCP
-
-╔══════════════════════════════════════════════════════════════╗
-║         FOUNDRY AGENT SERVICE (Agent Orchestrator)          ║
-║   Multi-agent workflow · State management · Routing         ║
-║                                                             ║
-║  ┌────────────────────┐      ┌───────────────────────────┐  ║
-║  │  Compliance Agent  │      │  CAPA / Audit Agent       │  ║
-║  │                    │      │                           │  ║
-║  │ • Deviation        │      │ • CAPA recommendations    │  ║
-║  │   classification   │      │   (history-grounded)      │  ║
-║  │ • Risk scoring     │      │ • Report draft generation │  ║
-║  │ • GMP compliance   │      │ • Audit trail generation  │  ║
-║  │   validation       │      │   (traceable)             │  ║
-║  │ • Explainable      │      │                           │  ║
-║  │   reasoning        │      └───────────────────────────┘  ║
-║  └────────────────────┘                                     ║
-╚══════════════════════════════════════════════════════════════╝
-                    ↑                    ↑
-            Context/Alert         Decision Package
-                    │                    │
-╔═══════════════════╧════════════════════╧══════════════════╗
-║              CONTEXT ENRICHMENT SERVICE                   ║
-║  • Retrieve batch & product context (MES)                 ║
-║  • Retrieve equipment metadata (CMMS)                     ║
-║  • Prefilter historical references                        ║
-╚═══════════════════════════════════════════════════════════╝
-                         ↑
-                  Anomaly detect event
-                         │
-╔════════════════════════╧══════════════════════════════════╗
-║          AZURE FUNCTIONS (Event Ingestion)                ║
-╚═══════════════╤══════════════╤═══════════════╤═══════════╝
-                │              │               │
-        ┌───────┴──┐    ┌──────┴────┐    ┌─────┴──────┐
-        │  SCADA   │    │    MES    │    │  IoT/CMMS  │
-        │ (signals)│    │ (batch)   │    │ (equipment)│
-        └──────────┘    └───────────┘    └────────────┘
-
-                    ↓ (Decision Package)
-╔═══════════════════════════════════════════════════════════╗
-║              HUMAN APPROVAL (GxP Requirement)             ║
-║           [Approved] · [Denied] · [Question]              ║
-╚══════════╤══════════════════════════════════════╤═════════╝
-           │                                      │
-    ┌──────┴──────┐                      ┌────────┴────────┐
-    │ Work Order  │                      │  Audit Logging  │
-    │ Service     │                      │  Service        │
-    │ (QMS/CMMS)  │                      │  (full trace)   │
-    └─────────────┘                      └─────────────────┘
-```
-
----
-
-## 3. Потік даних
-
-### AS-SUBMITTED — step by step
-
-```
-Step 1: DETECT
-  SCADA → anomaly signal → Azure Functions trigger
-
-Step 2: BUILD CONTEXT
-  Azure Functions →  Context Enrichment Service
-    ├── MES query   → batch context, stage, product
-    ├── CMMS query  → equipment metadata, maintenance history
-    └── BPR lookup  → historical reference data (pre-filter)
-
-Step 3: AGENT ORCHESTRATION
-  Context Enrichment → Foundry Agent Service (Orchestrator)
-    │
-    ├── Compliance Agent
-    │     ├── RAG Call → Azure AI Search (SOP Repository)
-    │     ├── RAG Call → Azure AI Search (GMP Rules / Policies)
-    │     └── Output: deviation classification + risk score + GMP validation
-    │
-    └── CAPA/Audit Agent
-          ├── RAG Call → Azure AI Search (Deviation & CAPA History)
-          ├── RAG Call → Azure AI Search (Equipment manuals/specs)
-          └── Output: CAPA recommendations + report draft + audit trail draft
-
-Step 4: DECISION PACKAGE
-  Orchestrator → Human Approval Interface
-    Decision package = recommendation + rationale + evidence
-
-Step 5: HUMAN DECISION
-  Operator/QA → [Approve] / [Deny] / [Ask Question]
-
-Step 6: EXECUTION
-  Approved →
-    ├── Work Order Service → QMS/CMMS (create & pre-fill work order)
-    └── Audit Logging Service → full traceability record
-```
-
----
-
-## 4. Компоненти — деталі
-
-> ⚠️ **AS-SUBMITTED v1.0.** Термінологія цього розділу відповідає поданій архітектурі (26 березня 2026). В реалізаційній фазі v2.0 компоненти перейменовані та реструктуровані — дивись [§8.2 таблицю компонентів](#82-компоненти-v20--таблиця) та [таблицю еволюції нижче](#еволюція-компонентів-v10--v20).
-
-### Azure Functions (Event Ingestion)
-- **Роль:** Тригер при аномальному сигналі з SCADA/MES/IoT
-- **Вхід:** Raw sensor signals, MES alerts, monitoring system events
-- **Вихід:** Structured anomaly event → Context Enrichment Service
-- **Gaps:** → [Немає queuing, retry, DLQ](./03-analysis.md#gap-3-reliability)
-
-### Context Enrichment Service
-- **Роль:** Збагачення аномалії контекстом перед відправкою агентам
-- **Джерела:** MES (batch/product), CMMS (equipment metadata), BPR (historical)
-- **Вихід:** Structured incident context
-
-### Agent Orchestrator (Foundry Agent Service)
-- **Роль:** Multi-agent workflow, state management, routing між агентами
-- **Платформа:** Azure AI Foundry Agent Service
-- **Gaps:** → [Немає exception paths, model timeout handling](./03-analysis.md#gap-3-reliability)
-
-### Compliance Agent
-- **Роль:** Deviation classification, GMP compliance validation, risk scoring
-- **RAG джерела:** SOP Repository, GMP Rules/Policies
-- **Вихід:** Classification + risk score + explainable reasoning
-- **Gaps:** → [Немає confidence thresholds, prompt injection defense](./03-analysis.md#gap-4-rai)
-
-### CAPA / Audit Agent
-- **Роль:** CAPA recommendations, report draft, audit trail generation
-- **RAG джерела:** Deviation & CAPA History, Equipment manuals/specs
-- **Вихід:** CAPA recommendations (history-grounded) + traceable audit trail
-- **Gaps:** → [Немає evidence thresholds, hallucination controls](./03-analysis.md#gap-4-rai)
-
-### Human Approval
-- **Роль:** GxP-обов'язкова зупинка перед виконанням
-- **Actions:** Approved / Denied / Question
-- **Gaps:** → [Немає конкретного UI/interface description](./03-analysis.md#gap-5-ux)
-
-### Work Order Service
-- **Роль:** Create & pre-fill work order у QMS/CMMS
-- **Інтеграція:** QMS (Quality Management System), CMMS (Computerized Maintenance Management System)
-
-### Audit Logging Service
-- **Роль:** Full traceability record для compliance
-- **Статус:** ✅ присутній (одна з сильних сторін)
-
----
-
-### Еволюція компонентів: v1.0 → v2.0
-
-| Компонент v1.0 (AS-SUBMITTED) | Компонент v2.0 (реалізація) | Зміна |
-|---|---|---|
-| Azure Functions (Event Ingestion) | `ingest_alert` HTTP + `alert_processor` Service Bus trigger | Розбито: HTTP endpoint публікує в Service Bus; окремий тригер споживає чергу |
-| Context Enrichment Service | `enrich_context` Durable Activity | Вбудовано в Durable orchestrator — не окремий сервіс |
-| Agent Orchestrator (Foundry) | **Два рівні**: Durable Functions (workflow) + Foundry Agent Service (AI) | [ADR-001 §8.10](#810-adr-001-human-in-the-loop--durable-waitforexternalevent-vs-foundry-native) |
-| Compliance Agent | Research Agent (context) + Document Agent (classification/risk) | Responsibilities розподілено |
-| CAPA / Audit Agent | Document Agent (CAPA drafting) + Execution Agent (execution) | Drafting відокремлено від execution після approval |
-| Human Approval | `decision_handler` HTTP → `waitForExternalEvent` + SignalR push | Конкретний механізм з resume API |
-| Work Order Service | Execution Agent → MCP `create_work_order` (CMMS mock) | MCP tool call — не окремий сервіс |
-| Audit Logging Service | `finalize_audit` Durable Activity → Cosmos `incidents` + `approval-tasks` | Вбудовано в Durable orchestrator |
-
----
-
-## 5. Джерела даних
-
-| Джерело | Тип | Використовується як | Компонент |
-|---|---|---|---|
-| SCADA | Real-time signals | Anomaly trigger | Azure Functions |
-| MES | Batch & stage data | Context enrichment | Context Enrichment Service |
-| BPR (Batch Production Record) | Historical | Context enrichment + RAG | Context Enrichment + AI Search |
-| SOP Repository | Procedures | RAG retrieval | Azure AI Search |
-| GMP Rules / Policies | Regulations | RAG retrieval | Azure AI Search |
-| Deviation & CAPA History | Case history | RAG retrieval | Azure AI Search |
-| CMMS / Asset Management | Equipment metadata | Context enrichment + RAG | Context Enrichment + AI Search |
-| Equipment manuals / specs | Technical docs | RAG retrieval | Azure AI Search |
-
----
-
-## 6. Ролі та стейкхолдери
-
-| Роль | Участь у системі |
+| Роль | Участь |
 |---|---|
-| Production Operator | Отримує alert, переглядає decision package, approves/denies |
-| QA / Quality Engineer | Валідує CAPA рекомендації, затверджує відхилення |
-| Compliance & Audit Team | Переглядає audit trail, inspection readiness |
-| QA Manager | Manages CAPA process, final approvals |
-| IT / Digital Transformation | Deploying та managing the system |
-
-> ⚠️ RBAC модель для цих ролей **не описана** → [Gap #2](./03-analysis.md#gap-2-security)
+| Production Operator | Отримує alert, переглядає decision package, approves / denies / запитує more info |
+| QA Manager | Обробляє escalated incidents, фінальне approval по складних кейсах |
+| Maintenance Technician | Read-only доступ до work orders |
+| Auditor | Read-only доступ до audit trail + agent telemetry |
+| IT Admin | Управління templates, перегляд agent telemetry, JIT-eligible Contributor |
 
 ---
 
-## 7. AS-IS vs TO-BE процес
+## 2. Процеси AS-IS vs TO-BE
 
-### AS-IS (поточний, manual)
+**AS-IS (manual, 30–60 хв, оператор-залежний результат):**
+
 ```
 Sensor Signal → Alert
   → Operator RECEIVES (manual, interprets context manually)
@@ -254,72 +70,54 @@ Sensor Signal → Alert
   → REGISTER CAPA (manual work order creation in QMS/CMMS)
   → CREATE REPORT (manual documentation for audit trail)
 ```
-**Час:** 30–60 хвилин, оператор-залежний результат
 
-### TO-BE (AI-assisted)
+**TO-BE (AI-assisted, < 5 хв для decision, стандартизований результат):**
+
 ```
-Sensor Signal → Alert (already automated anomaly detection)
-  → Context built AUTO (derived data + incident context)
+Sensor Signal → Alert (automated anomaly detection)
+  → Context built AUTO (equipment + batch + historical)
   → SOP & data retrieval AUTO (relevant SOPs, BPRs, historical cases)
-  → AI decision support AUTO (deviation classification + recommendations)
+  → AI decision support AUTO (classification + CAPA + evidence)
   → CAPA / Work Order prepared AUTO (pre-filled for review)
-  → Human review & approval MANUAL (GxP requirement ✅)
+  → Human review & approval MANUAL (GxP requirement)
   → Report generated AUTO (structured, inspection-ready)
   → CAPA recorded in QMS/CMMS AUTO
 ```
-**Час:** < 5 хвилин для decision, стандартизований результат
 
 ---
 
-## 8. Поточна версія v2.0 (IN-PROGRESS — Implementation Phase)
-
-> Архітектура v2.0 розроблена для Implementation Phase (квітень 2026).  
-> Мова: **Python**. Frontend: **React + Vite** (Azure Static Web Apps).  
-> MCP servers: **локальний stdio transport**.  
-> Усі 6 gaps з тріажу закрито в цьому дизайні.
->
-> **Статус деплою (17 квітня 2026):** 7 Azure ресурсів задеплоєно в `ODL-GHAZ-2177134` (Sweden Central).  
-> CI/CD: GitHub Actions `deploy.yml` на push у `main`.  
-> Bicep: `infra/main.bicep` → 5 модулів у `infra/modules/`.
-
----
-
-### 8.1 Загальна схема v2.0
+## 3. High-level architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    EXTERNAL SOURCES (Mock для hackathon)            │
-│   SCADA/MES signals    ──►   POST /api/alerts                       │
-│   (simulated via seed script)                                        │
+│                    EXTERNAL SOURCES                                 │
+│   SCADA · MES · IoT    ──►   POST /api/alerts                       │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│              AZURE SERVICE BUS — alert-queue (Gap #3 ✅)            │
-│   Reliability: DLQ, retry, at-least-once delivery                   │
+│              AZURE SERVICE BUS — alert-queue                        │
+│   Reliability: DLQ, retry, at-least-once, idempotency via alert_id  │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
                           ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│           AZURE DURABLE FUNCTIONS — Python (Gap #3 ✅)              │
+│        AZURE DURABLE FUNCTIONS — Workflow Orchestrator              │
 │                                                                     │
-│  Orchestrator Function                                              │
+│  deviation_orchestrator                                             │
 │  ┌────────────────────────────────────────────────────────────┐    │
-│  │ 1. Activity: CreateIncident ──► Cosmos DB                  │    │
-│  │ 2. Activity: EnrichContext  ──► Cosmos DB (equipment/batch)│    │
-│  3. Activity: RunFoundryAgents ──► Azure AI Foundry         │    │
-│     └─ Orchestrator Agent (Connected Agents)                │    │
-│         ├─ Research Agent  (MCP: cosmos-db, AI Search RAG)  │    │
-│         └─ Document Agent  (structured output + conf.gate)  │    │
-│     [Foundry керує reasoning loop та more_info всередині]   │    │
-│  4. Activity: NotifyOperator ──► Azure SignalR              │    │
-│  5. waitForExternalEvent("operator_decision")               │    │
-│     OR Timer: 24h → escalate to QA Manager                  │    │
-│  6a. "approved"     → Activity: RunExecutionAgent           │    │
-│      └─ Execution Agent (MCP-qms + MCP-cmms)                │    │
-│  6b. "rejected"     → Activity: CloseIncident(rejected)     │    │
-│  6c. "more_info"    → re-run step 3 з додатковим контекстом │    │
-│  │ 7. Activity: FinalizeAuditRecord ──► Cosmos DB             │    │
+│  │ 1. create_incident          ──► Cosmos DB                  │    │
+│  │ 2. enrich_context           ──► Cosmos DB (equipment/batch)│    │
+│  │ 3. run_foundry_agents       ──► Azure AI Foundry            │    │
+│  │    └─ Orchestrator Agent (Connected Agents pipeline)       │    │
+│  │         ├─ Research Agent  (RAG × 5 + MCP-sentinel-db)     │    │
+│  │         └─ Document Agent  (structured output + conf.gate) │    │
+│  │ 4. notify_operator          ──► SignalR + Cosmos           │    │
+│  │ 5. ⏸ waitForExternalEvent("operator_decision") / 24h timer │    │
+│  │ 6a. approved   → run_execution_agent (MCP-QMS + MCP-CMMS)  │    │
+│  │ 6b. rejected   → close_incident                             │    │
+│  │ 6c. more_info  → re-run step 3 з додатковим контекстом     │    │
+│  │ 7. finalize_audit           ──► Cosmos DB                  │    │
 │  └────────────────────────────────────────────────────────────┘    │
 └─────────────────────────┬───────────────────────────────────────────┘
                           │
@@ -328,115 +126,205 @@ Sensor Signal → Alert (already automated anomaly detection)
 ┌──────────────┐  ┌───────────────────┐  ┌──────────────────────────┐
 │   AZURE      │  │  AZURE AI FOUNDRY │  │   AZURE COSMOS DB        │
 │   SIGNALR    │  │  AGENT SERVICE    │  │   Serverless             │
-│              │  │                   │  │   (8 containers)         │
-│  Real-time   │  │  Orchestrator     │  │  incidents               │
-│  push to     │  │  ├─ Research Agt  │  │  incident_events         │
-│  React UI    │  │  ├─ Document Agt  │  │  notifications           │
-│  (Gap #5 ✅) │  │  └─ Execution Agt │  │  equipment (mock CMMS)   │
-└──────────────┘  │                   │  │  batches (mock MES)      │
-                  │  MCP Servers:     │  │  capa-plans              │
-                  │  ├─ mcp-sentinel-db │  │  approval-tasks        │
-                  │  ├─ mcp-qms        │  │  templates              │
-                  │  └─ mcp-cmms       │  └──────────────────────────┘
-                  └───────────────────┘
-                          │
-                          ▼
+│              │  │                   │  │   8 containers:          │
+│  Real-time   │  │  Orchestrator     │  │   incidents              │
+│  push to UI  │  │  ├─ Research Agt  │  │   incident_events        │
+│  deviationHub│  │  ├─ Document Agt  │  │   notifications          │
+│              │  │  └─ Execution Agt │  │   equipment / batches    │
+└──────────────┘  │                   │  │   capa-plans             │
+                  │  MCP Servers:     │  │   approval-tasks         │
+                  │  ├─ mcp-sentinel- │  │   templates              │
+                  │  │     db         │  └──────────────────────────┘
+                  │  ├─ mcp-qms       │                              
+                  │  └─ mcp-cmms      │                              
+                  └───────────────────┘                              
+                          │                                           
+                          ▼                                           
               ┌───────────────────────────┐
               │  AZURE AI SEARCH          │
               │  5 indexes (RAG):         │
               │  ├─ idx-sop-documents     │
               │  ├─ idx-equipment-manuals │
               │  ├─ idx-gmp-policies      │
-              │  ├─ idx-bpr-documents ★  │
+              │  ├─ idx-bpr-documents  ★  │
               │  └─ idx-incident-history  │
               └───────────────────────────┘
                     ★ product-specific CPP ranges
-                      (NOR narrower than equip. PAR)
+                      (NOR narrower than equipment PAR)
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │                  BACKEND API — Azure Functions HTTP                 │
-│  POST /api/alerts              GET /api/incidents                   │
-│  GET  /api/incidents/{id}      GET /api/incidents/{id}/events       │
-│  🔜 GET /api/incidents/{id}/agent-telemetry (admin diagnostics)     │
-│  POST /api/incidents/{id}/decision  (resumes Durable orchestrator)  │
-│  GET/PUT /api/templates/{id}   GET /api/equipment/{id}              │
-│  GET /api/batches/current/{eq_id}                                   │
+│  POST /api/alerts              POST /api/incidents/{id}/decision    │
+│  GET  /api/incidents           GET  /api/incidents/{id}             │
+│  GET  /api/incidents/{id}/events                                    │
+│  GET  /api/incidents/{id}/agent-telemetry                           │
+│  GET  /api/notifications       GET  /api/notifications/summary      │
+│  GET/PUT /api/templates/{id}                                        │
+│  GET  /api/equipment/{id}      GET  /api/batches/current/{eq_id}    │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │              REACT + VITE FRONTEND (Azure Static Web Apps)          │
-│  (Gap #5 ✅)                                                         │
-│                                                                     │
-│  Role: operator      → Incident list + decision package + approval  │
-│  Role: qa-manager    → All incidents + escalation queue             │
-│  Role: maint-tech    → Work orders view (read-only)                 │
-│  Role: auditor       → Full audit trail view (read-only)            │
-│  Role: it-admin      → Template management + telemetry diagnostics  │
+│  operator      → Incident list + decision package + approval       │
+│  qa-manager    → All incidents + escalation queue                  │
+│  maint-tech    → Work orders view (read-only)                      │
+│  auditor       → Full audit trail + agent telemetry (read-only)    │
+│  it-admin      → Template management + agent telemetry diagnostics │
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
 │               CROSS-CUTTING CONCERNS                                │
-│  Security (Gap #2 ✅): Azure Entra ID · Key Vault · Managed         │
-│    Identities · VNet Private Endpoints · RBAC 5 roles               │
-│  Reliability (Gap #3 ✅): Service Bus DLQ · Durable retry ·         │
-│    Fallback mode · Circuit breaker · Timeout escalation             │
-│  RAI (Gap #4 ✅): Confidence gate 0.7 · Azure Content Safety ·      │
-│    Evidence-grounded output · Separate document/citation            │
-│    verification · Prompt injection guard                            │
-│  Observability: Azure Monitor · App Insights · Log Analytics ·      │
-│    Cosmos `incident_events` for business audit / transcript         │
-│  Track A (Gap #1 ✅): GitHub repo · GitHub Actions CI/CD ·          │
-│    Bicep IaC · Azure Foundry evaluation runs                        │
-│  IaC (Gap #6 ✅): Bicep templates · main.bicep + modules/           │
+│  Identity:   Entra ID · MSAL · Managed Identity · App Roles        │
+│  Network:    VNet · Private Endpoints · Private DNS · NSGs          │
+│  Access:     Conditional Access (MFA, geo) · Azure PIM (JIT)       │
+│  Secrets:    Azure Key Vault · 90-day rotation · Event Grid trigger │
+│  Reliability:Service Bus DLQ · Durable retry · Circuit breaker ·    │
+│              Fallback mode · Multi-region DR                        │
+│  RAI:        Confidence gate 0.7 · Content Safety + Prompt Shield · │
+│              Evidence-grounded output · Verification pass           │
+│  Observability: App Insights · Log Analytics · FOUNDRY_PROMPT_TRACE │
+│                 · Cosmos incident_events (business timeline)        │
+│  IaC + CI/CD: Bicep modules · GitHub Actions · Foundry eval gates   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
+> Діаграма інфраструктури з типами ресурсів та Bicep-модулями: [infra/diagram.md](./infra/diagram.md) (Mermaid) та [infra/architecture.drawio](./infra/architecture.drawio).
+>
 ---
 
-### 8.2 Компоненти v2.0 — таблиця
+## 4. End-to-end data flow
 
-| Компонент | Технологія | Роль | Закриває Gap |
-|---|---|---|---|
-| **Backend API** | Azure Functions (Python) | HTTP trigger для REST API endpoints | — |
-| **Workflow Engine** | Azure Durable Functions (Python) | Stateful orchestration, pause/resume, timeout | Gap #3 |
-| **Alert Queue** | Azure Service Bus | Decoupled ingestion, DLQ, at-least-once | Gap #3 |
-| **Agent Orchestrator** | Azure AI Foundry Agent Service | Routing між агентами, state, loops | — |
-| **Foundry Orchestrator Agent** | Foundry Agent + Connected Agents pattern | Координує Research → Document pipeline; керує reasoning loop і more_info циклами всередині одного кроку | Gap #4 |
-| **Research Agent** | Foundry Agent + MCP + RAG | Збір контексту: equipment history, semantic SOPs. Підключений як sub-agent | Gap #4 |
-| **Document Agent** | Foundry Agent + templates + confidence gate | Draft: work_order, audit_entry, recommendation, risk_level | Gap #5 |
-| **Execution Agent** | Foundry Agent + MCP-QMS/CMMS | Виконання після approval: create WO + audit entry | — |
-| **MCP: mcp-sentinel-db** | Python (stdio MCP server) | Tools: get_incident, get_equipment, get_batch, search_incidents | — |
-| **MCP: mcp-qms** | Python (stdio MCP server) | Tool: create_audit_entry (QMS integration) | — |
-| **MCP: mcp-cmms** | Python (stdio MCP server) | Tool: create_work_order (CMMS integration) | — |
-| **Incident DB** | Azure Cosmos DB Serverless | 8 containers: incidents, incident_events, notifications, equipment, batches, capa-plans, approval-tasks, templates | — |
-| **RAG Storage** | Azure AI Search | **5 indexes**: SOPs, equipment manuals, GMP policies, **BPR product specs**, incident history | Gap #4 |
-| **Document Ingestion** | Blob Storage + blob trigger Function | Chunk → embed → AI Search (for SOPs/manuals) | — |
-| **Real-time Push** | Azure SignalR Service | Push notifications до React UI (approval pending, status change) | Gap #5 |
-| **Frontend** | React + Vite (Static Web Apps) | Operator dashboard, approval UX, manager/auditor views | Gap #5 |
-| **Identity & Access** | Azure Entra ID | AuthN/AuthZ, Managed Identities, 5 RBAC roles | Gap #2 |
-| **Secrets** | Azure Key Vault | All connection strings, API keys, agent secrets | Gap #2 |
-| **Network** | VNet + Private Endpoints | Cosmos DB, AI Search, Service Bus не відкриті в інтернет | Gap #2 |
-| **Observability** | App Insights + Log Analytics + Cosmos `incident_events` | Deep agent traces in App Insights; business audit and transcript timeline in Cosmos | Gap #4 |
-| **IaC** | Bicep (infra/) | Repeatable provisioning для всіх ресурсів | Gap #6 |
-| **CI/CD** | GitHub Actions | Build, test, Bicep deploy, Foundry eval | Gap #1 |
+**Step 1 — Detect.** SCADA/MES/IoT система публікує alert → `POST /api/alerts` (HTTP Function `ingest_alert`) → alert записується у Service Bus `alert-queue`. Idempotency: `ingest_alert` перевіряє `sourceAlertId` у Cosmos перед публікацією.
+
+**Step 2 — Trigger workflow.** Service Bus trigger `alert_processor` приймає повідомлення, генерує `incident_id`, запускає Durable orchestrator `deviation_orchestrator` через `client.start_new(...)`.
+
+**Step 3 — Create & enrich.** Orchestrator послідовно викликає:
+
+- `create_incident` — записує базовий incident у Cosmos `incidents`;
+- `enrich_context` — дочитує `equipment` + `batches` за ID з alert-у.
+
+**Step 4 — Agent reasoning.** Activity `run_foundry_agents` запускає Foundry **Orchestrator Agent**. Orchestrator керує Connected Agents pipeline:
+
+- **Research Agent** (sub-agent via `AgentTool`) паралельно використовує RAG (Azure AI Search × 5 indexes) + MCP tools (`mcp-sentinel-db`) та повертає `ResearchAgentOutput`;
+- **Document Agent** (sub-agent via `AgentTool`) приймає `ResearchAgentOutput`, застосовує confidence gate 0.7, повертає `DocumentAgentOutput` із recommendation, evidence citations, CAPA steps, work_order_draft, audit_entry_draft.
+
+Foundry нативно керує reasoning loop та `max_iterations`. Backend виконує окремий **verification pass** над citations перед persist.
+
+**Step 5 — Notify operator.** Activity `notify_operator` пише записи у `approval-tasks`, `notifications`, `incident_events` і публікує event у Azure SignalR `deviationHub` → React UI.
+
+**Step 6 — Human decision.** Operator дивиться decision package: AI рекомендацію (`agent_recommendation: APPROVE | REJECT`), rationale, evidence, **редаговані форми** WO draft та audit entry draft (pre-filled від Document Agent; обов'язкові при Approve). Натискає `Approve` / `Reject` / `More info`. `POST /api/incidents/{id}/decision` викликає Durable `raise_event("operator_decision", ...)` → orchestrator прокидається.
+
+- `more_info` → orchestrator додає `operator_question` до контексту, повторює `run_foundry_agents` (до `MAX_MORE_INFO_ROUNDS`);
+- `approved` → `run_execution_agent`; payload для WO + audit entry береться з оператором відредагованих форм; `operator_agrees_with_agent = (decision == agent_recommendation)`;
+- `rejected` → `close_incident`; audit record зберігає `outcome = "rejected"` та `operator_agrees_with_agent`; async feedback-подія надсилається до alerting-системи (`ALERT_FEEDBACK_URL`, configurable) — дозволяє SCADA/MES навчатись на false positive сигналах;
+- Timeout `HITL_TIMEOUT_HOURS` (default: 24h; **рекомендовано ≤ 1h для безперервного виробництва**) → Durable escalate до QA Manager; operator переходить у **read-only**; QA Manager отримує повний decision UI.
+
+**Step 7 — Execute.** Activity `run_execution_agent` запускає Foundry Execution Agent, який через MCP servers виконує реальні інтеграції: `create_work_order` (mcp-cmms → CMMS: SAP PM / IBM Maximo) та `create_audit_entry` (mcp-qms → QMS: SAP QM / TrackWise / Veeva Vault). Payload формується з оператором верифікованих та відредагованих форм (заповнені вручну у разі BLOCKED-стану).
+
+**Step 8 — Finalize.** Activity `finalize_audit` записує фінальний audit record (`confidence_score`, `human_override`, `human_override_text`, `operator_comment`, `operator_agrees_with_agent`, timestamps, agent steps) у `incident_events` + оновлює `incidents` статус. Blob trigger синхронізує closed incident у `idx-incident-history`.
 
 ---
 
-### 8.3 Агенти — детальний дизайн
+## 5. Component catalog
 
-#### Foundry Orchestrator Agent (новий — ADR-002)
-- **Мета:** координувати Research та Document агентів через Connected Agents pattern
-- **Тип:** `prompt` agent з підключеними sub-agents як tools
-- **Входить:** incident payload + enriched context (від Durable activity `enrich_context`)
-- **Managing loops:** Foundry нативно управляє reasoning loop і кількістю ітерацій — не потрібен кастомний `loop_count` у Durable
-- **more_info handling:** якщо у відповідь на `more_info` від оператора Durable повертає додаткові дані → Orchestrator Agent отримує їх як додатковий контекст і запускає новий round Research → Document
-- **Виходить:** `DocumentAgentOutput` JSON (передається Durable для нотифікації оператора)
+| Компонент | Технологія | Роль |
+|---|---|---|
+| **Ingestion API** | Azure Functions HTTP (Python) | Приймає зовнішні alert-и, idempotency через `sourceAlertId`, публікує у Service Bus |
+| **Alert Queue** | Azure Service Bus Standard | Decoupled ingestion, DLQ, 3 auto-retries, at-least-once delivery |
+| **Workflow Orchestrator** | Azure Durable Functions (Python) | Stateful orchestration всього процесу, HITL пауза, 24h timeout, retry/DLQ |
+| **AI Orchestrator** | Azure AI Foundry Agent Service | Connected Agents routing, reasoning loop, native MCP + RAG tool connections |
+| **Orchestrator Agent** | Foundry prompt agent | Координує Research → Document pipeline, керує reasoning loop та `max_iterations` |
+| **Research Agent** | Foundry agent + 5 RAG tools + MCP | Збирає equipment state, batch context, relevant SOPs, historical cases |
+| **Document Agent** | Foundry agent + templates + confidence gate | Draft: recommendation, risk level, evidence citations, CAPA steps, WO/audit drafts |
+| **Execution Agent** | Foundry agent + MCP-QMS/CMMS | Після approval: `create_work_order` → CMMS + `create_audit_entry` → QMS |
+| **mcp-sentinel-db** | Python stdio MCP server | Tools: `get_incident`, `get_equipment`, `get_batch`, `search_incidents`, `list_incidents` |
+| **mcp-qms** | Python MCP server (HTTP/SSE + MI auth) | Integration adapter → QMS (SAP QM / TrackWise / Veeva Vault): `create_audit_entry` — GMP-compliant audit record у зовнішній системі |
+| **mcp-cmms** | Python MCP server (HTTP/SSE + MI auth) | Integration adapter → CMMS (SAP PM / IBM Maximo): `create_work_order` — реальний наряд на роботи у зовнішній системі |
+| **Incident DB** | Azure Cosmos DB Serverless | 8 containers; partition keys оптимізовані під incident-centric access |
+| **RAG Index** | Azure AI Search | 5 indexes: SOPs, equipment manuals, GMP policies, BPR specs, incident history; HNSW vector + semantic ranker |
+| **Document Ingestion** | Blob Storage + blob-trigger Functions | Chunk → embed → AI Search; table-aware chunking для BPR |
+| **Real-time Push** | Azure SignalR Service | Hub `deviationHub`, role-based groups, push approval/status events |
+| **Backend API** | Azure Functions HTTP | REST endpoints для SPA та decision resume |
+| **Frontend** | React 18 + Vite + TypeScript | SPA на Azure Static Web Apps, MSAL, role-based views |
+| **Identity** | Azure Entra ID | AuthN (MSAL), AuthZ (App Roles), Managed Identities, assignment_required |
+| **Privileged Access** | Entra CA + Azure PIM | MFA + geo-restriction; JIT-eligible Contributor для IT Admin |
+| **Secrets** | Azure Key Vault | Connection strings, API keys; 90-day rotation policy + Event Grid trigger |
+| **Network** | VNet + Private Endpoints + NSGs | Ізоляція PaaS; `publicNetworkAccess = Disabled`; Private DNS Zones |
+| **Security Monitoring** | Microsoft Defender for Cloud | Threat protection для App Service, Key Vault, Cosmos |
+| **Observability** | App Insights + Log Analytics + Cosmos `incident_events` | Deep FOUNDRY_PROMPT_TRACE в App Insights; business timeline у Cosmos |
+| **IaC** | Bicep | `infra/main.bicep` + модулі per ресурс |
+| **CI/CD** | GitHub Actions | Build, test, Bicep deploy, Foundry eval gate, functions deploy |
 
-#### Research Agent
-- **Мета:** зібрати весь релевантний контекст для incident
-- **Тип:** sub-agent, підключений до Orchestrator Agent як `AgentTool`
-- **RAG tools (нативні Foundry `AzureAISearchTool`):** `search_sop_documents`, `search_equipment_manuals`, `search_gmp_policies`, **`search_bpr_documents`**, `search_incident_history`
-- **MCP tools:** `get_equipment(id)`, `get_batch(id)`, `search_incidents(equipment_id, date_range)`
+---
+
+## 6. Two-level orchestration
+
+У цільовій архітектурі роль «Agent Orchestrator» **розбита на два рівні з різними відповідальностями** (див. [ADR-001](./docs/architecture-decisions.md#adr-001--human-in-the-loop-mechanism), [ADR-002](./docs/architecture-decisions.md#adr-002--foundry-connected-agents)).
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  РІВЕНЬ 1 — Workflow Orchestrator (Azure Durable Functions)         │
+│  Відповідає за: послідовність кроків, HITL пауза (до 24h),           │
+│                 стан всього процесу, retry/DLQ, escalation           │
+│                                                                      │
+│  yield CallActivity("create_incident")                               │
+│  yield CallActivity("enrich_context")                                │
+│  yield CallActivity("run_foundry_agents")   ──► Рівень 2             │
+│  yield CallActivity("notify_operator")                               │
+│  ⏸ decision = WaitForExternalEvent("operator_decision") / Timer(24h)│
+│  (more_info) → повтор run_foundry_agents з новим контекстом          │
+│  (approved) → CallActivity("run_execution_agent")  ──► Рівень 2      │
+│  yield CallActivity("finalize_audit")                                │
+└───────────────────────────────────────┬──────────────────────────────┘
+             ↓ activity calls           │
+┌──────────────────────────────────────▼──────────────────────────────┐
+│  РІВЕНЬ 2 — AI Orchestrator (Azure AI Foundry Agent Service)         │
+│  Відповідає за: агентну логіку, tool calls, reasoning loop,          │
+│                 routing між агентами через Connected Agents          │
+│                                                                      │
+│  run_foundry_agents:                                                 │
+│    Orchestrator Agent                                                │
+│      ├─ Research Agent (AgentTool)                                  │
+│      │    ├─ AzureAISearchTool × 5 indexes                          │
+│      │    └─ MCP: mcp-sentinel-db                                   │
+│      └─ Document Agent (AgentTool)                                  │
+│           └─ structured output + confidence gate 0.7                │
+│                                                                      │
+│  run_execution_agent:                                                │
+│    Execution Agent                                                   │
+│      ├─ MCP: mcp-cmms (create_work_order)                           │
+│      └─ MCP: mcp-qms  (create_audit_entry)                          │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+| Питання | Durable Functions | Foundry Agent Service |
+|---|---|---|
+| Керує | workflow-кроками процесу | AI reasoning та tool calls |
+| HITL пауза | `waitForExternalEvent` — 24h+ | function_call timeout — 10 хв (недостатньо) |
+| Стан між кроками | persisted у Azure Storage | persisted у thread в межах run |
+| Retry / DLQ | вбудовано | ручний wrapper |
+| Agent routing | не розуміє LLM | Connected Agents нативно |
+| `max_iterations` | кастомний лічильник | нативно |
+| MCP + RAG tools | кастомний код | `AzureAISearchTool`, MCP connections нативно |
+
+---
+
+## 7. Agent design
+
+### 7.1 Orchestrator Agent
+
+- **Тип:** Foundry prompt agent із підключеними sub-agents як tools.
+- **Мета:** координувати Research та Document агентів через Connected Agents pattern.
+- **Input:** incident payload + enriched context (equipment + batch + operator questions, якщо `more_info`).
+- **Керує:** reasoning loop, `max_iterations`, послідовністю Research → Document.
+- **Output:** `DocumentAgentOutput` JSON для Durable.
+
+### 7.2 Research Agent
+
+- **Тип:** Foundry agent, sub-agent via `AgentTool`.
+- **Мета:** зібрати весь релевантний контекст для incident.
+- **RAG tools** (Foundry `AzureAISearchTool`): `search_sop_documents`, `search_equipment_manuals`, `search_gmp_policies`, `search_bpr_documents`, `search_incident_history`.
+- **MCP tools** (mcp-sentinel-db): `get_equipment(id)`, `get_batch(id)`, `search_incidents(equipment_id, date_range)`, `get_incident(id)`, `list_incidents(filters)`.
 - **Output schema** (`ResearchAgentOutput`):
 
 ```json
@@ -468,16 +356,22 @@ Sensor Signal → Alert (already automated anomaly detection)
 }
 ```
 
-#### Document Agent
-- **Мета:** скласти decision package з evidence
-- **Input:** `ResearchAgentOutput` + incident details
+### 7.3 Document Agent
+
+- **Тип:** Foundry agent, sub-agent via `AgentTool`.
+- **Мета:** скласти decision package з evidence та confidence.
+- **Input:** `ResearchAgentOutput` + incident details + templates з Cosmos `templates`.
 - **Output schema** (`DocumentAgentOutput`):
+
+> `risk_level` (severity): `HIGH` / `MEDIUM` / `LOW` / `LOW_CONFIDENCE` / `BLOCKED`.
+> `agent_recommendation` (verdict): явна рекомендація агента — `APPROVE` (дія потрібна) або `REJECT` (ложно-позитивний або не потребує дій). GMP вимагає задокументувати рішення незалежно від результату.
 
 ```json
 {
   "recommendation": "Stop granulator, inspect impeller bearing",
   "risk_level": "HIGH",
   "confidence": 0.84,
+  "agent_recommendation": "APPROVE",
   "deviation_classification": "Equipment Deviation – Type II",
   "evidence_citations": [
     { "source": "SOP-DEV-001", "section": "§4.2", "text": "vibration thresholds..." },
@@ -489,34 +383,38 @@ Sensor Signal → Alert (already automated anomaly detection)
 }
 ```
 
-- **Окремий anti-hallucination verification pass (hackathon AI Fit requirement):**
+#### 7.3.1 Confidence gate
+
+| Стан | Умова | Поведінка UI | Audit trail |
+|---|---|---|---|
+| **NORMAL** | confidence ≥ 0.7 | Recommendation + `agent_recommendation` (APPROVE/REJECT) + editable WO / audit drafts. Кнопки: [Approve] [Reject] [More info] | `confidence_score`, `operator_agrees_with_agent` |
+| **LOW_CONFIDENCE** | confidence < 0.7 | Банер: «AI впевненість недостатня». Recommendation і drafts показуються, editable. Коментар обов'язковий. Кнопки: [Approve] [Reject] [More info] | `human_override = true`, mandatory comment |
+| **BLOCKED** | agent failure / exception | Банер: «AI не зміг згенерувати рекомендацію». Порожні форми WO draft + audit entry draft — operator заповнює вручну (обов'язково для Approve). Кнопки: [Approve] [Reject] | `confidence = 0`, `human_override = true`, mandatory free-text |
+
+> **Ескалація до QA Manager** відбувається **виключно** по таймауту `HITL_TIMEOUT_HOURS`. Низький confidence або BLOCKED стан **не** тригерять ескалацію — operator завжди може прийняти рішення самостійно.
+
+#### 7.3.2 Evidence verification pass
+
+Reasoning і verification — два різні кроки. Agent пропонує citations, але фінальний decision package проходить окрему server-side перевірку перед записом у Cosmos та показом у UI.
 
 | Що перевіряємо | Хто виконує | Навіщо |
 |---|---|---|
-| Наявність документа | backend normalization layer після відповіді агента | Рекомендація не може посилатись на неіснуючий SOP / GMP doc |
-| Відповідність `document_id` / title / link | backend verification, незалежно від reasoning агента | Щоб generic labels типу `sop` / `gmp` не потрапляли в decision package |
-| Section claim (`§4.2`, `§6.3`) | authoritative chunk match у Azure AI Search | Щоб модель не видавала paragraph/section hallucination як verified evidence |
-| Excerpt anchor | authoritative chunk text | Щоб зберігати тільки ті цитати, які реально можна простежити до retrieved evidence |
+| Наявність документа | Backend normalization layer | Рекомендація не може посилатись на неіснуючий SOP / GMP doc |
+| Відповідність `document_id` / title / link | Backend verification, незалежно від агента | Щоб generic labels (`sop`, `gmp`) не потрапляли в decision package |
+| Section claim (`§4.2`, `§6.3`) | Authoritative chunk match у Azure AI Search | Щоб модель не видавала paragraph hallucination як verified evidence |
+| Excerpt anchor | Authoritative chunk text | Зберігати тільки цитати, які реально можна простежити до retrieved evidence |
 
-- **Ключовий принцип:** reasoning і verification — це два різні кроки. Agent може запропонувати гіпотезу та citations, але фінальний decision package проходить окрему server-side перевірку документів і цитат перед записом у Cosmos та показом в UI.
-- **Expected behavior:**
-  - якщо документ знайдено і section підтверджено — citation вважається verified evidence;
-  - якщо документ знайдено, але section claim не підтверджується authoritative chunk — citation лишається видимою як `unresolved`, але неперевірена section claim не піднімається в summary fields;
-  - якщо документ / link не підтверджено — citation не повинна рахуватись як verified evidence для trust/explainability шару.
-- **Сценарій для hackathon review:** модель може повернути `EU GMP Annex 15 §6.3`, але якщо authoritative hit реально якіриться тільки на `§6.1 General Principles`, то оператор бачить документ `EU GMP Annex 15` і excerpt як evidence, але секція позначається `unresolved` і не потрапляє в top-level `regulatory_reference` як перевірений факт.
+**Поведінка:** якщо документ знайдено і section підтверджено → citation `verified`. Якщо документ знайдено, але section не підтверджено → citation лишається видимою як `unresolved`, не піднімається у top-level `regulatory_reference`. Якщо документ/link не підтверджено → citation не рахується як verified evidence.
 
-- **RAI gate — confidence < 0.7:**
+### 7.4 Execution Agent
 
-| `confidence` | `risk_level` | Дія | Audit trail |
-|---|---|---|---|
-| ≥ 0.7 | `HIGH` / `MEDIUM` / `LOW` | Operator бачить рекомендацію | Confidence score записується |
-| < 0.7 | `LOW_CONFIDENCE` | ⚠️ Попередження: «AI впевненість недостатня» — коментар обов'язковий | `human_override = true` записується |
-| < 0.7 + no evidence | `BLOCKED` | Рекомендація не показується; авто-ескалація до QA Manager | Escalation event у `incidents` |
-
-#### Execution Agent
-- **Мета:** виконати дії після human approval
-- **Triggers:** тільки після `operator_decision == "approved"`
-- **MCP tools:** `create_work_order(payload)` (CMMS mock), `create_audit_entry(payload)` (QMS mock)
+- **Тип:** Foundry agent з MCP tools.
+- **Trigger:** тільки після `operator_decision == "approved"`. При `rejected` цей агент **не запускається**.
+- **Input payload:** формується з оператором верифікованих `work_order_draft` та `audit_entry_draft` (editable forms у UI; pre-filled від Document Agent; operator/QA може редагувати; інші ролі read-only). При BLOCKED-стані — поля порожні, operator заповнює вручну.
+- **MCP tools та зовнішні системи:**
+  - `create_work_order(payload)` → **mcp-cmms** → **CMMS** (SAP PM / IBM Maximo): фізично створює наряд на роботи в системі планування ТО. Повертає `work_order_id`.
+  - `create_audit_entry(payload)` → **mcp-qms** → **QMS** (SAP QM / TrackWise / Veeva Vault): реєструє GMP deviation record із усіма полями для регуляторного аудиту. Повертає `audit_entry_id`.
+- **Ідентифікатори**, повернуті зовнішніми системами, зберігаються у Cosmos `approval-tasks` та `incident_events` для трасабельності.
 - **Output schema** (`ExecutionAgentOutput`):
 
 ```json
@@ -530,343 +428,143 @@ Sensor Signal → Alert (already automated anomaly detection)
 
 ---
 
-### 8.4 Cosmos DB — схема контейнерів та доступ
+## 8. Human-in-the-loop
 
-**Database:** `sentinel-intelligence` · Serverless · 8 контейнерів
+```
+                          Durable Orchestrator
+                                  │
+                    Activity: notify_operator
+                                  │
+              Azure SignalR ──► React UI push
+                                  │
+                   Operator бачить:
+                   ┌──────────────────────────────┐
+                   │ ⚠ DEVIATION: GR-204           │
+                   │ Impeller Speed: 580 RPM       │
+                   │ (limit: 600–800 RPM | 4 min)  │
+                   │                               │
+                   │ AI Risk: MEDIUM (84%)         │
+                   │ Root cause: motor load...     │
+                   │ CAPA: 1. Moisture check...    │
+                   │ Evidence: SOP-DEV-001 §4.2    │
+                   │                               │
+                   │ AI: APPROVE / REJECT          │
+                   │ WO draft:    [editable ─────] │
+                   │ Audit draft: [editable ─────] │
+                   │                               │
+                   │ [Approve] [Reject] [More info]│
+                   └──────────────────────────────┘
+                                  │
+                                  │ confidence < 0.7: LOW_CONFIDENCE банер,
+                                  │   comment обов'язковий
+                                  │ BLOCKED (agent fail): порожні форми,
+                                  │   operator заповнює вручну
+                                  │
+          ┌───────────────┬────────┴───────┬──────────────────────────────┐
+          ↓               ↓               ↓                              ↓
+       Approved        Rejected        More info        Timeout HITL_TIMEOUT_HOURS
+          │               │               │             (default 24h;
+          │               │               │              ≤1h для безперерв. вир-ва)
+          │               │               │                              │
+      run_exec         close +        append ctx                  escalate
+       agent          outcome=         → re-run                  to QA Mgr
+     (WO+audit       "rejected"          agents             Operator: read-only
+    from edited   feedback async                            QA Manager: full UI
+      drafts)    → alerting sys.
+          │               │               │                              │
+          └───────────────┴───────────────┴──────────────────────────────┘
+                                  ↓
+                           finalize_audit:
+                           outcome, confidence_score,
+                           human_override, human_override_text,
+                           operator_agrees_with_agent,
+                           work_order_id (if executed),
+                           audit_entry_id (if executed)
+```
 
-#### Контейнери
+---
+
+## 9. Data persistence
+
+### 9.1 Cosmos DB — схема контейнерів
+
+**Database:** `sentinel-intelligence` · Serverless · 8 containers.
 
 | Контейнер | Partition Key | Призначення |
 |---|---|---|
-| `incidents` | `/equipmentId` | Основний документ incident + AI analysis + workflow state |
+| `incidents` | `/equipmentId` | Основний incident + AI analysis + workflow state |
 | `incident_events` | `/incidentId` | Business audit trail, operator transcript, coarse agent lifecycle events |
-| `notifications` | `/incidentId` | SignalR-facing notification records and delivery state |
-| `equipment` | `/id` | Mock CMMS: master data, validated params, PM history |
-| `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
-| `capa-plans` | `/incidentId` | Згенеровані Document Agent CAPA плани |
-| `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks + execution results |
-| `templates` | `/id` | Editable work order and audit entry templates for IT Admin |
+| `notifications` | `/incidentId` | SignalR-facing notification records + delivery state |
+| `equipment` | `/id` | CMMS master data: validated params, PM history |
+| `batches` | `/equipmentId` | MES data: поточні та завершені batch records |
+| `capa-plans` | `/incidentId` | Draft CAPA плани від Document Agent |
+| `approval-tasks` | `/incidentId` | HITL approval tasks + execution results |
+| `templates` | `/id` | IT Admin editable work order / audit entry templates |
 
-> ⚠️ **Cross-partition query concern:** `incidents` партиціоновано по `/equipmentId`. Запити `GET /api/incidents` (список усіх) та фільтри по `status`/`date`/`severity` у dashboard — cross-partition (дорого). **Вирішення:** Cosmos DB автоматично підтримує cross-partition запити з `enableCrossPartitionQuery=True`; для hackathon обсягу (~100 incidents) прийнятно. В production — додати materialized view через Change Feed або secondary index по `status` + `createdAt`.
+> **Cross-partition query:** `incidents` партиціоновано по `/equipmentId`. Запити `GET /api/incidents` (список усіх) та фільтри по `status`/`date`/`severity` — cross-partition. Materialized view через Change Feed → secondary index по `status + createdAt` обслуговує dashboard-потоки.
 
-#### Матриця доступу до контейнерів
+### 9.2 Access matrix
 
 | Контейнер | Сервіс / Агент | Операція | Інструмент |
 |---|---|---|---|
 | `incidents` | Azure Functions | Create, Read, Update | `azure-cosmos` SDK |
 | `incidents` | Research Agent | Read (semantic search) | MCP: `search_incidents(equipment_id, date_range)` |
-| `incident_events` | Azure Functions | Write decision, transcript, audit, and lifecycle events | `azure-cosmos` SDK |
-| `incident_events` | Backend API | Read chronological incident timeline | `GET /api/incidents/{id}/events` |
-| `notifications` | Azure Functions | Write pending and delivered notification records | `azure-cosmos` SDK |
+| `incident_events` | Azure Functions | Write decision, transcript, audit, lifecycle events | `azure-cosmos` SDK |
+| `incident_events` | Backend API | Read timeline | `GET /api/incidents/{id}/events` |
+| `notifications` | Azure Functions | Write pending + delivered | `azure-cosmos` SDK |
+| `notifications` | Backend API | Read unread center | `GET /api/notifications`, `GET /api/notifications/summary` |
 | `equipment` | Azure Functions | Read | `azure-cosmos` SDK |
 | `equipment` | Research Agent | Read by ID | MCP: `get_equipment(id)` |
 | `batches` | Azure Functions | Read | `azure-cosmos` SDK |
 | `batches` | Research Agent | Read by ID | MCP: `get_batch(id)` |
-| `capa-plans` | Document Agent | **Write** (draft CAPA) | `azure-cosmos` SDK |
+| `capa-plans` | Document Agent | Write (draft CAPA) | `azure-cosmos` SDK |
 | `capa-plans` | Execution Agent | Read (before execution) | MCP: read CAPA plan |
-| `approval-tasks` | Azure Functions | Write (create task), Read (poll decision) | `azure-cosmos` SDK |
+| `approval-tasks` | Azure Functions | Write (create), Read (poll) | `azure-cosmos` SDK |
 | `approval-tasks` | Execution Agent | Write (audit entry result) | MCP: `create_audit_entry` |
-| `templates` | Azure Functions | Read, Update for admin template management | `GET/PUT /api/templates` |
+| `templates` | Azure Functions | Read, Update | `GET/PUT /api/templates/{id}` |
 
 ---
 
-### 8.5 RAG vs Direct — коли що використовується
+## 10. RAG vs Direct data access
 
 | Дані | Спосіб | Чому |
 |---|---|---|
-| Equipment validated parameters (PAR) | MCP (Cosmos DB) | Структуровані — точне значення важливіше за semantic match; містить equipment-level validated range |
-| Current batch context | MCP (Cosmos DB) | Structured, current state |
-| **BPR product process specs (NOR)** | **RAG (AI Search `idx-bpr-documents`)** | **Semantic search — product-specific CPP ranges narrower than equipment PAR; відповідь на «яка NOR для Metformin impeller?»** |
-| Historical incidents (semantic) | RAG (AI Search `idx-incident-history`) | Semantic similarity — "find similar cases" |
-| SOPs/procedures | RAG (AI Search `idx-sop-documents`) | Semantic search по тексту процедур |
-| Equipment manuals | RAG (AI Search `idx-equipment-manuals`) | Semantic search по технічній документації |
-| GMP policies/regulations | RAG (AI Search `idx-gmp-policies`) | Semantic search по регуляторним вимогам |
-| Work order status | MCP (CMMS mock) | Structured, external system |
-| Audit entry IDs | MCP (QMS mock) | Structured, external system |
+| Equipment validated parameters (PAR) | MCP (Cosmos) | Структуровані — точне значення важливіше за semantic match; equipment-level validated range |
+| Current batch context | MCP (Cosmos) | Structured, current state |
+| **BPR product specs (NOR)** | **RAG (`idx-bpr-documents`)** | Semantic search — product-specific CPP ranges narrower than equipment PAR |
+| Historical incidents (semantic) | RAG (`idx-incident-history`) | Semantic similarity — «find similar cases» |
+| SOPs / procedures | RAG (`idx-sop-documents`) | Semantic search по тексту процедур |
+| Equipment manuals | RAG (`idx-equipment-manuals`) | Semantic search по технічній документації |
+| GMP policies / regulations | RAG (`idx-gmp-policies`) | Semantic search по regulatory тексту |
+| Work order status | MCP (CMMS) | Structured, external system |
+| Audit entry IDs | MCP (QMS) | Structured, external system |
 
 ---
 
-### 8.6 Human-in-the-Loop flow
+## 11. Backend API surface
 
-```
-                          Durable Orchestrator
-                                  │
-                    Activity: NotifyOperator
-                          │
-              Azure SignalR ──► React UI push
-                          │
-                   Operator бачить:
-                   ┌──────────────────────────────┐
-                   │ ⚠️  DEVIATION: GR-204         │
-                   │ Impeller Speed: 580 RPM       │
-                   │ (limit: 600–800 RPM | 4 min)  │
-                   │                              │
-                   │ 🤖 AI Risk: MEDIUM (84%)      │
-                   │ Root cause: motor load...     │
-                   │ CAPA: 1. Moisture check...    │
-                   │ Evidence: SOP-DEV-001 §4.2   │
-                   │                              │
-                   │ [✅ Approve] [❌ Reject]       │
-                   │ [❓ Need more info]            │
-                   └──────────────────────────────┘
-                          │
-                          │  [якщо confidence < 0.7]
-                          │  ⚠️ LOW_CONFIDENCE банер:
-                          │  «Мене AI впевненість 58% — коментар обов'язковий»
-                          │
-          ┌───────────────┼─────────────────┬──────────────┐
-          ↓               ↓                 ↓              ↓
-       Approved        Rejected          More info    LOW_CONFIDENCE
-          │               │                 │         + human override
-  ExecuteDecision   CloseRejected      loop → agents      │
-  (Execution Agent)    + log              + more context   │
-          │                                          ExecuteDecision
-          │                                          audit: human_override=true
-          └──────────────────────────────────────────────┘
-                          │
-                  finalize_audit records:
-                  confidence_score, human_override,
-                  operator_comment (mandatory if override)
-```
-
----
-
-### 8.7 Технічний стек — фінальний
-
-| Layer | Tech | Notes |
+| Метод + шлях | Trigger | Роль |
 |---|---|---|
-| Backend | Python 3.11 | Azure Functions v2, Durable Functions |
-| Agents | Azure AI Foundry Agent Service | Python SDK `azure-ai-projects` |
-| MCP servers | Python `mcp` library | stdio transport (local для demo) |
-| Workflow | Azure Durable Functions | `azure-durable-functions` Python |
-| Database | Azure Cosmos DB | `azure-cosmos` Python SDK |
-| Queue | Azure Service Bus | `azure-servicebus` Python SDK |
-| SignalR | Azure SignalR Service | REST API negotiation |
-| AI Search | Azure AI Search | `azure-search-documents` Python SDK |
-| Frontend | React 18 + Vite + TypeScript | `@azure/msal-react` for Entra ID |
-| Auth | Azure Entra ID (MSAL) | Managed Identities на всіх Functions |
-| Secrets | Azure Key Vault | `azure-keyvault-secrets` + Managed Identity |
-| IaC | Bicep | `infra/main.bicep` + 5 modules |
-| CI/CD | GitHub Actions | `.github/workflows/ci.yml` (PR) + `deploy.yml` (push main) |
+| `POST /api/alerts` | HTTP | Ingest alert → Service Bus (idempotent через `sourceAlertId`) |
+| `GET /api/incidents` | HTTP | Список incident-ів (filter by status / severity / date) |
+| `GET /api/incidents/{id}` | HTTP | Деталі incident + latest AI analysis |
+| `GET /api/incidents/{id}/events` | HTTP | Chronological timeline для UI |
+| `GET /api/incidents/{id}/agent-telemetry` | HTTP | IT Admin / auditor — структурований agent trace з App Insights |
+| `POST /api/incidents/{id}/decision` | HTTP | Приймає operator decision → `raise_event` на Durable |
+| `GET /api/notifications` | HTTP | Unread notifications для operator UX |
+| `GET /api/notifications/summary` | HTTP | Counters для header-у |
+| `GET /api/equipment/{id}` | HTTP | Read equipment master data |
+| `GET /api/batches/current/{equipment_id}` | HTTP | Read поточний batch для обладнання |
+| `GET/PUT /api/templates/{id}` | HTTP | IT Admin template management |
+| `POST /api/negotiate` | HTTP | SignalR negotiate endpoint (bearer token → role-based groups) |
+
+AuthN: Bearer token від Entra ID. AuthZ: App Roles перевіряються у кожному HTTP trigger.
 
 ---
 
-### 8.8 Задеплоєні Azure ресурси
+## 12. Azure Functions map
 
-> Subscription: `Sandbox AI DS - 1003462` (`d16bb0b5-b7b2-4c3b-805b-f7ccb9ce3550`)  
-> Resource Group: `ODL-GHAZ-2177134`  
-> Region: **Sweden Central**  
-> Bicep модуль: `infra/main.bicep` → `infra/modules/`  
-> Унікальний суфікс RG: `erzrpo`
-
-| Azure ресурс | Ім'я | Тип | Bicep модуль | Призначення |
-|---|---|---|---|---|
-| Storage Account | `stsentinelintelerzrpo` | `Microsoft.Storage/storageAccounts` | `modules/storage.bicep` | Стан Durable Functions + **5 Blob containers** для document ingestion (`blob-sop`, `blob-manuals`, `blob-gmp`, `blob-bpr`, `blob-history`). Наразі задеплоєно 1 container `documents` → потребує оновлення в T-036/T-041. |
-| Log Analytics | `log-sentinel-intel-dev-erzrpo` | `Microsoft.OperationalInsights/workspaces` | `modules/monitoring.bicep` | Workspace для App Insights (30 днів retention) |
-| Application Insights | `appi-sentinel-intel-dev-erzrpo` | `Microsoft.Insights/components` | `modules/monitoring.bicep` | Traces, metrics, exceptions для Functions |
-| Cosmos DB Account | `cosmos-sentinel-intel-dev-erzrpo` | `Microsoft.DocumentDB/databaseAccounts` | `modules/cosmos.bicep` | Serverless, database `sentinel-intelligence`, 8 containers |
-| Service Bus | `sb-sentinel-intel-dev-erzrpo` | `Microsoft.ServiceBus/namespaces` | `modules/servicebus.bicep` | Standard tier, queue `alert-queue` (maxDelivery=5, DLQ) |
-| App Service Plan | `asp-func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/serverFarms` | `modules/functions.bicep` | Consumption plan (Y1), Linux |
-| Azure Functions | `func-sentinel-intel-dev-erzrpo` | `Microsoft.Web/sites` | `modules/functions.bicep` | Python 3.11, `function_app.py` |
-
-**Cosmos DB containers** (в БД `sentinel-intelligence`):
-
-| Container | Partition Key | Призначення |
-|---|---|---|
-| `incidents` | `/equipmentId` | Основний документ incident + AI analysis |
-| `incident_events` | `/incidentId` | Audit trail, transcript, coarse lifecycle events |
-| `notifications` | `/incidentId` | Notification records for SignalR-driven UX |
-| `equipment` | `/id` | Mock CMMS: master data, validated params |
-| `batches` | `/equipmentId` | Mock MES: поточні та завершені batch records |
-| `capa-plans` | `/incidentId` | Згенеровані CAPA plans |
-| `approval-tasks` | `/incidentId` | Human-in-the-loop approval tasks |
-| `templates` | `/id` | IT Admin editable templates |
-
-**Ще не задеплоєно** (наступні кроки):
-
-| Ресурс | Тип | Tasks |
-|---|---|---|
-| Azure AI Search | `Microsoft.Search/searchServices` | T-037 |
-| Azure SignalR | `Microsoft.SignalRService/signalR` | T-030 |
-| Azure Key Vault | `Microsoft.KeyVault/vaults` | T-038 |
-| Azure Static Web App | `Microsoft.Web/staticSites` | T-032 |
-| Azure AI Foundry | `Microsoft.CognitiveServices/accounts` | T-025–T-027 |
-
----
-
-### 8.9 Два рівні оркестрації
-
-> Вимоги (01-requirements §4) та AS-SUBMITTED схема називали Foundry «Agent Orchestrator». У v2.0 ця роль **розбита на два рівні з різними відповідальностями**.
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  РІВЕНЬ 1 — Workflow Orchestrator (Azure Durable Functions)         │
-│  Відповідає за: послідовність кроків, HITL паузу,                  │
-│                 таймаут 24h, стан всього процесу                    │
-│                                                                     │
-│  1. enrich_context         ──► Cosmos DB (equipment/batch)          │
-│  2. run_foundry_agents ─────────────────────────────────────┐      │
-│  3. notify_operator        ──► Azure SignalR                │      │
-│  4. ⏸ waitForExternalEvent("operator_decision") ← ПАУЗА 24h       │
-│                                                             │      │
-│  якщо «more_info»:                                          │      │
-│     5m. enrich_context (append operator_question)          │      │
-│     6m. run_foundry_agents (новий round, all context)      │      │
-│     7m. notify_operator → loop до 4                        │      │
-│                                                             │      │
-│  6a. "approved"  → run_execution_agent ─────────────────────┘      │
-│  6b. "rejected"  → close_incident                                   │
-│  7. finalize_audit         ──► Cosmos DB                            │
-└───────────────────────────────────────┬─────────────────────────────┘
-             ↓ (activity calls)         │
-┌────────────────────────────────────── ▼ ─────────────────────────────┐
-│  РІВЕНЬ 2 — AI Orchestrator (Azure AI Foundry Agent Service)         │
-│  Відповідає за: агентну логіку, tool calls, reasoning loop,         │
-│    routing між агентами через Connected Agents pattern              │
-│                                                                      │
-│  run_foundry_agents activity (крок 2 / 6m):                         │
-│    Orchestrator Agent                                                │
-│      ├─ Research Agent (sub-agent via AgentTool)                    │
-│      │    ├─ AzureAISearchTool (SOPs, manuals, GMP, BPR, history)  │
-│      │    └─ MCP: mcp-sentinel-db (equipment, batch, incidents)      │
-│      └─ Document Agent (sub-agent via AgentTool)                    │
-│           └─ structured output + confidence gate                    │
-│    [Foundry manages reasoning loop + max_iterations нативно]        │
-│                                                                      │
-│  run_execution_agent activity (крок 6a):                            │
-│    Execution Agent                                                   │
-│      ├─ MCP: mcp-cmms (create_work_order)                           │
-│      └─ MCP: mcp-qms  (create_audit_entry)                          │
-└──────────────────────────────────────────────────────────────────────┘
-```
-
-**Чому не один рівень?**
-
-| Питання | Durable Functions | Foundry Agent Service |
-|---|---|---|
-| Керує: | workflow (кроки процесу) | AI reasoning (агентна логіка) |
-| HITL пауза | ✅ `waitForExternalEvent` — до 24h | ❌ function_call timeout — 10 хв |
-| Стан між кроками | ✅ persisted у Azure Storage | ✅ всередині одного run |
-| Retry/DLQ | ✅ вбудований | ❌ треба вручну |
-| Агентний routing | ❌ не розуміє LLM | ✅ Connected Agents, нативно |
-| more_info loop count | ❌ потрібен кастомний лічильник | ✅ `max_iterations` у Foundry |
-| MCP tool connections | ❌ немає | ✅ нативно |
-| RAG (AI Search) | ❌ потрібен кастомний код | ✅ `AzureAISearchTool` нативно |
-
-**Відповідь на питання «де оркестратор?»**: Durable Functions — це **workflow orchestrator** (=«директор виробництва», керує процесом і людьми). Foundry — це **AI orchestrator** (=«мозок», який керує агентами всередині кожного кроку). Обидва — «оркестратори», але на різних рівнях.
-
----
-
-### 8.10b ADR-002: Foundry Connected Agents vs ручна оркестрація
-
-> **Тип:** Architecture Decision Record  
-> **Дата рішення:** 17 квітня 2026  
-> **Статус:** Прийнято ✅
-
-#### Контекст
-По задумом T-024 передбачав окремі Durable activities для кожного агента (`run_research_agent`, `run_document_agent`) з ручною передачею результатів між ними. Також `more_info` loop управлявся лічильником `loop_count < 3` у Durable.
-
-#### Варіанти
-
-**Варіант A: Ручна оркестрація у Durable** (попередній дизайн)
-- Окрема activity для кожного агента
-- Ручна передача `ResearchAgentOutput` → Document Agent через Durable state
-- `loop_count` лічиться у Durable orchestrator
-- Логіка "скільки разів дозволено more_info" — у Python коді
-
-**Варіант B: Foundry Connected Agents** ← **ОБРАНО**
-- Один `run_foundry_agents` activity → запускає Foundry Orchestrator Agent
-- Research Agent підключений як `AgentTool` до Orchestrator Agent
-- Document Agent підключений як `AgentTool` до Orchestrator Agent
-- Foundry нативно управляє: reasoning loop, `max_iterations`, routing між агентами
-- `more_info` від оператора: Durable передає додатковий контекст → новий round Foundry agents
-
-#### Рішення: **Варіант B**
-
-| Критерій | Варіант A (ручна) | Варіант B (Connected Agents) |
-|---|---|---|
-| Кількість activity functions | 2 (research + document) | 1 (`run_foundry_agents`) |
-| Передача даних між агентами | ручна (через Durable state) | нативна (Foundry thread) |
-| more_info loop count | кастомний лічильник | `max_iterations` у Foundry |
-| MCP tool connections | кастомний wrapper | нативні Foundry MCP connections |
-| RAG tools | кастомний SDK код | `AzureAISearchTool` нативно |
-| Рядків коду | ~200 | ~50 |
-
-#### Наслідки
-- T-024 спрощується: `run_research_agent` + `run_document_agent` → одна activity `run_foundry_agents`
-- T-025/T-026 більше не окремі Durable activities — це Foundry Agent definitions
-- Foundry Orchestrator Agent потрібен як новий компонент (T-025 розширюється)
-- `more_info` loop: Durable gets decision, appends `operator_question` to context, calls `run_foundry_agents` again — Foundry handles the new round internally
-- Кількість `more_info` rounds: налаштовується через `max_iterations` у Foundry Orchestrator Agent, або через `MAX_MORE_INFO_ROUNDS` env var у Durable (для GMP audit trail)
-
----
-
-### 8.10 ADR-001: Human-in-the-Loop — Durable waitForExternalEvent vs Foundry-native
-
-> **Тип:** Architecture Decision Record  
-> **Дата рішення:** 17 квітня 2026  
-> **Статус:** Прийнято ✅
-
-#### Контекст
-GMP-виробництво вимагає mandatory human approval перед виконанням work order. Оператор має до 24 годин на рішення (відповідно до SOPs). Потрібен механізм:
-- призупинити agentний workflow після генерації рекомендацій
-- дочекатися рішення оператора (Approve / Reject / More info)
-- відновити workflow з результатом рішення
-- якщо 24h минуло — автоескалювати до QA Manager
-
-#### Розглянуті варіанти
-
-**Варіант A: Foundry function_call + previous_response_id**
-```
-response = openai.responses.create(input=...)
-# response.output[i].type == "function_call" → агент "чекає"
-# ... зберегти previous_response_id у Cosmos ...
-# ... оператор вирішує (пізніше) ...
-response = openai.responses.create(input=[FunctionCallOutput(...)], 
-                                   previous_response_id=saved_id)
-```
-**Проблема:** run expires після **10 хвилин** після створення — `previous_response_id` протухає і не може бути відновлений. Джерело: [Microsoft Foundry docs (квітень 2026)](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/function-calling):
-> *"Runs expire 10 minutes after creation. Submit your tool outputs before they expire."*
-
-**Варіант B: Durable Functions waitForExternalEvent** ← **ОБРАНО**
-```python
-# orchestrator (Python)
-yield context.wait_for_external_event("operator_decision")
-# ↑ безкоштовно спить скільки завгодно (Azure Storage persists state)
-
-# React UI → HTTP endpoint → resume orchestrator
-POST /runtime/webhooks/durabletask/instances/{id}/raiseEvent/operator_decision
-{"decision": "approved", "comment": "LIMS verified, proceed"}
-```
-
-#### Рішення
-**Варіант B (Durable Functions `waitForExternalEvent`)**.
-
-#### Обґрунтування
-
-| Критерій | Foundry function_call | Durable waitForExternalEvent |
-|---|---|---|
-| Максимальна пауза | ❌ 10 хвилин | ✅ необмежено (24h+) |
-| Відновлення після restart/crash | ❌ втрачається | ✅ persisted у Azure Storage |
-| Вартість під час паузи | n/a (протухає) | ✅ $0 (Consumption plan) |
-| Resume API | N/A | ✅ `raiseEvent` HTTP |
-| Timeout + ескалація | ❌ немає | ✅ `create_timer` + race pattern |
-| Вже в requirements.txt | ✅ (`azure-ai-projects`) | ✅ (`azure-durable-functions`) |
-
-#### Наслідки
-- Foundry агенти запускаються як короткі **activity functions** (секунди–хвилини) — вкладаються в 10-хв ліміт
-- Загальний workflow state живе у Durable (Azure Storage), а не у Foundry threads
-- `approval-tasks` Cosmos container зберігає pending approval для React UI
-- Azure SignalR пушить notification до React: «очікується рішення оператора»
-- `POST /api/incidents/{id}/decision` HTTP endpoint викликає `raise_event` → orchestrator resume
-
----
-
-### 8.11 Розбивка на Azure Functions — повна карта
-
-> Деталізація всіх функцій, які реалізують workflow. Кожна з них — окрема Python-функція у `backend/function_app.py`.
-
-#### Потік від Service Bus до паузи
+### 12.1 Потік від Service Bus до паузи
 
 ```
 Service Bus: alert-queue
@@ -884,48 +582,36 @@ Service Bus: alert-queue
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  deviation_orchestrator  (Durable Orchestrator)                     │
-│  ⚠️  Не виконується лінійно — Durable replay-механізм              │
 │                                                                     │
 │  yield CallActivity("create_incident")                              │
 │  yield CallActivity("enrich_context")                               │
-│  yield CallActivity("enrich_context")                               │
-│  yield CallActivity("run_foundry_agents")   ─► Foundry             │
-│  yield CallActivity("notify_operator")      ─► SignalR + Cosmos    │
+│  yield CallActivity("run_foundry_agents")   ──► Foundry             │
+│  yield CallActivity("notify_operator")      ──► SignalR + Cosmos    │
 │                                                                     │
 │  ⏸  decision = yield WaitForExternalEvent("operator_decision")     │
-│     ← оркестратор серіалізується в Azure Storage, RAM звільняється │
+│     (serialized у Azure Storage; RAM звільняється)                  │
 │                                                                     │
-│  # more_info loop (max rounds обмежено через env var)              │
-│  while decision["action"] == "more_info" and rounds < MAX_ROUNDS:  │
-│      context["operator_questions"].append(decision["question"])    │
-│      yield CallActivity("run_foundry_agents", context)  ─► Foundry │
+│  # more_info loop (max rounds через MAX_MORE_INFO_ROUNDS)          │
+│  while decision.action == "more_info" and rounds < MAX_ROUNDS:     │
+│      context.operator_questions.append(decision.question)          │
+│      yield CallActivity("run_foundry_agents", context)             │
 │      yield CallActivity("notify_operator")                          │
 │      decision = yield WaitForExternalEvent("operator_decision")    │
 │      rounds += 1                                                   │
-│  if decision["action"] == "approved":                              │
-│      yield CallActivity("run_execution_agent")  ─► Foundry        │
-│  elif decision["action"] == "rejected":                            │
+│                                                                     │
+│  if decision.action == "approved":                                 │
+│      yield CallActivity("run_execution_agent")                     │
+│  elif decision.action == "rejected":                               │
 │      yield CallActivity("close_incident")                          │
-│  yield CallActivity("finalize_audit")       ─► Cosmos DB           │
+│                                                                     │
+│  yield CallActivity("finalize_audit")                              │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Activity functions (викликаються оркестратором)
-
-| Activity | Що робить | Куди ходить |
-|---|---|---|
-| `create_incident` | Створює документ incident у Cosmos DB | Cosmos: `incidents` |
-| `enrich_context` | Читає equipment + batch за ID з алерту | Cosmos: `equipment`, `batches` |
-| `run_foundry_agents` | Запускає Foundry Orchestrator Agent (Research + Document як Connected Agents), будує decision package, зберігає CAPA чернетку, пише App Insights trace records | Foundry SDK (`azure-ai-projects`) → Cosmos: `capa-plans`, App Insights |
-| `notify_operator` | 1. Пише records у `approval-tasks`, `notifications`, `incident_events` 2. POST до SignalR REST API → push до React UI | Cosmos: `approval-tasks`, `notifications`, `incident_events`, Azure SignalR |
-| `run_execution_agent` | Запускає Foundry Execution Agent після approval: create_work_order + create_audit_entry | Foundry SDK → MCP-QMS, MCP-CMMS |
-| `close_incident` | Оновлює incident status: "rejected" | Cosmos: `incidents` |
-| `finalize_audit` | Пише фінальний audit record: рішення + timestamps + агентні кроки | Cosmos: `incident_events`, `approval-tasks`, `incidents` |
-
-#### Як оркестратор прокидається (FN-2)
+### 12.2 Як оркестратор прокидається
 
 ```
-React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ More info]
+React UI: operator натискає [Approve] / [Reject] / [More info]
       │
       │  POST /api/incidents/{id}/decision
       │  { "decision": "approved", "comment": "LIMS verified" }
@@ -933,254 +619,332 @@ React UI: оператор натискає [✅ Approve] / [❌ Reject] / [❓ 
 ┌─────────────────────────────────────────────────────────────────────┐
 │  decision_handler  (HTTP Trigger)                                   │
 │                                                                     │
-│  1. Validates request (auth via Entra ID)                           │
-│  2. Читає instance_id з Cosmos: approval-tasks (by incident_id)     │
+│  1. Validates request (Entra ID bearer)                             │
+│  2. Читає instance_id з approval-tasks (by incident_id)             │
 │  3. await client.raise_event(                                       │
-│         instance_id,                                                │
-│         "operator_decision",                                        │
-│         { "decision": "approved", "comment": "..." }               │
-│     )                                                               │
-│  4. Повертає HTTP 200                                               │
+│         instance_id, "operator_decision",                           │
+│         { "decision": ..., "comment": ... })                        │
+│  4. HTTP 200                                                        │
 │                                                                     │
 │  → Durable знаходить instance у Azure Storage                       │
 │  → replay orchestrator від початку                                  │
-│  → доходить до WaitForExternalEvent → event вже є → продовжує      │
+│  → доходить до WaitForExternalEvent → event вже є → продовжує       │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Повна карта функцій
+### 12.3 Повна карта функцій
 
 | Функція | Тип тригера | Файл | Роль |
 |---|---|---|---|
-| `alert_processor` | Service Bus | `function_app.py` | Вхідна точка: алерт → старт оркестратора |
+| `ingest_alert` | HTTP | `function_app.py` | REST `POST /api/alerts` → Service Bus (idempotent) |
+| `alert_processor` | Service Bus | `function_app.py` | Вхідна точка workflow: алерт → старт оркестратора |
 | `deviation_orchestrator` | Durable Orchestrator | `function_app.py` | Координує весь workflow |
 | `create_incident` | Durable Activity | `function_app.py` | Cosmos write: новий incident |
 | `enrich_context` | Durable Activity | `function_app.py` | Cosmos read: equipment + batch |
-| `run_foundry_agents` | Durable Activity | `function_app.py` | Foundry: Orchestrator Agent (Research + Document via Connected Agents) → capa-plans |
+| `run_foundry_agents` | Durable Activity | `function_app.py` | Foundry: Orchestrator Agent → CAPA draft → App Insights trace |
 | `notify_operator` | Durable Activity | `function_app.py` | Cosmos write + SignalR push |
 | `run_execution_agent` | Durable Activity | `function_app.py` | Foundry: Execution Agent → QMS/CMMS |
 | `close_incident` | Durable Activity | `function_app.py` | Cosmos update: status=rejected |
-| `finalize_audit` | Durable Activity | `function_app.py` | Cosmos write: audit record |
-| `decision_handler` | HTTP | `function_app.py` | REST endpoint: `POST /api/incidents/{id}/decision` → `raise_event` |
-| `get_incidents` | HTTP | `function_app.py` | REST: `GET /api/incidents` |
-| `get_incident_by_id` | HTTP | `function_app.py` | REST: `GET /api/incidents/{id}` |
-| `ingest_alert` | HTTP | `function_app.py` | REST: `POST /api/alerts` → Service Bus |
+| `finalize_audit` | Durable Activity | `function_app.py` | Cosmos write: audit record + trigger history sync |
+| `decision_handler` | HTTP | `function_app.py` | `POST /api/incidents/{id}/decision` → `raise_event` |
+| `get_incidents` | HTTP | `function_app.py` | `GET /api/incidents` |
+| `get_incident_by_id` | HTTP | `function_app.py` | `GET /api/incidents/{id}` |
+| `get_incident_events` | HTTP | `function_app.py` | `GET /api/incidents/{id}/events` |
+| `get_agent_telemetry` | HTTP | `function_app.py` | `GET /api/incidents/{id}/agent-telemetry` (App Insights query) |
+| `get_notifications` | HTTP | `function_app.py` | `GET /api/notifications`, `/summary` |
+| `get_templates` / `put_template` | HTTP | `function_app.py` | IT Admin template CRUD |
+| `negotiate` | HTTP | `function_app.py` | SignalR negotiate (role → groups) |
+| `blob_ingest_{sop,manuals,gmp,bpr}` | Blob trigger | `function_app.py` | Document ingestion → chunk → embed → AI Search |
 
-> **Idempotency:** `POST /api/alerts` повинен приймати `alert_id` у payload. Перед публікацією в Service Bus — перевірити чи існує incident з `sourceAlertId == alert_id` у Cosmos. Якщо так — повернути `HTTP 200` з existing `incident_id` без повторного старту оркестратора. Це запобігає дублікатам при retry від SCADA/MES.
+**Idempotency.** `POST /api/alerts` приймає `alert_id` у payload; `ingest_alert` перевіряє існуючий incident з `sourceAlertId == alert_id` перед публікацією у Service Bus. Дублі повертають `HTTP 200` з existing `incident_id`.
 
-> **Foundry** — не Azure Function. Це зовнішній сервіс, який `run_*_agent` activities викликають через `azure-ai-projects` SDK. Foundry запускає агента, агент виконує tool calls (MCP/RAG), повертає result — activity завершується, оркестратор продовжує.
-
----
-
-### 8.12 Azure SignalR — контракт
-
-**Hub name:** `deviationHub`  
-**Endpoint для negotiate:** `GET /api/negotiate` (Azure Functions HTTP trigger з SignalR input binding)  
-**Auth:** Bearer token (Entra ID) → SignalR Groups per user role
-
-#### Groups (підписки)
-
-| Group | Хто підписується | Які events отримує |
-|---|---|---|
-| `role:operator` | Всі operator-role users | `incident_pending_approval`, `incident_updated` |
-| `role:qa-manager` | QA Manager role | `incident_escalated`, `incident_pending_approval` |
-| `incident:{id}` | Будь-хто хто відкрив деталі incident | `incident_status_changed`, `agent_step_completed` |
-
-#### Events (server → client)
-
-| Event name | Payload | Коли |
-|---|---|---|
-| `incident_pending_approval` | `{ incident_id, equipment_id, risk_level, created_at }` | Після `notify_operator` activity |
-| `incident_status_changed` | `{ incident_id, old_status, new_status, timestamp }` | При кожній зміні status в Cosmos |
-| `agent_step_completed` | `{ incident_id, step, result_summary }` | Після completion кожної Durable activity |
-| `incident_escalated` | `{ incident_id, escalated_to, reason }` | Після 24h timer → QA Manager |
-
-#### Negotiation flow
-
-```
-React UI → GET /api/negotiate (with Bearer token)
-        ← { url: "https://...signalr.../client/", accessToken: "..." }
-React UI → connects to SignalR hub with accessToken
-        → joins group `role:{userRole}` + `incident:{currentIncidentId}`
-```
+**Foundry.** Не Azure Function — зовнішній сервіс, який `run_*_agent` activities викликають через `azure-ai-projects` SDK.
 
 ---
 
-### 8.13 Шар документів — Ingestion Architecture
+## 13. Real-time layer — SignalR
 
-> **Нове в v2.5.** Перехід від одного blob container `documents` з path-based routing до **5 окремих контейнерів**, по одному на тип джерела. Кожен контейнер має власну Azure Function blob trigger з різною логікою чанкування.
+Hub: `deviationHub` · Negotiate: `POST /api/negotiate` (Bearer → role-based groups).
 
-#### Чому окремі контейнери (а не один container з path-routing)?
-
-| Причина | Деталь |
+| Group | Events |
 |---|---|
-| **Різна логіка чанкування** | BPR містить CPP-таблиці — потрібен table-aware chunking щоб таблиці не розбивались між чанками. SOPs — лінійний текст. Incident history — генерується зі скрипту. |
-| **Різна частота оновлень** | GMP-регуляції — рідко (місяцями); SOPs — квартально; BPR — при кожному product validation cycle; incident history — динамічно. Окремі контейнери дозволяють тригерити лише потрібний інгестор. |
-| **Різні upstream джерела (production)** | QMS → `blob-sop`; LIMS/EBR → `blob-bpr`; CMMS → `blob-manuals`; регуляторна база → `blob-gmp`. Для hackathon — ручний upload через `scripts/upload_documents.py`. |
-| **Незалежні retry/failure** | Відмова BPR-інгестора не блокує SOP або GMP pipeline. Кожен blob trigger retry незалежний. |
+| `role:operator` | `incident_pending_approval`, `incident_updated` |
+| `role:qa-manager` | `incident_escalated`, `incident_pending_approval` |
+| `incident:{id}` | `incident_status_changed`, `agent_step_completed` |
 
-#### 5 Blob Storage containers → 5 Ingestors → 5 AI Search indexes
-
-| Container | Local source | Ingestor Function | Target Index | Chunking strategy |
-|---|---|---|---|---|
-| `blob-sop` | `data/documents/sop/` | `ingest_sop_document` | `idx-sop-documents` | 500 токенів, 50 overlap |
-| `blob-manuals` | `data/documents/manuals/` | `ingest_equipment_manual` | `idx-equipment-manuals` | 500 токенів + `equipment_id` tag з імені файлу |
-| `blob-gmp` | `data/documents/gmp/` | `ingest_gmp_policy` | `idx-gmp-policies` | 500 токенів + clause metadata extraction |
-| `blob-bpr` | `data/documents/bpr/` | `ingest_bpr_document` | `idx-bpr-documents` | **Table-aware** — Markdown-таблиці CPP не розбиваються, max ~1200 токенів |
-| `blob-history` | Generated from Cosmos incidents | `ingest_history_document` | `idx-incident-history` | Generated by `scripts/generate_history_chunks.py` |
-
-> ⚠️ **BPR table-aware chunking — чому це critical для GMP:** BPR-документи містять таблиці CPP-параметрів (наприклад, "Impeller NOR: 650±50 RPM | PAR: 600–750 RPM | Equipment range: 200–800 RPM"). Якщо таблиця розбивається між чанками, Research Agent отримує неповну таблицю і ризикує синтезувати параметр — це GMP compliance risk (AI fabricates a process limit). Функція `ingest_bpr_document` детектує Markdown-таблиці (`|---|` паттерн) і зберігає їх цілими.
-
-#### Agent → Index mapping
-
-| Agent | Queries indexes | Purpose |
-|---|---|---|
-| **Research Agent** | Всі 5: `idx-sop-documents`, `idx-equipment-manuals`, `idx-gmp-policies`, `idx-bpr-documents`, `idx-incident-history` | Повний контекст: процедури + специфікації продукту + регулятори + historical cases |
-| **Document Agent** | Жодного (використовує output Research Agent) | Отримує вже зібраний контекст |
-| **Execution Agent** | Жодного | Тільки structured tool calls (MCP: CMMS + QMS) |
-
-#### Bicep — 5 blob containers (оновлення `infra/modules/storage.bicep`)
-
-```
-infra/modules/storage.bicep — provisioned containers:
-  'blob-sop'       ← new (замінює 'documents' для document ingestion)
-  'blob-manuals'   ← new
-  'blob-gmp'       ← new
-  'blob-bpr'       ← new
-  'blob-history'   ← new
-```
-
-> **Hackathon note:** Storage Account `stsentinelintelerzrpo` вже задеплоєно. Container `documents` вже існує — може залишитись для Durable Functions state (auto-managed). 5 нових containers додаються інкрементально оновленням storage.bicep + redeploy. Це робота в **T-036** (ingestion pipeline) + відповідне оновлення **T-041** (Bicep).
-
-### 8.14 Agent Observability — Prompt Trace Path
-
-> **Нове в v2.7.** Для incident-level troubleshooting `run_foundry_agents` now emits structured App Insights traces behind `FOUNDRY_PROMPT_TRACE_ENABLED`.
-
-#### Problem this solves
-
-The original architecture already had audit logging for business actions, but it did not preserve enough evidence to answer questions such as:
-
-- what exact follow-up question reached the Foundry Orchestrator Agent
-- which model split was active for that run
-- whether the bad operator-facing answer came from the Document Agent or from backend normalization
-- whether the same incident can later be reviewed by IT Admin or auditors
-
-#### Trace boundary
-
-The backend can reliably observe and log:
-
-- the outer prompt sent to the Foundry Orchestrator Agent
-- the configured system prompts for Orchestrator, Research, and Document
-- the final thread messages returned by Foundry
-- the raw top-level response
-- the parsed JSON package
-- the normalized final result that is persisted to Cosmos and UI
-
-The current `azure-ai-agents` SDK build used in this repo does **not** expose connected sub-agent run steps directly, so internal Research and Document invocation payloads are only partially visible.
-
-#### Trace contract
-
-Every trace record uses the marker `FOUNDRY_PROMPT_TRACE` and includes stable incident-scoped fields:
-
-- `incident_id`
-- `round`
-- `trace_kind`
-- `chunk_index`
-- `chunk_count`
-- `thread_id` and `run_id` when available
-
-Current trace kinds:
-
-- `prompt_context`
-- `orchestrator_user_prompt`
-- `thread_messages`
-- `raw_response`
-- `parsed_response`
-- `normalized_result`
-
-#### Current storage split
-
-Today observability data is split across **two stores with different purposes**:
-
-- **Cosmos DB `incident_events`** stores the business-facing audit trail and transcript timeline:
-  - `analysis_started`
-  - `agent_response`
-  - `more_info`
-  - approval / rejection / escalation events
-- **Application Insights / Log Analytics** stores the deeper backend-visible Foundry trace records emitted by `run_foundry_agents` under `FOUNDRY_PROMPT_TRACE`.
-
-This is the current intended split:
-
-- Cosmos is optimized for incident-centric UI timeline reads
-- App Insights is optimized for troubleshooting, prompt inspection, and post-mortem diagnostics
-
-#### What frontend can already read
-
-The current React incident detail page already consumes:
-
-- `GET /api/incidents/{id}/events`
-
-That endpoint reads from `incident_events` and powers the operator / auditor timeline, but it does **not** expose the deeper App Insights prompt and response trace payloads.
-
-So today the frontend can show:
-
-- business audit events
-- transcript events such as operator questions and agent replies
-
-but it cannot yet show:
-
-- `prompt_context`
-- `orchestrator_user_prompt`
-- `thread_messages`
-- `raw_response` / `parsed_response` / `normalized_result`
-
-#### Recommended admin delivery path
-
-For the IT Admin / QA telemetry view, the cleanest next slice is:
-
-1. add `GET /api/incidents/{id}/agent-telemetry`
-2. have the backend query App Insights / Log Analytics for `FOUNDRY_PROMPT_TRACE` rows by `incident_id`
-3. normalize those trace records into a frontend-friendly DTO with summary cards and chronological items
-4. optionally merge in `incident_events` rows so admins can see business timeline and deep agent trace in one page
-
-For hackathon/demo, this App-Insights-backed endpoint is the best first pass because the detailed trace data already exists.
-
-Optional second pass:
-
-- persist a compact projection of admin-relevant telemetry into `incident_events` with `type = "agent_telemetry"`
-- use that projection for fast UI rendering and easier Cosmos-side filtering
-
-Important limitation:
-
-- the current `azure-ai-agents` SDK still does **not** expose exact connected sub-agent run steps directly
-- so the first admin page should be framed as a **backend-visible Foundry trace view**, not as a guaranteed full internal Research/Document call graph
-
-#### Retrieval model
-
-The intent is to support both:
-
-- engineering troubleshooting in App Insights and Log Analytics
-- a future admin endpoint or page that retrieves traces by `incident_id`
-
-This closes the gap between business audit trail and AI runtime observability without changing the Durable workflow contract.
+> Повний контракт (events, payloads, negotiation flow): [docs/signalr-contract.md](./docs/signalr-contract.md).
 
 ---
 
-## 9. Changelog архітектури
+## 14. Document ingestion
 
-| Дата | Версія | Зміна | Пов'язаний Gap |
-|---|---|---|---|
-| 2026-03-26 | v1.0 | Initial submission | — |
-| 2026-04-17 | v2.0 | Full implementation design: Durable Functions, Cosmos DB, SignalR, Service Bus, 3 MCP servers, React frontend, Entra ID RBAC, Key Vault, Bicep IaC, GitHub Actions | Gap #1–6 ✅ |
-| 2026-04-17 | v2.1 | **First deployment:** 7 Azure ресурсів задеплоєно через Bicep. GitHub Actions CI/CD зелений. `func-sentinel-intel-dev-erzrpo` живий. Cosmos DB Serverless (5 containers). Service Bus `alert-queue`. App Insights + Log Analytics. | T-041, T-042 ✅ |
-| 2026-04-17 | v2.2 | **ADR-001** (§8.10): задокументовано вибір Durable `waitForExternalEvent` над Foundry-native HITL (10-хв ліміт Foundry несумісний з 24h approval). §8.9: пояснення двох рівнів оркестрації (Durable = workflow, Foundry = AI). | — |
-| 2026-04-17 | v2.3 | **§8.11**: повна карта Azure Functions — усі 14 функцій з типами тригерів, ролями та потоком від Service Bus → оркестратор → activities → `raise_event`. | — |
-| 2026-04-17 | v2.4 | **Рев'ю:** §4 AS-SUBMITTED disclaimer + Component Evolution table (v1.0→v2.0); §8.3 JSON output schemas для всіх агентів + confidence gate failure matrix; §8.4 cross-partition query note; §8.6 LOW_CONFIDENCE гілка в HITL flow; §8.11 idempotency note; §8.12 SignalR contract (хуб, groups, events, negotiation flow). | Review |
-| 2026-04-17 | v2.5 | **Document Layer Architecture:** §8.1 AI Search: 4→5 indexes (додано `idx-bpr-documents`); §8.2 RAG Storage row оновлено; §8.3 Research Agent: додано `search_bpr_documents` RAG tool; §8.5 RAG vs Direct: додано BPR row; §8.8 Storage: 1 container → 5 окремих blob containers per source type; §8.13 новий розділ — Document Layer Ingestion Architecture (5 containers, 5 ingestors, table-aware BPR chunking, agent→index mapping). T-036 + T-025 оновлено. | Gap #4 review |
-| 2026-04-17 | v2.6 | **ADR-002 — Foundry Connected Agents:** Research Agent + Document Agent переведені в sub-agents Foundry Orchestrator Agent (`AgentTool`). Durable: 2 activities (`run_research_agent` + `run_document_agent`) → 1 activity `run_foundry_agents`. `more_info` loop: Durable накопичує `operator_questions`, Foundry керує internal iterations через `max_iterations`. §8.1 схема, §8.2 таблиця, §8.3 Orchestrator Agent, §8.9 діаграма, §8.10b ADR-002, §8.11 Functions map — оновлено. T-024, T-025, T-026, 04-action-plan оновлено. | — |
-| 2026-04-19 | v2.7 | **Agent Observability:** `run_foundry_agents` now emits structured incident-scoped App Insights traces for the backend-visible Foundry path. Added §8.14 prompt trace contract, incident retrieval model, and explicit note that the current SDK does not expose connected sub-agent run steps directly. | Gap #3, Gap #4 |
-| 2026-04-19 | v2.8 | **Telemetry storage alignment:** architecture docs updated to reflect the real split between Cosmos `incident_events` (business audit / transcript) and App Insights `FOUNDRY_PROMPT_TRACE` records (deep agent diagnostics). Cosmos inventory aligned to 8 deployed containers, and the recommended admin frontend path is now an App-Insights-backed `GET /api/incidents/{id}/agent-telemetry` endpoint with optional Cosmos projection. | T-043 |
-| 2026-04-20 | v2.9 | **RAI evidence verification:** §8.1 і §8.3 тепер явно описують окремий post-generation verification pass для document identity та citation section claims. Це фіксує anti-hallucination control як окрему архітектурну вимогу hackathon AI Fit, а не як внутрішню implementation detail. | Gap #4 |
+5 Blob containers → 5 Azure Function blob triggers → 5 Azure AI Search indexes (один на тип джерела). BPR-інгестор використовує table-aware chunking для GMP compliance.
+
+| Container | Index | Notes |
+|---|---|---|
+| `blob-sop` | `idx-sop-documents` | 500 tokens, 50 overlap |
+| `blob-manuals` | `idx-equipment-manuals` | + `equipment_id` tag |
+| `blob-gmp` | `idx-gmp-policies` | + clause metadata |
+| `blob-bpr` | `idx-bpr-documents` | Table-aware, max ~1200 tokens |
+| `blob-history` | `idx-incident-history` | Generated from Cosmos on `finalize_audit` |
+
+> Повна специфікація (rationale, agent → index mapping, Bicep): [docs/document-ingestion.md](./docs/document-ingestion.md).
+
+---
+
+## 15. Agent observability
+
+Структурований agent trace для incident-level troubleshooting, emit-иться з `run_foundry_agents`.
+
+### 15.1 Що спостерігаємо
+
+- outer prompt, відправлений до Foundry Orchestrator Agent;
+- system prompts Orchestrator / Research / Document;
+- final thread messages від Foundry;
+- raw top-level response;
+- parsed JSON package;
+- normalized final result, що persist-иться у Cosmos та показується в UI.
+
+> Обмеження SDK: поточний `azure-ai-agents` SDK не експозить connected sub-agent run steps напряму → внутрішні Research/Document invocation payloads видимі частково. Цільова архітектура передбачає перехід на SDK-версію з deep-step visibility щойно вона стабілізується.
+
+### 15.2 Trace контракт
+
+Marker: `FOUNDRY_PROMPT_TRACE`. Поля: `incident_id`, `round`, `trace_kind`, `chunk_index`, `chunk_count`, `thread_id`, `run_id`.
+
+Trace kinds: `prompt_context`, `orchestrator_user_prompt`, `thread_messages`, `raw_response`, `parsed_response`, `normalized_result`.
+
+### 15.3 Розділення сховищ
+
+- **Cosmos `incident_events`** — business-facing timeline (`analysis_started`, `agent_response`, `more_info`, approval / rejection / escalation). Оптимізовано під incident-centric UI reads.
+- **App Insights / Log Analytics** — deep Foundry trace за `FOUNDRY_PROMPT_TRACE`. Оптимізовано під troubleshooting, prompt inspection, post-mortem.
+
+### 15.4 Admin delivery path
+
+`GET /api/incidents/{id}/agent-telemetry`:
+
+1. Query App Insights / Log Analytics за `FOUNDRY_PROMPT_TRACE` rows по `incident_id`.
+2. Normalize trace records у frontend-friendly DTO (summary cards + chronological items).
+3. Merge in `incident_events` рядки, щоб admin бачив business + deep trace на одній сторінці.
+
+Опціональна оптимізація — persist compact admin-relevant projection у `incident_events` з `type = "agent_telemetry"` для швидкого UI rendering.
+
+---
+
+## 16. Security architecture
+
+### 16.1 Identity & access
+
+- **Azure Entra ID** — AuthN для SPA через MSAL; AuthZ через App Roles на App Registration.
+- **`assignment_required = true`** — тільки призначені users/groups можуть логінитись.
+- **Managed Identity (System-assigned)** на Function App — ролі на Cosmos, Service Bus, AI Search, Key Vault, Azure OpenAI, SignalR, Storage. Жодних connection strings у коді.
+- **Conditional Access** (Entra P2): MFA для всіх users, блокування non-EU countries (GMP pharma compliance), require compliant device для IT Admin.
+- **Azure PIM** (Entra P2): JIT-eligible Contributor для IT Admin (1–4h активація з justification), eligible Reviewer для QA Manager. Постійно active: `operator`, `maint-tech`, `auditor` (read-only).
+- **Entra Security Groups:** `sg-sentinel-operators`, `sg-sentinel-qa-managers`, `sg-sentinel-auditors`, `sg-sentinel-it-admin`. Lifecycle Workflows: auto MFA setup on onboarding, auto group removal on offboarding.
+
+### 16.2 Network isolation
+
+```
+VNet: 10.0.0.0/16
+  snet-functions (10.0.1.0/24) — VNet Integration для Function App (Flex Consumption)
+    NSG: allow outbound → snet-private-endpoints, deny internet
+  snet-private-endpoints (10.0.2.0/24) — Private Endpoints для всіх PaaS
+    NSG: deny all inbound except VNet
+    PE: Cosmos DB · AI Search · Service Bus · Storage · Key Vault · Azure OpenAI · SignalR
+    Private DNS Zones: auto-resolution per service
+
+PaaS: publicNetworkAccess = Disabled після PE активації
+```
+
+### 16.3 Secrets
+
+- **Key Vault** тримає всі secrets та API keys. Functions читають через `DefaultAzureCredential` + Managed Identity.
+- **Rotation policy:** 90 днів на всіх secrets + Event Grid trigger на ротацію → notification у IT Admin.
+- **No shared accounts, no keys у repo, no keys у App Settings.**
+
+### 16.4 Threat protection
+
+- **Microsoft Defender for Cloud** — plans для App Service + Key Vault + Cosmos DB + Storage.
+- **Block legacy auth** через CA: deny Basic / NTLM / legacy OAuth.
+- **TLS 1.2+** enforced на всіх endpoint-ах; HSTS на SWA.
+- **Input validation** на всіх HTTP triggers; ORM parametrization; no dynamic SQL.
+
+### 16.5 Resource governance
+
+- **Теги** на кожному Bicep module: `environment`, `team`, `cost-center`, `data-classification`, `owner`.
+- **Azure Policy** enforcement: `publicNetworkAccess = Disabled`, allowed regions, enforced tags.
+
+---
+
+## 17. Reliability architecture
+
+### 17.1 Ingestion + workflow
+
+- **Service Bus** `alert-queue`: DLQ після 3 auto-retries, at-least-once delivery, idempotency через `sourceAlertId`.
+- **Durable Functions** `RetryPolicy(max_number_of_attempts=3, first_retry_interval=5s)` з exponential backoff на всіх activities.
+- **Cosmos DB Serverless** — autoscale без manual provisioning; change-feed для materialized view на `status + createdAt`.
+- **`MAX_MORE_INFO_ROUNDS = 3`** — захист від нескінченного `more_info` циклу.
+- **24h HITL timeout** → Durable `create_timer` + race-pattern escalate до QA Manager.
+
+### 17.2 Fallback & circuit breaker
+
+- **Fallback mode:** якщо Foundry Agent недоступний або валидація citations fail → operator отримує pre-filled manual CAPA template замість AI-рекомендацій + explicit `degraded_mode=true` у UI.
+- **Circuit breaker:** 3 послідовні Foundry failures → circuit open → fallback; auto-reset через 60s з half-open probe.
+
+### 17.3 SLOs + alerts
+
+| Метрика | SLO | Alert |
+|---|---|---|
+| P95 `POST /api/alerts` latency | < 2s | > 2s × 5 хв |
+| P95 `GET /incidents` latency | < 500ms | > 500ms × 5 хв |
+| E2E agent pipeline latency (alert → approval-ready) | < 120s | > 180s × 3 events |
+| DLQ depth | 0 | > 0 |
+| Foundry failure rate | < 1% | > 5% × 10 хв |
+| Cosmos RU throttling | 0 | > 0 |
+
+Alerts — Azure Monitor action group → email + Teams webhook.
+
+### 17.4 Chaos & DR
+
+- **Azure Chaos Studio** scenarios: Foundry timeout, Service Bus outage, Cosmos throttling, Key Vault unavailability. Прогоняються у staging щомісяця.
+- **Multi-region DR:** Cosmos DB geo-redundancy (primary Sweden Central, secondary North Europe); AI Search replica у secondary region; Service Bus geo-recovery pair.
+- **Recovery runbook** у [docs/operations-runbook.md](./docs/operations-runbook.md): як відновити incident-и, які застрягли після max retries; як replay DLQ; як перемикнути на DR region.
+
+---
+
+## 18. Operational Excellence & Performance
+
+### 18.1 Observability stack
+
+- **Application Insights** — traces (включно з `FOUNDRY_PROMPT_TRACE`), exceptions, dependencies, metrics.
+- **Log Analytics** workspace — 30 днів retention (hot) + archive у Storage для audit (2 роки).
+- **Cosmos `incident_events`** — business timeline для inspection-ready звітів.
+- **Custom workbooks:** agent performance, hallucination rate, confidence distribution, HITL latency, DLQ health.
+
+### 18.2 Cost management
+
+- **Azure Budgets** (`Microsoft.Consumption/budgets`) per environment з alert-ами на 50/80/100%.
+- **Cosmos Serverless** + **AI Search Free/Basic scaled to Standard** — pay-per-use, no idle cost.
+- **Function App Flex Consumption** — автоскейл + VNet Integration.
+- **Теги** `cost-center` дозволяють cost allocation per product line.
+
+### 18.3 Performance & load testing
+
+Очікуваний production load:
+
+- **Alert ingestion spike:** 50–200 concurrent alerts при batch-close зміни;
+- **SignalR:** 50–200 operator sessions одночасно;
+- **Foundry agent:** 5–10 concurrent orchestrations (30–120s кожна);
+- **API:** P95 < 500ms (read), P95 < 2s (`POST /alerts`).
+
+**Azure Load Testing** сценарії (Locust/JMeter):
+
+1. `scenario-alert-spike` — POST `/api/alerts` × 200 RPS × 5 хв;
+2. `scenario-signalr-concurrent` — 200 SignalR clients, join/leave incident groups;
+3. `scenario-agent-pipeline` — 10 concurrent orchestrations end-to-end;
+4. `scenario-api-read` — GET `/incidents` × 500 RPS.
+
+Запускаються у staging перед кожним prod release через GitHub Actions `load-test.yml` workflow.
+
+### 18.4 Deployment governance
+
+- **Bicep IaC** — `infra/main.bicep` + модулі per ресурс. What-if analysis у PR check.
+- **GitHub Actions:**
+  - `ci.yml` — build, lint, unit tests, Bicep lint + what-if;
+  - `deploy.yml` — bicep deploy + functions deploy + Foundry eval gate + smoke test;
+  - `load-test.yml` — staging performance gate.
+- **Foundry eval gate** — перед promotion нової версії агента: groundedness / coherence / relevance / F1 vs baseline у Azure AI Foundry Evaluation.
+
+---
+
+## 19. Responsible AI
+
+### 19.1 Guardrails на runtime
+
+- **Confidence gate 0.7** (див. [§7.3.1](#731-confidence-gate)).
+- **Evidence-grounded output** + backend verification pass (див. [§7.3.2](#732-evidence-verification-pass)).
+- **Azure Content Safety + Prompt Shield** — input screening (SCADA payloads, operator messages) + output screening (agent responses) перед persist або показом у UI.
+- **Mandatory human approval** — жодне execution не відбувається без operator decision (GxP).
+- **Separate reasoning vs verification** — модель пропонує, backend верифікує citations.
+
+### 19.2 Governance lifecycle
+
+- **Model versioning:** кожна нова версія агента має semantic version (`orchestrator-v1.3.2`); deployment через Bicep.
+- **Eval pipeline gate:** nightly runs Groundedness / Coherence / Relevance / F1 через Azure AI Foundry Evaluation; promotion можлива тільки якщо metrics ≥ baseline thresholds.
+- **Rollback:** один команд `make agent-rollback VERSION=...` — повертає попередній `assistant_id` у Functions config.
+- **Red-team testing protocol** — формальна сесія перед кожним major release для GMP-критичних рекомендацій.
+
+### 19.3 Transparency & auditability
+
+- Evidence citations з `document_id`, section, excerpt, relevance score у decision package.
+- `human_override`, `operator_comment`, `confidence_score` у audit record.
+- Hallucination rate dashboard у App Insights workbook (тренд per agent per тиждень).
+- `GET /api/incidents/{id}/agent-telemetry` — повний prompt/response trace для IT Admin та auditor.
+
+---
+
+## 20. Identity, roles & RBAC
+
+### 20.1 App Roles (Entra ID App Registration)
+
+| Роль | App Role value | Доступ |
+|---|---|---|
+| Production Operator | `operator` | Incident list + decision UI для призначених incident-ів |
+| QA Manager | `qa-manager` | Всі incident-и + escalation queue + manager approvals |
+| Maintenance Technician | `maint-tech` | Read-only work orders |
+| Auditor | `auditor` | Read-only audit trail + agent telemetry |
+| IT Admin | `it-admin` | Templates CRUD + agent telemetry + config management |
+
+### 20.2 Enforcement
+
+- На SPA: MSAL bearer, role claims перевіряються у route guards.
+- На Backend API: декоратор `@require_role("...")` на кожному HTTP trigger.
+- На Azure resources: Managed Identity Function App-у має лише мінімальні data-plane ролі (Cosmos `DocumentDB Data Contributor`, AI Search `Search Index Data Contributor` тощо); control-plane — тільки через IT Admin JIT.
+
+> Деталі role mapping у Entra: [docs/entra-role-assignment.md](./docs/entra-role-assignment.md).
+
+---
+
+## 21. Technical stack
+
+| Layer | Tech | Notes |
+|---|---|---|
+| Backend | Python 3.11 | Azure Functions v2 programming model, Durable Functions |
+| Agents | Azure AI Foundry Agent Service | Python SDK `azure-ai-projects` + `azure-ai-agents` |
+| MCP servers | Python `mcp` library | HTTP/SSE transport (Managed Identity auth) |
+| Workflow | Azure Durable Functions | `azure-durable-functions` |
+| Database | Azure Cosmos DB Serverless | `azure-cosmos` SDK |
+| Queue | Azure Service Bus Standard | `azure-servicebus` SDK |
+| SignalR | Azure SignalR Service | Serverless mode, REST negotiate |
+| AI Search | Azure AI Search | `azure-search-documents` SDK, HNSW vector + semantic ranker |
+| Frontend | React 18 + Vite + TypeScript | `@azure/msal-react` |
+| Auth | Azure Entra ID (MSAL) | Managed Identities на всіх Functions |
+| Secrets | Azure Key Vault | `azure-keyvault-secrets` + MI + rotation |
+| Network | VNet + Private Endpoints + Private DNS | Flex Consumption plan |
+| Monitoring | App Insights + Log Analytics + Defender for Cloud | Custom workbooks |
+| IaC | Bicep | `infra/main.bicep` + модулі |
+| CI/CD | GitHub Actions | `ci.yml`, `deploy.yml`, `load-test.yml` |
+
+---
+
+
+---
+
+## Related documents
+
+Архітектура свідомо містить тільки **цільовий (TO-BE) дизайн**. Супутні артефакти живуть у власних документах:
+
+| Тема | Документ |
+|---|---|
+| Архітектурні рішення (ADR-001, ADR-002, ...) | [docs/architecture-decisions.md](./docs/architecture-decisions.md) |
+| Історія версій + AS-SUBMITTED v1.0 схема + еволюція компонентів | [docs/architecture-history.md](./docs/architecture-history.md) |
+| Скорочення прототипу та post-hackathon backlog (T-039, T-040, T-047–T-051) | [docs/hackathon-scope.md](./docs/hackathon-scope.md) |
+| Інфраструктурна діаграма (Mermaid + Draw.io) | [infra/diagram.md](./infra/diagram.md), [infra/architecture.drawio](./infra/architecture.drawio) |
+| Document ingestion pipeline | [docs/document-ingestion.md](./docs/document-ingestion.md) |
+| SignalR контракт | [docs/signalr-contract.md](./docs/signalr-contract.md) |
+| Operations runbook (DR, recovery, chaos) | [docs/operations-runbook.md](./docs/operations-runbook.md) |
+| Entra ID role assignment | [docs/entra-role-assignment.md](./docs/entra-role-assignment.md) |
+| Frontend design system | [docs/design-system.md](./docs/design-system.md), [docs/frontend-design.md](./docs/frontend-design.md) |
+| Platform reference (ресурси, endpoints, Cosmos schema) | [docs/platform-reference.md](./docs/platform-reference.md) |
 
 ---
 
