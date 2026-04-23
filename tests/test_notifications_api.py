@@ -136,6 +136,29 @@ def test_normalize_notification_surfaces_open_status_as_informational() -> None:
     assert normalized["message"] == "New incident opened; AI analysis has started."
 
 
+def test_normalize_notification_surfaces_analyzing_status_as_informational() -> None:
+    normalized = _normalize_notification(
+        {
+            "id": "notif-analyzing-1",
+            "incidentId": "INC-5B",
+            "type": "incident_created",
+            "targetRole": "operator",
+            "createdAt": "2026-04-20T10:00:00+00:00",
+        },
+        incident={
+            "id": "INC-5B",
+            "status": "analyzing",
+            "title": "Granulator deviation",
+        },
+        caller_id="ivan.petrenko",
+    )
+
+    assert normalized is not None
+    assert normalized["incident_status"] == "analyzing"
+    assert normalized["presentation_kind"] == "informational"
+    assert normalized["message"] == "AI analysis is in progress; operator awareness is maintained until a decision is ready."
+
+
 def test_normalize_notification_suppresses_terminal_statuses() -> None:
     normalized = _normalize_notification(
         {

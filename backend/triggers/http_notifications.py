@@ -29,7 +29,6 @@ ACTIONABLE_NOTIFICATION_STATUSES = {"pending_approval", "escalated"}
 INFORMATIONAL_NOTIFICATION_STATUSES = {"awaiting_agents"}
 SUPPRESSED_NOTIFICATION_STATUSES = {
     "ingested",
-    "analyzing",
     "approved",
     "in_progress",
     "executed",
@@ -384,6 +383,8 @@ def _get_notification_presentation_kind(current_status: str) -> str:
 def _build_notification_message(current_status: str, *, doc: dict) -> str:
     if current_status == "open":
         return "New incident opened; AI analysis has started."
+    if current_status == "analyzing":
+        return "AI analysis is in progress; operator awareness is maintained until a decision is ready."
     if current_status == "pending_approval":
         return "Decision required: review the recommendation and record your decision."
     if current_status == "escalated":

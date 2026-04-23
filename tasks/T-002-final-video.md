@@ -6,7 +6,7 @@
 | --- | --- |
 | **ID** | T-002 |
 | **Пріоритет** | 🔴 CRITICAL |
-| **Статус** | 🔜 TODO |
+| **Статус** | 🟡 IN PROGRESS |
 | **Залежності** | [T-001](./T-001-architecture-presentation.md) (architecture slides), live demo (робочий додаток) |
 | **Дедлайн** | 1-й тиждень травня 2026 |
 
@@ -26,12 +26,13 @@
                Problem + value claim
 
 [00:15–02:55]  LIVE DEMO — Operator workflow
-               Dashboard (KPI cards, equipment health grid, AI pipeline status)
+               Dashboard (KPI cards, equipment health grid, Workflow Pipeline)
                → incident list AI Rec. column → bell → incident detail
                → summary → recommendation badge → evidence verification
                → batch disposition → CAPA actions
                → editable WO draft + audit entry draft (T-052)
-               → approval actions → status history
+               → approval actions → execution state (WO task + audit record created)
+               → incident history + Workflow Pipeline tracking
 
 [02:55–03:50]  CONFIDENCE GATE — три стани
                LOW_CONFIDENCE banner + mandatory comment
@@ -63,6 +64,7 @@
 - **Editable AI drafts** (T-052) — оператор редагує WO і audit entry draft перед Approve; при BLOCKED стані форми пусті і **обов'язкові** — це GxP differentiator: людина підтверджує не просто "approve", а конкретний зміст документа
 - **AI vs Human agreement** (T-054) — `AgentRecommendationBadge` і `AiVsHumanBadge` скрізь: у списку інцидентів, у Recent Decisions, в CSV export. Governance стає вимірюваним
 - **Closed-loop actionability** — decision package показує batch disposition, CAPA actions, work order draft і audit entry draft ще до execution step
+- **Post-approval execution visibility** — після Approve CAPA plan переходить у execution: система створює work order task і audit record, а цей перехід видно і в самому incident, і у **Workflow Pipeline** на головному екрані
 - **RBAC** — різні ролі бачать різні surfaces: Operator, QA Manager, Auditor, IT Admin
 - **Three-state confidence gate** — NORMAL / LOW_CONFIDENCE (banner + mandatory comment) / BLOCKED (empty forms + manual fill)
 - **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views
@@ -97,6 +99,7 @@
 - Agent conversation transcript / follow-up Q&A
 - Low confidence banner when applicable
 - Event timeline / status history
+- Post-approval execution state with created work order task and audit record
 - Decision summary after resolution
 
 ### QA Manager
@@ -127,6 +130,7 @@
 
 - Role-based sidebar navigation
 - Role-targeted notifications
+- **Workflow Pipeline** widget on the dashboard — shows both AI stages and the post-approval `Execution` stage
 - Consistent status color language across dashboard, sidebar, badges, queue, and timeline
 - Command palette (`Cmd+K`) with role-aware navigation
 
@@ -145,8 +149,8 @@
 
 1. **Operator happy path — full editable draft flow** (T-052)
     - Primary candidate: `INC-2026-0001` (GR-204, pending approval, medium risk, conditional release)
-    - Show: dashboard → AI Rec. badge in incident list → bell → incident detail → `AgentRecommendationBadge` (APPROVE) → evidence (verified/unresolved) → batch disposition → CAPA actions → **edit WO draft fields** → **edit Audit entry fields** → Approve enabled → click Approve
-    - Proves: AI recommendation is visible upfront, operator edits structured documents not just clicks OK, GxP traceability
+    - Show: dashboard → Workflow Pipeline → AI Rec. badge in incident list → bell → incident detail → `AgentRecommendationBadge` (APPROVE) → evidence (verified/unresolved) → batch disposition → CAPA actions → **edit WO draft fields** → **edit Audit entry fields** → Approve enabled → click Approve → incident enters `Execution` → work order task + audit record created → return to dashboard and show Workflow Pipeline `Execution`
+    - Proves: AI recommendation is visible upfront, operator edits structured documents not just clicks OK, GxP traceability, and post-approval execution is observable end to end
 
 2. **Follow-up question / Need More Info**
     - Show: recorded transcript або prepared follow-up response inside the same incident
@@ -183,6 +187,7 @@
 
 - Verify one incident has clear **Verified** and **Unresolved** evidence rows
 - Verify `INC-2026-0001` has `ai_analysis.work_order_draft` і `ai_analysis.audit_entry_draft` populated — inits the editable forms
+- Verify after approving `INC-2026-0001` the incident shows execution events for work order + audit creation and appears in the Workflow Pipeline `Execution` stage
 - Verify `INC-2026-0010` is in BLOCKED state з confidence ≤ 0.35 — forms empty, Approve disabled
 - Verify one incident is in `escalated` state (`INC-2026-0007`)
 - Verify Recent Decisions table has **more than 20 entries** щоб продемонструвати infinite scroll
@@ -243,7 +248,7 @@
 | --- | --- | --- |
 | **00:00–00:07** | Title slide: `Sentinel Intelligence` + subtitle `GMP Deviation & CAPA Operations Assistant` | "In GMP manufacturing, one deviation can trigger thirty to sixty minutes of manual investigation." |
 | **00:07–00:15** | Hook slide: `45 min -> < 2 min` + `Governed AI assistance` | "Sentinel Intelligence brings that below two minutes — end to end — with AI, human approval, and traceability at every step." |
-| **00:15–00:50** | Operations Dashboard — прокрутити сторінку згори донизу: 4 KPI-картки (Total / Pending / Escalated / Resolved), двоколонковий блок (черга очікуючих рішень зліва + AI Pipeline Status справа з лічильниками Ingested → Analyzing → Awaiting Agents), Equipment Health Grid з кольоровими плитками по кожному обладнанню (червоний = critical, жовтий = warning, синій = обробляється AI, зелений = OK), таблиця Incident Analytics, таблиця Recent Decisions внизу, footer з live-статусом. | "This is the live operations dashboard — the first screen every operator sees at shift start. Four KPI cards across the top give an immediate read on system state: total active incidents, how many are waiting for a human decision, any that have escalated to QA, and how many are resolved. Below that, the pending review queue sits side by side with the AI pipeline status — showing how many incidents are being ingested, analyzed, or waiting for agent results, so the operator can see both what needs a decision and exactly where the AI is in its reasoning. The equipment health grid maps each active asset by its worst incident status: red tiles need immediate attention, amber for warning, blue for in-flight AI processing. Incident analytics and recent decisions complete the view." |
+| **00:15–00:50** | Operations Dashboard — прокрутити сторінку згори донизу: 4 KPI-картки (Total / Pending / Escalated / Resolved), двоколонковий блок (черга очікуючих рішень зліва + **Workflow Pipeline** справа з лічильниками Ingested → Analyzing → Execution), Equipment Health Grid з кольоровими плитками по кожному обладнанню (червоний = critical, синій = обробляється AI, зелений = OK), таблиця Incident Analytics, таблиця Recent Decisions внизу, footer з live-статусом. | "This is the live operations dashboard — the first screen every operator sees at shift start. Four KPI cards across the top give an immediate read on system state: total active incidents, how many are waiting for a human decision, any that have escalated to QA, and how many are resolved. Below that, the pending review queue sits side by side with the Workflow Pipeline — showing how many incidents are being ingested, analyzed, or already in execution after approval, so the operator can see both what needs a decision and where each case sits in the end-to-end flow. he equipment health grid maps each active asset by its worst incident status: red tiles need attention, and green tiles indicate normal health. Incident analytics and recent decisions complete the view." |
 | **00:50–01:00** | Incident list — показати AI Rec. column з `AgentRecommendationBadge` (зелений APPROVE / червоний REJECT). | "Notice that the AI recommendation is visible directly in the incident list — before the operator even opens the case. Each row shows whether the system recommends approval or rejection, so triage starts immediately." |
 | **01:00–01:15** | Open bell dropdown, show unread sidebar item, click incident. | "A new incident appears in the bell and unread queue, then opens directly into the decision workflow for the operator." |
 | **01:15–01:35** | Incident detail summary + parameter excursion. Pause on equipment, batch, measured value, limits. | "Notice that the operator does not see raw telemetry alone. They get the equipment, the affected batch, the measured value, the validated range, the duration, and the severity in one view. That is the context needed for a regulated decision." |
@@ -252,7 +257,7 @@
 | **02:15–02:30** | Batch Release Recommendation + conditions. CAPA actions list. | "The system does not stop at diagnosis. It recommends the batch path with explicit conditions that must be met before release, and prepares the full CAPA action list." |
 | **02:30–02:55** | **Editable WO draft form** — scroll to Work Order section, show editable fields (equipment, type, priority, title, description). Operator modifies one field (e.g., priority or description). | "This is where T-052 changes the GxP story. The operator is not just clicking Approve on an AI output — they are editing and confirming the actual work order document. Every field is pre-populated by the AI from the incident context, but the operator owns the final content." |
 | **02:55–03:15** | **Editable Audit entry draft form** — scroll to Audit section, show deviation type, batch reference, action taken, comments fields. | "Same pattern for the audit entry: AI fills the draft, operator reviews and confirms each field. Only when both forms are complete does the Approve button become active. This is a governed co-authorship model, not a rubber stamp." |
-| **03:15–03:35** | Click Approve. Status changes → show status history / audit timeline. | "Approval commits both the work order and audit entry to the record. The status timeline updates immediately, and the decision is locked in with operator identity, timestamp, and confirmed document content." |
+| **03:15–03:35** | Click Approve. Status changes to `Execution` → show incident status history / audit timeline with created work order task and audit record → jump back to dashboard Workflow Pipeline. | "Approval commits both drafts and immediately moves the CAPA plan into execution. At that point the system creates the work order task and audit record. We can track that transition inside the incident itself and from the Workflow Pipeline on the home screen." |
 | **03:35–03:50** | Incident with `LOW_CONFIDENCE` banner (INC-2026-0008, confidence ~0.55). Show banner + mandatory comment field. | "When confidence falls below the threshold, the system shows a warning banner and requires the operator to leave a comment before deciding. The operator still decides — there is no automatic escalation. This is a governed co-pilot, not an override machine." |
 | **03:50–04:15** | Pivot to `BLOCKED` state incident (INC-2026-0010, confidence 0.31). Show empty WO and audit forms with red required indicators. Approve button visibly disabled. Operator fills mandatory field → Approve becomes enabled. | "When the AI pipeline cannot produce a grounded result at all, the state is different: the recommendation is withheld entirely and both document forms are empty, with every mandatory field marked required. The operator cannot approve until those fields are filled. This is not a bypass — it is an enforcement point." |
 | **04:15–04:35** | QA Manager view: Manager Dashboard → stats cards → **AI–Operator Agreement KPI widget**. | "If the incident is not handled in time, the workflow escalates to QA with the full context preserved. At the top of the manager dashboard you can see the AI–operator agreement rate — in this session, operators agreed with the AI recommendation eighty-three percent of the time. That is a measurable governance signal." |
@@ -272,6 +277,7 @@
 - Тримати паузу 1-2 секунди на `Verified` / `Unresolved` badges, `AgentRecommendationBadge`, і `AiVsHumanBadge` — щоб judges встигли прочитати
 - Не показувати live login, role switching або технічні transition steps. Ролі змінювати між takes і зводити в монтажі
 - **Editable forms beat (02:30–03:15)** — найважливіший новий beat. Треба щоб seed incident `INC-2026-0001` мав `ai_analysis.work_order_draft` і `ai_analysis.audit_entry_draft` populated. Показати саме редагування, а не просто скрол
+- **Execution beat (03:15–03:35)** — після Approve затриматись на incident timeline / status history, щоб було видно створення work order task і audit record, потім коротко повернутись на dashboard і показати incident у Workflow Pipeline `Execution`
 - **BLOCKED beat (03:50–04:15)** — `INC-2026-0010` повинен бути в стані де Approve disabled. Показати момент коли оператор заповнює одне поле і Approve стає enabled — це drama moment
 - **Infinite scroll beat (05:00–05:15)** — переконатись що є 20+ записів у Recent Decisions. Scroll повільно, щоб spinner був видимий
 - `operator_agrees_with_agent` прапор записується при Approve і Reject. `AiVsHumanBadge` показує цей результат. Якщо є час — показати reject path де badge стає ⚠️
@@ -288,6 +294,7 @@
 - [ ] Підготовлено мінімум 5 demo states: operator happy path + editable drafts, LOW_CONFIDENCE, BLOCKED mandatory fill, QA escalation, auditor/admin traceability
 - [ ] Evidence verification state (**verified** vs **unresolved**) чітко видно у recorded demo
 - [ ] **Editable WO та Audit entry forms** показані з реальним редагуванням поля (T-052)
+- [ ] Після Approve показано перехід у `Execution`: створення work order task + audit record, видимо і в incident, і у Workflow Pipeline
 - [ ] **BLOCKED state** показує Approve disabled → оператор заповнює → Approve enabled (T-052)
 - [ ] **`AgentRecommendationBadge`** видно в incident list і в decision package (T-054)
 - [ ] **`AiVsHumanBadge`** видно в Recent Decisions (T-054)

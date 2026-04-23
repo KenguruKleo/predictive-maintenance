@@ -46,7 +46,7 @@
 | ID | Задача | Gap / Вимога | Пріоритет | Статус | Блокує |
 |---|---|---|---|---|---|
 | T-001 | **[Оновити архітектурну презентацію](./tasks/T-001-architecture-presentation.md)** — закрити всі gaps, показати реальну збудовану архітектуру (Track A, Security, Reliability, RAI, UX, IaC) | Gap #1–6 | 🔴 CRITICAL | 🔜 TODO | T-002 |
-| T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — demo-first app walkthrough + architecture slides | Deliverables | 🔴 CRITICAL | 🔜 TODO | finals |
+| T-002 | **[5-хвилинне фінальне відео](./tasks/T-002-final-video.md)** — demo-first app walkthrough + architecture slides | Deliverables | 🔴 CRITICAL | 🟡 IN PROGRESS | finals |
 | T-020 | **[Cosmos DB — схема + provisioning](./tasks/T-020-cosmos-db.md)** — 8 containers, indexes, seed script | T-023, T-024 | 🔴 CRITICAL | ✅ DONE | — |
 | T-021 | **[Mock data seed](./tasks/T-021-mock-data.md)** — equipment(3), batches(20), incidents(30), templates(2) | demo | 🔴 CRITICAL | ✅ DONE | — |
 | T-023 | **[Ingestion API](./tasks/T-023-ingestion-api.md)** — POST /api/alerts + context enrichment + Service Bus publish | Gap #3 | 🔴 CRITICAL | ✅ DONE | — |
