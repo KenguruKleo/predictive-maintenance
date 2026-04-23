@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { getEquipmentList } from "../api/equipment";
@@ -29,36 +30,71 @@ function sortIncidents(items: Incident[]) {
   );
 }
 
-const PIPELINE_STATUSES: IncidentStatus[] = ["ingested", "analyzing", "awaiting_agents"];
+type PipelineStageKey = "ingested" | "analyzing" | "execution";
+
+const PIPELINE_STAGES: Array<{
+  key: PipelineStageKey;
+  label: string;
+  className: string;
+  statuses: IncidentStatus[];
+}> = [
+  {
+    key: "ingested",
+    label: "Ingested",
+    className: "pipeline-stage--ingested",
+    statuses: ["ingested"],
+  },
+  {
+    key: "analyzing",
+    label: "Analyzing",
+    className: "pipeline-stage--analyzing",
+    statuses: ["analyzing", "awaiting_agents"],
+  },
+  {
+    key: "execution",
+    label: "Execution",
+    className: "pipeline-stage--execution",
+    statuses: ["approved", "in_progress"],
+  },
+];
+
+const PIPELINE_STATUSES = PIPELINE_STAGES.flatMap((stage) => stage.statuses);
 
 function PipelineStatusWidget({ incidents }: { incidents: Incident[] }) {
-  const counts: Record<string, number> = { ingested: 0, analyzing: 0, awaiting_agents: 0 };
+  const counts: Record<PipelineStageKey, number> = {
+    ingested: 0,
+    analyzing: 0,
+    execution: 0,
+  };
+
   for (const inc of incidents) {
-    if (inc.status in counts) counts[inc.status]++;
+    const stage = PIPELINE_STAGES.find((candidate) => candidate.statuses.includes(inc.status));
+    if (stage) counts[stage.key] += 1;
   }
-  const total = Object.values(counts).reduce((s, v) => s + v, 0);
+
+  const visibleStages = PIPELINE_STAGES
+    .map((stage) => ({ ...stage, count: counts[stage.key] }))
+    .filter((stage) => stage.count > 0);
+  const total = visibleStages.reduce((sum, stage) => sum + stage.count, 0);
 
   return (
     <div className="pipeline-widget">
       <h3 className="pipeline-widget-title">Current Status</h3>
       {total === 0 ? (
-        <p className="pipeline-widget-idle">✓ No incidents currently in AI pipeline</p>
+        <p className="pipeline-widget-idle">✓ No incidents currently in the active workflow</p>
       ) : (
         <div className="pipeline-stages">
-          <div className="pipeline-stage pipeline-stage--ingested">
-            <span className="pipeline-stage-count">{counts.ingested}</span>
-            <span className="pipeline-stage-label">Ingested</span>
-          </div>
-          <div className="pipeline-stage-arrow">→</div>
-          <div className="pipeline-stage pipeline-stage--analyzing">
-            <span className="pipeline-stage-count">{counts.analyzing}</span>
-            <span className="pipeline-stage-label">Analyzing</span>
-          </div>
-          <div className="pipeline-stage-arrow">→</div>
-          <div className="pipeline-stage pipeline-stage--awaiting">
-            <span className="pipeline-stage-count">{counts.awaiting_agents}</span>
-            <span className="pipeline-stage-label">Awaiting Agents</span>
-          </div>
+          {visibleStages.map((stage, index) => (
+            <Fragment key={stage.key}>
+              <div className={`pipeline-stage ${stage.className}`}>
+                <span className="pipeline-stage-count">{stage.count}</span>
+                <span className="pipeline-stage-label">{stage.label}</span>
+              </div>
+              {index < visibleStages.length - 1 && (
+                <div className="pipeline-stage-arrow" aria-hidden="true">→</div>
+              )}
+            </Fragment>
+          ))}
         </div>
       )}
     </div>
@@ -140,12 +176,12 @@ export default function OperationsDashboard() {
             <h2 className="section-heading ops-two-col-heading">Action Required — Pending Review</h2>
             <EscalationQueue incidents={pendingIncidents} />
           </div>
-          <aside className="ops-two-col-side" aria-label="AI pipeline sidebar">
-            <h2 className="section-heading ops-two-col-heading ops-two-col-side-heading">AI Pipeline</h2>
+          <aside className="ops-two-col-side" aria-label="workflow pipeline sidebar">
+            <h2 className="section-heading ops-two-col-heading ops-two-col-side-heading">Workflow Pipeline</h2>
             <PipelineStatusWidget incidents={allIncidents} />
             {aiProcessingCount > 0 && (
               <p className="pipeline-hint">
-                {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently being processed by AI agents
+                {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently in the AI and execution flow
               </p>
             )}
           </aside>

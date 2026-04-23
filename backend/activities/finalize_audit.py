@@ -15,6 +15,7 @@ from shared.cosmos_client import get_cosmos_client
 from shared.history_index import sync_historical_incident
 from shared.incident_store import patch_incident_by_id
 from shared.incident_store import get_incident_by_id
+from shared.signalr_client import notify_incident_status_changed_sync
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,9 @@ def finalize_audit(input_data: dict) -> dict:
 
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    previous_status = str(incident.get("status") or "").strip() or None
+    equipment_id = str(incident.get("equipment_id") or incident.get("equipmentId") or "") or None
 
     # Close the incident
     patch_incident_by_id(
@@ -49,6 +53,19 @@ def finalize_audit(input_data: dict) -> dict:
             {"op": "set", "path": "/operatorAgreesWithAgent", "value": decision.get("operator_agrees_with_agent")},
         ],
     )
+
+    try:
+        notify_incident_status_changed_sync(
+            incident_id=incident_id,
+            new_status=final_status,
+            previous_status=previous_status,
+            equipment_id=equipment_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to push SignalR finalization update for incident %s",
+            incident_id,
+        )
 
     try:
         updated_incident = get_incident_by_id(db, incident_id)

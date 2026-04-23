@@ -21,6 +21,7 @@ from openai import AzureOpenAI
 from shared.agent_telemetry import log_trace_json
 from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
+from shared.signalr_client import notify_incident_status_changed_sync
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,19 @@ def run_execution_agent(input_data: dict) -> dict:
             {"op": "set", "path": "/updated_at", "value": now_iso},
         ],
     )
+
+    try:
+        notify_incident_status_changed_sync(
+            incident_id=incident_id,
+            new_status="in_progress",
+            previous_status=str(incident.get("status") or "").strip() or None,
+            equipment_id=equipment_id,
+        )
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to push SignalR execution-start update for incident %s",
+            incident_id,
+        )
 
     _update_approval_task_execution(db, incident_id, execution_result, now_iso)
 
