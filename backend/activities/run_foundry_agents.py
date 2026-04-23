@@ -63,11 +63,11 @@ CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
 try:
     FOUNDRY_ACTIVITY_TIMEOUT_SECS = max(
-        240.0,
-        float(os.getenv("FOUNDRY_ACTIVITY_TIMEOUT_SECS", "240")),
+        360.0,
+        float(os.getenv("FOUNDRY_ACTIVITY_TIMEOUT_SECS", "360")),
     )
 except ValueError:
-    FOUNDRY_ACTIVITY_TIMEOUT_SECS = 240.0
+    FOUNDRY_ACTIVITY_TIMEOUT_SECS = 360.0
 
 INDEX_EVIDENCE_META = {
     "idx-sop-documents": {"type": "sop", "container": "blob-sop"},
@@ -226,7 +226,7 @@ def run_foundry_agents(input_data: dict) -> dict:
 _RATE_LIMIT_MAX_RETRIES = 5
 # Base backoff in seconds; actual wait = base + random jitter (0..base/2)
 # This prevents thundering herd when multiple incidents retry simultaneously.
-_RATE_LIMIT_BACKOFF_SECS = [30, 60, 90, 120, 180]
+_RATE_LIMIT_BACKOFF_SECS = [45, 90, 135, 180, 270]
 
 
 def _is_rate_limit_error(err: object) -> bool:

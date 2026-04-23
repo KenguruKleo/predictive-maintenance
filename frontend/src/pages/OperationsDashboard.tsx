@@ -39,7 +39,7 @@ function PipelineStatusWidget({ incidents }: { incidents: Incident[] }) {
 
   return (
     <div className="pipeline-widget">
-      <h3 className="pipeline-widget-title">AI Pipeline Status</h3>
+      <h3 className="pipeline-widget-title">Current Status</h3>
       {total === 0 ? (
         <p className="pipeline-widget-idle">✓ No incidents currently in AI pipeline</p>
       ) : (
@@ -122,20 +122,23 @@ export default function OperationsDashboard() {
 
       <StatsCards stats={opsStats} />
 
-      <div className="ops-two-col">
-        <div className="ops-two-col-main">
-          <h2 className="section-heading">Action Required — Pending Review</h2>
-          <EscalationQueue incidents={pendingIncidents} />
+      <section className="ops-two-col-shell" aria-label="Pending review and AI pipeline status">
+        <div className="ops-two-col">
+          <div className="ops-two-col-main">
+            <h2 className="section-heading ops-two-col-heading">Action Required — Pending Review</h2>
+            <EscalationQueue incidents={pendingIncidents} />
+          </div>
+          <aside className="ops-two-col-side" aria-label="AI pipeline sidebar">
+            <h2 className="section-heading ops-two-col-heading ops-two-col-side-heading">AI Pipeline</h2>
+            <PipelineStatusWidget incidents={allIncidents} />
+            {aiProcessingCount > 0 && (
+              <p className="pipeline-hint">
+                {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently being processed by AI agents
+              </p>
+            )}
+          </aside>
         </div>
-        <div className="ops-two-col-side">
-          <PipelineStatusWidget incidents={allIncidents} />
-          {aiProcessingCount > 0 && (
-            <p className="pipeline-hint">
-              {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently being processed by AI agents
-            </p>
-          )}
-        </div>
-      </div>
+      </section>
 
       <h2 className="section-heading">Equipment Health</h2>
       <EquipmentHealthGrid incidents={allIncidents} />

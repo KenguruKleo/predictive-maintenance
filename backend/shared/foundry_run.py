@@ -34,7 +34,7 @@ _TERMINAL = {
     RunStatus.EXPIRED,
 }
 
-_MAX_ITERATIONS = 60
+_MAX_ITERATIONS = 90
 _POLL_INTERVAL = 2.0  # seconds
 
 
