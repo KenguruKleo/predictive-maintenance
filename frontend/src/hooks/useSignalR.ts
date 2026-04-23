@@ -133,7 +133,9 @@ export function useSignalR() {
   );
 
   useEffect(() => {
-    if (IS_E2E_AUTH) return;
+    if (!authReady) {
+      return;
+    }
 
     setBrowserPermission(getBrowserNotificationPermission());
 
@@ -233,7 +235,14 @@ export function useSignalR() {
       cancelled = true;
       connectionRef.current?.stop();
     };
-  }, [queryClient, addToast, invalidateLiveIncidentViews, maybeShowBrowserNotification, registerConnectionGroups]);
+  }, [
+    authReady,
+    queryClient,
+    addToast,
+    invalidateLiveIncidentViews,
+    maybeShowBrowserNotification,
+    registerConnectionGroups,
+  ]);
 
   return {
     connected,

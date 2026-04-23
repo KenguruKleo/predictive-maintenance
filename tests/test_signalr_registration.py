@@ -2,6 +2,7 @@
 
 import json
 import sys
+import urllib.request
 from pathlib import Path
 
 import azure.functions as func
@@ -11,6 +12,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 import triggers.http_signalr as http_signalr  # noqa: E402
+from shared.signalr_client import add_connection_to_group_sync  # noqa: E402
 
 
 def test_register_signalr_connection_adds_role_groups(monkeypatch) -> None:
@@ -59,3 +61,42 @@ def test_register_signalr_connection_rejects_missing_connection_id(monkeypatch) 
 
     assert response.status_code == 400
     assert payload["error"] == "connection_id is required"
+
+
+def test_add_connection_to_group_sync_sends_json_media_type(monkeypatch) -> None:
+    monkeypatch.setenv(
+        "AzureSignalRConnectionString",
+        "Endpoint=https://example.service.signalr.net;AccessKey=test-key;Version=1.0;",
+    )
+
+    captured: dict[str, object] = {}
+
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    def fake_urlopen(req: urllib.request.Request, timeout: int = 10):
+        captured["url"] = req.full_url
+        captured["method"] = req.get_method()
+        captured["data"] = req.data
+        captured["content_type"] = req.headers.get("Content-type")
+        captured["authorization"] = req.headers.get("Authorization")
+        captured["timeout"] = timeout
+        return FakeResponse()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+
+    success = add_connection_to_group_sync("conn-123", "role:operator")
+
+    assert success is True
+    assert captured["method"] == "PUT"
+    assert captured["data"] == b"{}"
+    assert captured["content_type"] == "application/json"
+    assert captured["authorization"].startswith("Bearer ")
+    assert captured["url"] == (
+        "https://example.service.signalr.net/api/v1/hubs/deviationHub/"
+        "groups/role%3Aoperator/connections/conn-123"
+    )

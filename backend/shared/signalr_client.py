@@ -237,8 +237,11 @@ def add_connection_to_group_sync(
     token = _generate_jwt(url, access_key)
     req = urllib.request.Request(
         url,
-        data=b"",
-        headers={"Authorization": f"Bearer {token}"},
+        data=b"{}",
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
         method="PUT",
     )
 
