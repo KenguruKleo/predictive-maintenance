@@ -46,6 +46,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
         qs = parse_qs(urlparse(req.url).query)
         status_filter: list[str] = qs.get("status", [])
         severity_filter = req.params.get("severity", "")
+        equipment_id = req.params.get("equipment_id", "")
         date_from = req.params.get("date_from", "")
         date_to = req.params.get("date_to", "")
     except (ValueError, TypeError):
@@ -59,6 +60,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
             caller_id,
             status_filter,
             severity_filter,
+            equipment_id,
             date_from,
             date_to,
             page,
@@ -72,6 +74,7 @@ def list_incidents(req: func.HttpRequest) -> func.HttpResponse:
             caller_id,
             status_filter,
             severity_filter,
+            equipment_id,
             date_from,
             date_to,
         )
@@ -137,7 +140,7 @@ def get_incident(req: func.HttpRequest) -> func.HttpResponse:
 # Internal helpers
 # ---------------------------------------------------------------------------
 
-def _build_query(roles, caller_id, status_filter, severity_filter, date_from, date_to, page, page_size) -> tuple[str, list]:
+def _build_query(roles, caller_id, status_filter, severity_filter, equipment_id, date_from, date_to, page, page_size) -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
@@ -157,6 +160,10 @@ def _build_query(roles, caller_id, status_filter, severity_filter, date_from, da
     if severity_filter:
         where_clauses.append("c.severity = @severity")
         params.append({"name": "@severity", "value": severity_filter})
+
+    if equipment_id:
+        where_clauses.append("(c.equipment_id = @equipment_id OR c.equipmentId = @equipment_id)")
+        params.append({"name": "@equipment_id", "value": equipment_id})
 
     if date_from:
         where_clauses.append("(c.reported_at >= @date_from OR c.created_at >= @date_from)")
@@ -175,7 +182,7 @@ def _build_query(roles, caller_id, status_filter, severity_filter, date_from, da
     return query, params
 
 
-def _build_count_query(roles, caller_id, status_filter, severity_filter, date_from="", date_to="") -> tuple[str, list]:
+def _build_count_query(roles, caller_id, status_filter, severity_filter, equipment_id="", date_from="", date_to="") -> tuple[str, list]:
     where_clauses = ["1=1"]
     params = []
 
@@ -194,6 +201,10 @@ def _build_count_query(roles, caller_id, status_filter, severity_filter, date_fr
     if severity_filter:
         where_clauses.append("c.severity = @severity")
         params.append({"name": "@severity", "value": severity_filter})
+
+    if equipment_id:
+        where_clauses.append("(c.equipment_id = @equipment_id OR c.equipmentId = @equipment_id)")
+        params.append({"name": "@equipment_id", "value": equipment_id})
 
     if date_from:
         where_clauses.append("(c.reported_at >= @date_from OR c.created_at >= @date_from)")

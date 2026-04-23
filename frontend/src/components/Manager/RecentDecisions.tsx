@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type React from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -6,6 +6,8 @@ import type { RecentDecision } from "../../types/stats";
 import { getStats } from "../../api/stats";
 import AiVsHumanBadge from "../Approval/AiVsHumanBadge";
 import { useInfiniteDecisions } from "../../hooks/useDecisions";
+
+const VISIBLE_DECISION_ROWS = 10;
 
 function AgreementRateKpi({ decisions }: { decisions: RecentDecision[] }) {
   const decided = decisions.filter((d) => d.operator_agrees_with_agent != null);
@@ -44,18 +46,59 @@ export default function RecentDecisions() {
     ? (stats?.recent_decisions ?? [])
     : (data?.pages.flatMap((p) => p.items) ?? []);
 
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const [maxTableHeight, setMaxTableHeight] = useState<number>();
+
+  useEffect(() => {
+    const table = tableRef.current;
+    if (!table) return;
+
+    const measureVisibleRows = () => {
+      const headerHeight = table.tHead?.getBoundingClientRect().height ?? 0;
+      const visibleRows = Array.from(table.tBodies[0]?.rows ?? []).slice(0, VISIBLE_DECISION_ROWS);
+
+      if (visibleRows.length === 0) {
+        setMaxTableHeight(undefined);
+        return;
+      }
+
+      const rowsHeight = visibleRows.reduce(
+        (total, row) => total + row.getBoundingClientRect().height,
+        0,
+      );
+
+      setMaxTableHeight(Math.ceil(headerHeight + rowsHeight + 2));
+    };
+
+    measureVisibleRows();
+
+    const resizeObserver = new ResizeObserver(() => {
+      measureVisibleRows();
+    });
+
+    resizeObserver.observe(table);
+
+    return () => resizeObserver.disconnect();
+  }, [decisions.length]);
+
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
           fetchNextPage();
         }
       },
-      { threshold: 0.1 }
+      {
+        root: scrollAreaRef.current,
+        threshold: 0.1,
+      }
     );
+
     observer.observe(el);
     return () => observer.disconnect();
   }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
@@ -65,8 +108,15 @@ export default function RecentDecisions() {
   return (
     <div>
       <AgreementRateKpi decisions={decisions} />
-      <div className="table-wrapper" style={{ "--filter-bar-height": "0px" } as React.CSSProperties}>
-        <table className="incident-table">
+      <div
+        ref={scrollAreaRef}
+        className="table-wrapper recent-decisions-table-wrapper"
+        style={{
+          "--filter-bar-height": "0px",
+          ...(maxTableHeight ? { "--recent-decisions-max-height": `${maxTableHeight}px` } : {}),
+        } as React.CSSProperties}
+      >
+        <table ref={tableRef} className="incident-table recent-decisions-table">
           <thead>
             <tr>
               <th>ID</th>
@@ -111,8 +161,8 @@ export default function RecentDecisions() {
             ))}
           </tbody>
         </table>
+        <div ref={sentinelRef} className="recent-decisions-sentinel" />
       </div>
-      <div ref={sentinelRef} style={{ height: 1 }} />
       {isFetchingNextPage && <p className="table-loading">Loading more…</p>}
     </div>
   );

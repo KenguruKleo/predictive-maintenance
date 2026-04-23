@@ -1,19 +1,21 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { Incident } from "../../types/incident";
+import type { Equipment } from "../../types/equipment";
 
 interface Props {
+  equipment: Equipment[];
   incidents: Incident[];
+  isLoading?: boolean;
 }
 
 type TileStatus = "critical" | "warning" | "processing" | "ok";
 
 interface EquipmentTile {
   equipmentId: string;
+  equipmentName: string;
   tileStatus: TileStatus;
   activeCount: number;
-  worstSeverity: string;
-  worstStatus: string;
 }
 
 function resolveTileStatus(incidents: Incident[]): TileStatus {
@@ -43,28 +45,46 @@ const STATUS_SORT: Record<TileStatus, number> = {
   ok: 3,
 };
 
-export default function EquipmentHealthGrid({ incidents }: Props) {
+export default function EquipmentHealthGrid({ equipment, incidents, isLoading = false }: Props) {
   const tiles = useMemo<EquipmentTile[]>(() => {
     const byEquip: Record<string, Incident[]> = {};
     for (const inc of incidents) {
       if (!byEquip[inc.equipment_id]) byEquip[inc.equipment_id] = [];
       byEquip[inc.equipment_id].push(inc);
     }
-    return Object.entries(byEquip)
-      .map(([equipmentId, incs]) => ({
-        equipmentId,
-        tileStatus: resolveTileStatus(incs),
-        activeCount: incs.length,
-        worstSeverity: incs.find((i) => i.severity === "critical")?.severity ??
-          incs.find((i) => i.severity === "major")?.severity ??
-          incs[0]?.severity ?? "minor",
-        worstStatus: incs.find((i) => i.status === "escalated")?.status ??
-          incs.find((i) => i.status === "pending_approval")?.status ??
-          incs.find((i) => i.status === "analyzing")?.status ??
-          incs[0]?.status ?? "open",
-      }))
-      .sort((a, b) => STATUS_SORT[a.tileStatus] - STATUS_SORT[b.tileStatus]);
-  }, [incidents]);
+    const equipmentById = new Map(equipment.map((asset) => [asset.id, asset]));
+    const inventory = [...equipment];
+
+    for (const equipmentId of Object.keys(byEquip)) {
+      if (!equipmentById.has(equipmentId)) {
+        inventory.push({ id: equipmentId, name: equipmentId });
+      }
+    }
+
+    return inventory
+      .map((asset) => {
+        const assetIncidents = byEquip[asset.id] ?? [];
+        return {
+          equipmentId: asset.id,
+          equipmentName: asset.name || asset.id,
+          tileStatus: assetIncidents.length > 0 ? resolveTileStatus(assetIncidents) : "ok",
+          activeCount: assetIncidents.length,
+        };
+      })
+      .sort(
+        (a, b) =>
+          STATUS_SORT[a.tileStatus] - STATUS_SORT[b.tileStatus] ||
+          a.equipmentId.localeCompare(b.equipmentId),
+      );
+  }, [equipment, incidents]);
+
+  if (isLoading) {
+    return (
+      <div className="equipment-health-empty">
+        Loading equipment inventory…
+      </div>
+    );
+  }
 
   if (tiles.length === 0) {
     return (
@@ -81,12 +101,15 @@ export default function EquipmentHealthGrid({ incidents }: Props) {
           key={tile.equipmentId}
           to={`/history?equipment_id=${encodeURIComponent(tile.equipmentId)}`}
           className={`eq-tile eq-tile--${tile.tileStatus}`}
+          title={tile.equipmentName}
         >
           <span className="eq-tile-id">{tile.equipmentId}</span>
           <span className={`eq-tile-status-dot eq-tile-status-dot--${tile.tileStatus}`} />
           <span className="eq-tile-label">{TILE_STATUS_LABEL[tile.tileStatus]}</span>
           <span className="eq-tile-count">
-            {tile.activeCount} incident{tile.activeCount !== 1 ? "s" : ""}
+            {tile.activeCount > 0
+              ? `${tile.activeCount} incident${tile.activeCount !== 1 ? "s" : ""}`
+              : "No active incidents"}
           </span>
         </Link>
       ))}

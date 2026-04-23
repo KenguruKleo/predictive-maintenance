@@ -50,17 +50,20 @@ from azure.ai.agents.models import (
 from azure.identity import DefaultAzureCredential
 
 from shared.agent_telemetry import TRACE_MARKER, log_trace_json, log_trace_text
-from shared.cosmos_client import get_container
+from shared.cosmos_client import get_container, get_cosmos_client
 from shared.foundry_run import (
     FoundryRunTimeoutError,
     create_thread_and_process_run_with_approval,
 )
+from shared.incident_store import get_incident_by_id, patch_incident_by_id
 from shared.search_utils import search_all_indexes, search_index
+from shared.signalr_client import notify_incident_status_changed_sync
 
 logger = logging.getLogger(__name__)
 
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.75"))
 SEARCH_ENABLED = bool(os.getenv("AZURE_SEARCH_ENDPOINT", ""))
+DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
 try:
     FOUNDRY_ACTIVITY_TIMEOUT_SECS = max(
         360.0,
@@ -99,6 +102,8 @@ def run_foundry_agents(input_data: dict) -> dict:
     logger.info(
         "run_foundry_agents: incident=%s round=%d", incident_id, more_info_round
     )
+
+    _mark_incident_analyzing(incident_id, more_info_round)
 
     # Write analysis_started event on the first (non-more_info) run
     if more_info_round == 0:
@@ -2301,3 +2306,46 @@ def _write_analysis_started_event(incident_id: str) -> None:
         pass  # idempotent on orchestrator replay
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not write analysis_started event for %s: %s", incident_id, exc)
+
+
+def _mark_incident_analyzing(incident_id: str, more_info_round: int) -> None:
+    """Persist the transition to active AI analysis for initial and follow-up runs."""
+    db = get_cosmos_client().get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    previous_status = str(incident.get("status") or "").strip() or None
+    workflow_state = incident.get("workflow_state") or {}
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    patch_incident_by_id(
+        db,
+        incident_id,
+        [
+            {"op": "set", "path": "/status", "value": "analyzing"},
+            {
+                "op": "set",
+                "path": "/workflow_state",
+                "value": {
+                    **workflow_state,
+                    "durable_instance_id": f"durable-{incident_id}",
+                    "current_step": "analyzing_followup" if more_info_round > 0 else "analyzing",
+                },
+            },
+            {"op": "set", "path": "/updatedAt", "value": now_iso},
+            {"op": "set", "path": "/updated_at", "value": now_iso},
+        ],
+    )
+
+    if previous_status != "analyzing":
+        try:
+            notify_incident_status_changed_sync(
+                incident_id=incident_id,
+                new_status="analyzing",
+                previous_status=previous_status,
+                equipment_id=str(incident.get("equipment_id") or incident.get("equipmentId") or ""),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Could not push analyzing status change for %s: %s",
+                incident_id,
+                exc,
+            )

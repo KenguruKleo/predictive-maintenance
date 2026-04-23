@@ -1,11 +1,20 @@
 import type { BatchDispositionStatus } from "./incident";
 
+export interface EquipmentLocation {
+  plant?: string;
+  building?: string;
+  room?: string;
+  line?: string;
+}
+
 export interface Equipment {
   id: string;
   name: string;
-  type: string;
-  location: string;
-  status: string;
+  type?: string;
+  location?: string | EquipmentLocation;
+  status?: string;
+  criticality?: string;
+  validation_status?: string;
 }
 
 export interface Batch {

@@ -51,6 +51,7 @@ export default function IncidentHistoryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   // All filter state lives in the URL — read directly from params
+  const equipmentId = searchParams.get("equipment_id") ?? "";
   const search = searchParams.get("search") ?? "";
   const status = (searchParams.get("status") ?? "") as IncidentStatus | "";
   const severity = (searchParams.get("severity") ?? "") as Severity | "";
@@ -70,6 +71,7 @@ export default function IncidentHistoryPage() {
   }
 
   const filters = {
+    equipment_id: equipmentId || undefined,
     search: search || undefined,
     status: status || undefined,
     severity: severity || undefined,
@@ -151,15 +153,27 @@ export default function IncidentHistoryPage() {
           onDateToChange={(v) => setParam("date_to", v)}
         />
         <div className="history-meta">
-          <span>Showing {incidents.length} of {total} incidents</span>
-          <button
-            className="btn btn--secondary btn--sm"
-            onClick={() => exportIncidentsToCSV(incidents)}
-            disabled={incidents.length === 0}
-            title={`Export ${incidents.length} loaded incident${incidents.length !== 1 ? "s" : ""} to CSV`}
-          >
-            ↓ Export CSV
-          </button>
+          <span>
+            Showing {incidents.length} of {total} incidents{equipmentId ? ` for ${equipmentId}` : ""}
+          </span>
+          <div className="history-meta-actions">
+            {equipmentId && (
+              <button
+                className="btn btn--secondary btn--sm"
+                onClick={() => setParam("equipment_id", "")}
+              >
+                Clear equipment filter
+              </button>
+            )}
+            <button
+              className="btn btn--secondary btn--sm"
+              onClick={() => exportIncidentsToCSV(incidents)}
+              disabled={incidents.length === 0}
+              title={`Export ${incidents.length} loaded incident${incidents.length !== 1 ? "s" : ""} to CSV`}
+            >
+              ↓ Export CSV
+            </button>
+          </div>
         </div>
       </div>
 

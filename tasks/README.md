@@ -39,3 +39,7 @@
 | T-049 | [T-049-war-easy-wins.md](./T-049-war-easy-wins.md) |
 | T-050 | [T-050-recovery-runbook.md](./T-050-recovery-runbook.md) |
 | T-051 | [T-051-load-testing.md](./T-051-load-testing.md) |
+| T-052 | [T-052-editable-wo-audit-forms.md](./T-052-editable-wo-audit-forms.md) |
+| T-053 | [T-053-alert-feedback-loop.md](./T-053-alert-feedback-loop.md) |
+| T-054 | [T-054-agent-recommendation-visibility.md](./T-054-agent-recommendation-visibility.md) |
+| T-055 | [T-055-ai-pipeline-status-contract.md](./T-055-ai-pipeline-status-contract.md) |

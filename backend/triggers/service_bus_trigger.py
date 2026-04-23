@@ -18,13 +18,63 @@ http_decision trigger to resume the correct instance.
 
 import json
 import logging
+import os
+from datetime import datetime, timezone
 
 import azure.durable_functions as df
 import azure.functions as func
 
+from shared.cosmos_client import get_cosmos_client
+from shared.incident_store import get_incident_by_id, patch_incident_by_id
+from shared.signalr_client import notify_incident_status_changed_sync
+
 logger = logging.getLogger(__name__)
+DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
+_LIVE_DURABLE_STATUSES = {"Running", "Pending", "ContinuedAsNew"}
 
 bp = df.Blueprint()
+
+
+def _mark_incident_ingested(incident_id: str, equipment_id: str, instance_id: str) -> None:
+    """Persist the transition from alert-created to Durable-ingested."""
+    db = get_cosmos_client().get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    previous_status = str(incident.get("status") or "").strip() or None
+    if previous_status not in {None, "", "open", "queued", "ingested"}:
+        return
+
+    workflow_state = incident.get("workflow_state") or {}
+    if previous_status == "ingested" and workflow_state.get("durable_instance_id") == instance_id:
+        return
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    patch_incident_by_id(
+        db,
+        incident_id,
+        [
+            {"op": "set", "path": "/status", "value": "ingested"},
+            {
+                "op": "set",
+                "path": "/workflow_state",
+                "value": {
+                    **workflow_state,
+                    "durable_instance_id": instance_id,
+                    "current_step": "ingested",
+                },
+            },
+            {"op": "set", "path": "/updatedAt", "value": now_iso},
+            {"op": "set", "path": "/updated_at", "value": now_iso},
+        ],
+    )
+
+    if previous_status != "ingested":
+        notify_incident_status_changed_sync(
+            incident_id=incident_id,
+            new_status="ingested",
+            previous_status=previous_status,
+            equipment_id=equipment_id,
+        )
 
 
 @bp.service_bus_queue_trigger(
@@ -54,6 +104,20 @@ async def service_bus_start_orchestrator(
     existing = await client.get_status(instance_id)
     existing_status = getattr(existing, "runtime_status", None) if existing else None
     if existing_status is not None:
+        existing_status_name = getattr(existing_status, "name", str(existing_status))
+        if existing_status_name in _LIVE_DURABLE_STATUSES:
+            try:
+                _mark_incident_ingested(
+                    incident_id=incident_id,
+                    equipment_id=str(payload.get("equipment_id") or payload.get("equipmentId") or ""),
+                    instance_id=instance_id,
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.exception(
+                    "Existing live orchestrator for %s but failed to reconcile ingested status: %s",
+                    incident_id,
+                    exc,
+                )
         logger.warning(
             "Orchestrator instance %s already exists (status=%s) — ignoring duplicate Service Bus start",
             instance_id,
@@ -61,11 +125,50 @@ async def service_bus_start_orchestrator(
         )
         return
 
-    await client.start_new(
-        orchestration_function_name="incident_orchestrator",
-        instance_id=instance_id,
-        client_input=payload,
-    )
+    try:
+        await client.start_new(
+            orchestration_function_name="incident_orchestrator",
+            instance_id=instance_id,
+            client_input=payload,
+        )
+    except Exception as exc:  # noqa: BLE001
+        concurrent = await client.get_status(instance_id)
+        concurrent_status = getattr(concurrent, "runtime_status", None) if concurrent else None
+        if concurrent_status is not None:
+            concurrent_status_name = getattr(concurrent_status, "name", str(concurrent_status))
+            if concurrent_status_name in _LIVE_DURABLE_STATUSES:
+                try:
+                    _mark_incident_ingested(
+                        incident_id=incident_id,
+                        equipment_id=str(payload.get("equipment_id") or payload.get("equipmentId") or ""),
+                        instance_id=instance_id,
+                    )
+                except Exception as reconcile_exc:  # noqa: BLE001
+                    logger.exception(
+                        "Concurrent orchestrator for %s but failed to reconcile ingested status: %s",
+                        incident_id,
+                        reconcile_exc,
+                    )
+            logger.warning(
+                "Orchestrator instance %s was created concurrently (status=%s) — ignoring duplicate Service Bus start",
+                instance_id,
+                concurrent_status,
+            )
+            return
+        raise exc
+
+    try:
+        _mark_incident_ingested(
+            incident_id=incident_id,
+            equipment_id=str(payload.get("equipment_id") or payload.get("equipmentId") or ""),
+            instance_id=instance_id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception(
+            "Started orchestrator for %s but failed to mark incident as ingested: %s",
+            incident_id,
+            exc,
+        )
 
     logger.info(
         "Started orchestrator instance_id=%s for incident %s",

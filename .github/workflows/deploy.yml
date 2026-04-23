@@ -184,6 +184,9 @@ jobs:
     name: Deploy Frontend (Static Web App)
     runs-on: ubuntu-latest
     needs: infra
+    concurrency:
+      group: swa-sentinel-intel-dev-production
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4

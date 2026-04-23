@@ -99,6 +99,7 @@
 | T-049 | **[WAR Easy Wins — Security & Cost](./tasks/T-049-war-easy-wins.md)** — Defender for Cloud (SE:10), resource tags (SE:03), block legacy auth (SE:08), KV secret rotation (SE:09), Azure Budget alerts (CO:04) — ~4h, all Bicep/config changes | SE:03/08/09/10, CO:04 | 🟢 LOW | 🔜 TODO |
 | T-050 | **[Recovery Procedures Runbook](./tasks/T-050-recovery-runbook.md)** — розширити `docs/operations-runbook.md` з 3 recovery сценаріями (orchestrator hang, DLQ, Foundry timeout) + DLQ depth Azure Monitor alert у Bicep | RE:09 | 🟢 LOW | 🔜 TODO |
 | T-051 | **[Azure Load Testing](./tasks/T-051-load-testing.md)** — 4 Locust scenarios (alert spike 200 RPS, SignalR 200 concurrent, agent E2E 10 parallel, read API 500 RPS); Azure Load Testing resource у Bicep; GitHub Actions CI gate | PE:05/06 | 🟡 MEDIUM | 🔜 TODO |
+| T-055 | **[AI pipeline status contract hardening](./tasks/T-055-ai-pipeline-status-contract.md)** — прибрати demo workaround і виправити backend status contract: `ingested/analyzing/awaiting_agents` мають реально ставитися в Cosmos, а `incident_status_changed` / `agent_step_completed` мають реально летіти через SignalR; cleanup legacy `queued` / `analyzing_agents` у watchdog | Gap #3, UX consistency, T-024/T-030/T-031 | 🟡 MEDIUM | 🔜 TODO |
 
 ### Нові задачі (HITL UX hardening)
 

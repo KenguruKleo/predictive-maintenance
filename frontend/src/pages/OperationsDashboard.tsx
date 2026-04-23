@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
+import { getEquipmentList } from "../api/equipment";
 import { useIncidents } from "../hooks/useIncidents";
 import { getStats } from "../api/stats";
 import IncidentAnalytics from "../components/IncidentAnalytics/IncidentAnalytics";
@@ -85,11 +86,17 @@ export default function OperationsDashboard() {
     status: [...ACTIVE_INCIDENT_STATUSES],
     page_size: 100,
   });
+  const {
+    data: equipmentData,
+    isLoading: isEquipmentLoading,
+    error: equipmentError,
+  } = useQuery({ queryKey: ["equipment-list"], queryFn: getEquipmentList });
   const { data: pendingData } = useIncidents({ status: "pending_approval" as IncidentStatus, page_size: 20 });
   const { data: escalatedData } = useIncidents({ status: "escalated" as IncidentStatus, page_size: 10 });
   const { data: remoteStats } = useQuery({ queryKey: ["stats"], queryFn: getStats });
 
   const allIncidents = allData?.items ?? [];
+  const equipment = equipmentData ?? [];
   const pendingIncidents = pendingData?.items ?? [];
   const escalatedIncidents = escalatedData?.items ?? [];
   const sorted = sortIncidents(allIncidents);
@@ -117,6 +124,11 @@ export default function OperationsDashboard() {
           Failed to load incidents. Please try again.
         </div>
       )}
+      {equipmentError && (
+        <div className="error-banner">
+          Failed to load equipment inventory. Showing assets with active incidents only.
+        </div>
+      )}
 
       <EscalationBanner incidents={escalatedIncidents} />
 
@@ -141,7 +153,11 @@ export default function OperationsDashboard() {
       </section>
 
       <h2 className="section-heading">Equipment Health</h2>
-      <EquipmentHealthGrid incidents={allIncidents} />
+      <EquipmentHealthGrid
+        equipment={equipment}
+        incidents={allIncidents}
+        isLoading={isEquipmentLoading && equipment.length === 0}
+      />
 
       <IncidentAnalytics incidents={sorted} />
 

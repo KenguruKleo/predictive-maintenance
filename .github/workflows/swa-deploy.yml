@@ -1,31 +1,26 @@
-name: Deploy Frontend to Azure Static Web Apps
+name: Deploy Frontend PR Preview to Azure Static Web Apps
 
 # Deploys to: https://calm-flower-0a6d7f90f.7.azurestaticapps.net
 # Azure resource: swa-sentinel-intel-dev (ODL-GHAZ-2177134)
+# Purpose: manage PR preview environments only; production deploys run via deploy.yml
 # Required GitHub secret: SWA_DEPLOYMENT_TOKEN
 #   Get it with: az staticwebapp secrets list --name swa-sentinel-intel-dev \
 #                  --resource-group ODL-GHAZ-2177134 --query "properties.apiKey" -o tsv
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'frontend/**'
-      - '.github/workflows/swa-deploy.yml'
   pull_request:
     types: [opened, synchronize, reopened, closed]
     branches:
       - main
     paths:
       - 'frontend/**'
-  workflow_dispatch:
+      - '.github/workflows/swa-deploy.yml'
 
 jobs:
   build_and_deploy:
-    name: Build & Deploy
+    name: Build PR Preview
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed') || github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
 
     steps:
       - name: Checkout repository

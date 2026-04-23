@@ -12,8 +12,8 @@ from datetime import datetime, timedelta, timezone
 import azure.durable_functions as df
 
 from shared.cosmos_client import get_cosmos_client
-from shared.incident_store import patch_incident_by_id
-from shared.signalr_client import notify_signalr_sync
+from shared.incident_store import get_incident_by_id, patch_incident_by_id
+from shared.signalr_client import notify_incident_status_changed_sync, notify_signalr_sync
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +44,17 @@ def notify_operator(input_data: dict) -> dict:
     notification_type = "escalation" if is_qa_review else "approval_required"
     incident_status = "escalated" if is_qa_review else "pending_approval"
     current_step = "awaiting_qa_manager_decision" if is_qa_review else "awaiting_operator_decision"
+    previous_status: str | None = None
+
+    try:
+        incident = get_incident_by_id(db, incident_id)
+        previous_status = str(incident.get("status") or "").strip() or None
+    except Exception as e:
+        logger.warning(
+            "Could not load current incident %s status before notify_operator patch: %s",
+            incident_id,
+            e,
+        )
 
     approval_task = {
         "id": f"approval-{incident_id}",
@@ -208,6 +219,12 @@ def notify_operator(input_data: dict) -> dict:
         payload=signalr_payload,
         target_role=target_role,
         incident_id=incident_id,
+    )
+    notify_incident_status_changed_sync(
+        incident_id=incident_id,
+        new_status=incident_status,
+        previous_status=previous_status,
+        equipment_id=equipment_id,
     )
 
     return {

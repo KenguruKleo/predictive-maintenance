@@ -2701,6 +2701,12 @@
   margin-bottom: 0;
 }
 
+.history-meta-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 
 
 .table-wrapper {
@@ -2708,6 +2714,22 @@
   border: var(--border);
   border-radius: var(--radius-md);
   background: var(--bg-card);
+}
+
+.recent-decisions-table-wrapper {
+  max-height: var(--recent-decisions-max-height, none);
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.recent-decisions-table-wrapper .incident-table th {
+  top: 0;
+}
+
+.recent-decisions-sentinel {
+  height: 1px;
 }
 
 .incident-table {

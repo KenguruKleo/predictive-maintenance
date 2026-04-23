@@ -30,6 +30,7 @@ from azure.cosmos.exceptions import CosmosResourceNotFoundError
 
 from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
+from shared.signalr_client import notify_incident_status_changed_sync
 from utils.auth import AuthError, get_caller_id, get_caller_roles, require_any_role
 from utils.validation import sanitize_string_fields
 
@@ -180,12 +181,20 @@ async def http_decision(
     }
 
     try:
-        _record_decision(incident_id, event_data, now_iso)
+        status_transition = _record_decision(incident_id, event_data, now_iso)
     except Exception as exc:  # noqa: BLE001
         logger.exception("Failed to persist operator decision for %s: %s", incident_id, exc)
         return _error(500, "Failed to persist operator decision. Please retry.")
 
     await client.raise_event(instance_id, "operator_decision", event_data)
+
+    if status_transition.get("previous_status") != status_transition.get("new_status"):
+        notify_incident_status_changed_sync(
+            incident_id=incident_id,
+            new_status=status_transition.get("new_status", ""),
+            previous_status=status_transition.get("previous_status"),
+            equipment_id=status_transition.get("equipment_id") or None,
+        )
 
     logger.info(
         "operator_decision raised for incident=%s action=%s user=%s",
@@ -233,7 +242,7 @@ def _get_target_workflow_role(incident_id: str) -> str:
     return "operator"
 
 
-def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
+def _record_decision(incident_id: str, decision: dict, now_iso: str) -> dict:
     """Persist the user's decision before resuming the Durable instance."""
     action = decision["action"]
     incident_status = {
@@ -249,6 +258,15 @@ def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
 
     client = get_cosmos_client()
     db = client.get_database_client(DB_NAME)
+    incident: dict = {}
+    previous_status: str | None = None
+    try:
+        incident = get_incident_by_id(db, incident_id)
+        previous_status = str(incident.get("status") or "").strip() or None
+    except Exception:  # noqa: BLE001
+        # Live status push is best-effort here; the decision must still persist.
+        incident = {}
+        previous_status = None
 
     approval_tasks = db.get_container_client("approval-tasks")
     task_id = f"approval-{incident_id}"
@@ -317,3 +335,9 @@ def _record_decision(incident_id: str, decision: dict, now_iso: str) -> None:
             "timestamp": now_iso,
         }
     )
+
+    return {
+        "previous_status": previous_status,
+        "new_status": incident_status,
+        "equipment_id": str(incident.get("equipment_id") or incident.get("equipmentId") or ""),
+    }

@@ -32,7 +32,16 @@ from shared.servicebus_client import publish_alert
 logger = logging.getLogger(__name__)
 
 # Statuses that mean the orchestrator should be running but may have died.
-_STUCK_STATUSES = frozenset({"open", "queued", "analyzing", "analyzing_agents"})
+# awaiting_agents is excluded here because watchdog recovery only rebuilds the
+# original alert payload and would lose follow-up question context.
+_STUCK_STATUSES = frozenset({
+    "open",
+    "queued",
+    "ingested",
+    "analyzing",
+    "analyzing_agents",
+})
+_STUCK_STATUS_SQL = "','".join(sorted(_STUCK_STATUSES))
 
 # pending_approval incidents where the durable is NOT_FOUND are orphaned
 # (e.g. orchestrator ran on localhost but Cosmos record is shared).
@@ -119,7 +128,8 @@ def _query_stuck_incidents(threshold_seconds: int) -> list[dict[str, Any]]:
     container = get_container("incidents")
     query = (
         f"SELECT {_COSMOS_INCIDENT_FIELDS} "
-        "FROM c WHERE c.status IN ('open','queued','analyzing','analyzing_agents') "
+        f"FROM c WHERE c.status IN ('{_STUCK_STATUS_SQL}') "
+        "AND (NOT IS_DEFINED(c.workflow_state.current_step) OR c.workflow_state.current_step != 'analyzing_followup') "
         f"AND c._ts < {cutoff_ts}"
     )
     return list(container.query_items(query, enable_cross_partition_query=True))

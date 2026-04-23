@@ -25,9 +25,17 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 DEFAULT_HUB = "deviationHub"
+DEFAULT_ROLE_TARGETS = (
+    "operator",
+    "qa-manager",
+    "maintenance-tech",
+    "auditor",
+    "it-admin",
+)
 
 
 def _parse_connection_string(conn_str: str) -> tuple[str, str]:
@@ -139,6 +147,60 @@ def notify_signalr_sync(
         except Exception:
             logger.exception("SignalR push unexpected error to %s", url)
             success = False
+
+    return success
+
+
+def notify_incident_status_changed_sync(
+    *,
+    incident_id: str,
+    new_status: str,
+    previous_status: str | None = None,
+    equipment_id: str | None = None,
+    target_roles: Sequence[str] | None = None,
+    hub: str = DEFAULT_HUB,
+) -> bool:
+    """Push a normalized incident status transition event to SignalR.
+
+    Status changes drive shared dashboard counts, so they are broadcast to all
+    role groups plus the incident-specific group when available.
+    """
+    payload = {
+        "incident_id": incident_id,
+        "new_status": new_status,
+    }
+    if previous_status:
+        payload["previous_status"] = previous_status
+    if equipment_id:
+        payload["equipment_id"] = equipment_id
+
+    normalized_role_targets: list[str] = []
+    for role in target_roles or DEFAULT_ROLE_TARGETS:
+        normalized = str(role or "").strip().lower().replace("_", "-")
+        if normalized == "qamanager":
+            normalized = "qa-manager"
+        if normalized and normalized not in normalized_role_targets:
+            normalized_role_targets.append(normalized)
+
+    success = notify_signalr_sync(
+        hub=hub,
+        event="incident_status_changed",
+        payload=payload,
+        target_role=None,
+        incident_id=incident_id,
+    )
+
+    for role in normalized_role_targets:
+        success = (
+            notify_signalr_sync(
+                hub=hub,
+                event="incident_status_changed",
+                payload=payload,
+                target_role=role,
+                incident_id=None,
+            )
+            and success
+        )
 
     return success
 

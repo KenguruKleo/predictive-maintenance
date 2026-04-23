@@ -233,11 +233,20 @@ def test_record_decision_updates_approval_task_incident_and_event(monkeypatch) -
     monkeypatch.setattr(http_decision, "get_cosmos_client", lambda: FakeCosmosClient())
     monkeypatch.setattr(
         http_decision,
+        "get_incident_by_id",
+        lambda db, incident_id: {
+            "id": incident_id,
+            "status": "pending_approval",
+            "equipment_id": "GR-204",
+        },
+    )
+    monkeypatch.setattr(
+        http_decision,
         "patch_incident_by_id",
         lambda db, incident_id, ops: patched_incident.update({"incident_id": incident_id, "ops": ops}),
     )
 
-    http_decision._record_decision(
+    result = http_decision._record_decision(
         incident_id="INC-2026-0029",
         decision={
             "action": "more_info",
@@ -254,5 +263,8 @@ def test_record_decision_updates_approval_task_incident_and_event(monkeypatch) -
     assert patched_incident["incident_id"] == "INC-2026-0029"
     patch_operations = patched_incident["ops"]
     assert {op["path"]: op["value"] for op in patch_operations}["/status"] == "awaiting_agents"
+    assert result["previous_status"] == "pending_approval"
+    assert result["new_status"] == "awaiting_agents"
+    assert result["equipment_id"] == "GR-204"
     assert upserted_events[0]["eventType"] == "operator_decision"
     assert upserted_events[0]["question"] == "What was the batch moisture at T+0?"
