@@ -64,7 +64,11 @@ def create_thread_and_process_run_with_approval(
     logger.info("Foundry run started: run=%s thread=%s", run_id, thread_id)
     deadline = time.monotonic() + max_wait_seconds if max_wait_seconds else None
 
-    for i in range(max_iterations):
+    # When a wall-clock deadline is set, drive the loop by it (not by iteration
+    # count) so the full time budget is always used.  The max_iterations cap
+    # still applies when no deadline is given (e.g. standalone / test calls).
+    i = 0
+    while True:
         if deadline is not None:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
@@ -74,7 +78,10 @@ def create_thread_and_process_run_with_approval(
                 )
             time.sleep(min(poll_interval, remaining))
         else:
+            if i >= max_iterations:
+                break
             time.sleep(poll_interval)
+        i += 1
 
         run = client.runs.get(thread_id=thread_id, run_id=run_id)
         status = run.status
