@@ -63,9 +63,9 @@ python agents/create_agents.py --update
 
 Operational notes:
 
-- `agents/create_agents.py` uses split defaults: `Document Agent` defaults to `gpt-4o` for better answer quality, while `Research` and `Orchestrator` stay on `gpt-4o-mini` to reduce throttling pressure.
+- `agents/create_agents.py` uses role-aligned defaults: `Orchestrator Agent` defaults to `gpt-4o` because it owns the final analysis and recommendation; `Research` and `Document` default to `gpt-4o-mini` because they gather evidence and prepare records.
 - Override all agents at once when needed: `FOUNDRY_AGENT_MODEL=gpt-4o python agents/create_agents.py --update`
-- Override agents individually when needed: `FOUNDRY_DOCUMENT_AGENT_MODEL=gpt-4o FOUNDRY_RESEARCH_AGENT_MODEL=gpt-4o-mini FOUNDRY_ORCHESTRATOR_AGENT_MODEL=gpt-4o-mini python agents/create_agents.py --update`
+- Override agents individually when needed: `FOUNDRY_ORCHESTRATOR_AGENT_MODEL=gpt-4o FOUNDRY_RESEARCH_AGENT_MODEL=gpt-4o-mini FOUNDRY_DOCUMENT_AGENT_MODEL=gpt-4o-mini python agents/create_agents.py --update`
 - Local runs use Azure CLI auth by default; set `FOUNDRY_AGENT_CREDENTIAL=default` only if you specifically want `DefaultAzureCredential`.
 - To capture incident-scoped prompt and response traces for troubleshooting, set `FOUNDRY_PROMPT_TRACE_ENABLED=1`. Optional: `FOUNDRY_PROMPT_TRACE_CHUNK_SIZE=12000`.
 

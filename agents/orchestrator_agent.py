@@ -16,5 +16,5 @@ AGENT_NAME = "sentinel-orchestrator-agent"
 MODEL = (
     os.getenv("FOUNDRY_ORCHESTRATOR_AGENT_MODEL")
     or os.getenv("FOUNDRY_AGENT_MODEL")
-    or "gpt-4o-mini"
+    or "gpt-4o"
 ).strip()

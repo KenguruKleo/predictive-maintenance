@@ -45,8 +45,9 @@ RESEARCH_PROMPT = (PROMPTS_DIR / "research_system.md").read_text(encoding="utf-8
 DOCUMENT_PROMPT = (PROMPTS_DIR / "document_system.md").read_text(encoding="utf-8")
 ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encoding="utf-8")
 
-DEFAULT_AGENT_MODEL = "gpt-4o-mini"
-DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
+DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
 
 
 def _resolve_agent_model(env_var: str, default_model: str) -> str:
@@ -61,21 +62,23 @@ def _resolve_agent_model(env_var: str, default_model: str) -> str:
     return default_model
 
 
-RESEARCH_MODEL = _resolve_agent_model("FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_AGENT_MODEL)
+RESEARCH_MODEL = _resolve_agent_model(
+    "FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_RESEARCH_AGENT_MODEL
+)
 DOCUMENT_MODEL = _resolve_agent_model(
     "FOUNDRY_DOCUMENT_AGENT_MODEL",
     DEFAULT_DOCUMENT_AGENT_MODEL,
 )
 ORCHESTRATOR_MODEL = _resolve_agent_model(
     "FOUNDRY_ORCHESTRATOR_AGENT_MODEL",
-    DEFAULT_AGENT_MODEL,
+    DEFAULT_ORCHESTRATOR_AGENT_MODEL,
 )
 TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
 TOP_P = 0.9         # Slightly constrained nucleus sampling
 
-# ── Strict JSON schema for Document Agent response_format ─────────────
+# ── Strict JSON schema for final Orchestrator response_format ──────────
 # Enforces exact field names, types, and structure at API level.
-DOCUMENT_RESPONSE_SCHEMA = {
+FINAL_ANALYSIS_SCHEMA = {
     "type": "object",
     "properties": {
         "incident_id": {"type": "string"},
@@ -171,7 +174,7 @@ DOCUMENT_RESPONSE_SCHEMA = {
             },
         },
         "work_order_draft": {
-            "type": "object",
+            "type": ["object", "null"],
             "properties": {
                 "title": {"type": "string"},
                 "description": {"type": "string"},
@@ -236,11 +239,61 @@ DOCUMENT_RESPONSE_SCHEMA = {
     "additionalProperties": False,
 }
 
-DOCUMENT_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
+FINAL_ANALYSIS_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
     json_schema=ResponseFormatJsonSchema(
         name="gmp_deviation_analysis",
         description="Structured GMP deviation analysis with CAPA, regulatory refs, and audit trail",
-        schema=DOCUMENT_RESPONSE_SCHEMA,
+        schema=FINAL_ANALYSIS_SCHEMA,
+    )
+)
+
+
+DOCUMENT_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "incident_id": {"type": "string"},
+        "work_order_draft": {
+            "type": ["object", "null"],
+            "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "priority": {"type": "string"},
+                "estimated_hours": {"type": "integer"},
+            },
+            "required": ["title", "description", "priority", "estimated_hours"],
+            "additionalProperties": False,
+        },
+        "audit_entry_draft": {
+            "type": "object",
+            "properties": {
+                "deviation_type": {"type": "string"},
+                "description": {"type": "string"},
+                "root_cause": {"type": "string"},
+                "capa_actions": {"type": "string"},
+            },
+            "required": ["deviation_type", "description", "root_cause", "capa_actions"],
+            "additionalProperties": False,
+        },
+        "work_order_id": {"type": ["string", "null"]},
+        "audit_entry_id": {"type": ["string", "null"]},
+        "execution_error": {"type": ["string", "null"]},
+    },
+    "required": [
+        "incident_id",
+        "work_order_draft",
+        "audit_entry_draft",
+        "work_order_id",
+        "audit_entry_id",
+        "execution_error",
+    ],
+    "additionalProperties": False,
+}
+
+DOCUMENT_OUTPUT_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
+    json_schema=ResponseFormatJsonSchema(
+        name="gmp_document_outputs",
+        description="Prepared QMS/CMMS document payloads and persisted record ids",
+        schema=DOCUMENT_OUTPUT_SCHEMA,
     )
 )
 
@@ -596,7 +649,7 @@ def main(update: bool = False) -> dict:
     document_agent = _create_or_update(
         client, "sentinel-document-agent", DOCUMENT_MODEL, DOCUMENT_PROMPT,
         document_tools, None, update,
-        response_format=DOCUMENT_RESPONSE_FORMAT,
+        response_format=DOCUMENT_OUTPUT_RESPONSE_FORMAT,
     )
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
@@ -613,11 +666,10 @@ def main(update: bool = False) -> dict:
         id=document_agent.id,
         name="document_agent",
         description=(
-            "Produces structured GMP deviation analysis (classification, risk level, "
-            "root cause, CAPA, confidence score) AND persists GMP records: "
-            "creates a QMS audit entry (returns audit_entry_id) and a CMMS corrective "
-            "work order (returns work_order_id). Always delegate here for the final "
-            "analysis and to trigger execution of GMP documentation."
+            "Prepares and persists GMP documentation that matches the Orchestrator's "
+            "already-decided outcome: creates a QMS audit entry and, only when needed, "
+            "a CMMS corrective work order. It must not determine classification, risk, "
+            "or recommendation."
         ),
     )
 
@@ -626,6 +678,7 @@ def main(update: bool = False) -> dict:
         research_connected.definitions + document_connected.definitions,  # type: ignore[operator]
         None,
         update,
+        response_format=FINAL_ANALYSIS_RESPONSE_FORMAT,
     )
 
     print("\n" + "=" * 60)

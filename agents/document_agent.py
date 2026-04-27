@@ -20,5 +20,5 @@ AGENT_NAME = "sentinel-document-agent"
 MODEL = (
     os.getenv("FOUNDRY_DOCUMENT_AGENT_MODEL")
     or os.getenv("FOUNDRY_AGENT_MODEL")
-    or "gpt-4o"
+    or "gpt-4o-mini"
 ).strip()

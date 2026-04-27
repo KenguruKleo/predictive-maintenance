@@ -110,8 +110,9 @@ _TYPE_TO_INDEX: dict[str, str] = {meta["type"]: idx for idx, meta in INDEX_EVIDE
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
 
-DEFAULT_AGENT_MODEL = "gpt-4o-mini"
-DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
+DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
 
 bp = df.Blueprint()
 
@@ -820,7 +821,8 @@ def _build_prompt(
             "equipment manuals, BPR product specs, GMP regulations, and similar historical incidents "
             "retrieved via semantic search. Use these as your primary evidence base — cite them explicitly. "
             "Use your Research sub-agent to retrieve any additional context not covered above. "
-            "Then use your Document sub-agent to produce the final structured analysis."
+            "You, the Orchestrator, must produce the final structured analysis and decision. "
+            "Use your Document sub-agent only to prepare/persist documentation that matches your final decision."
         ),
         "",
         "Return your response as a **single JSON block** using this exact schema:",
@@ -906,14 +908,15 @@ def _build_prompt(
         "```",
         "",
         "Every field above is required except execution_error, which may be null when tool execution succeeds.",
-        "Carry forward tool_calls_log from the Research Agent and preserve work_order_id/audit_entry_id from the Document Agent tool execution.",
+        "Carry forward tool_calls_log from the Research Agent. The Document Agent may only fill work_order_draft, audit_entry_draft, work_order_id, audit_entry_id, and execution_error — it must not decide the outcome.",
         "Set agent_recommendation to APPROVE if the deviation requires CAPA action (risk high/critical/medium). "
         "Set to REJECT if the deviation is a transient/startup spike, sensor noise, or false positive with NO physical deviation confirmed AND NO open/unresolved history of recurrence. "
         "CRITICAL for historical incidents: if recent_incidents shows similar events on the same equipment where lastDecision or finalDecision has action='rejected' (human dismissed as false positive), "
-        "that human rejection is STRONG evidence to REJECT the current incident too — do NOT treat it as 'recurring issue requiring CAPA'. "
+        "that human rejection is STRONG evidence to REJECT the current incident too — do NOT treat it as 'recurring issue requiring CAPA'. Weight these human-rejected similar incidents more heavily than generic SOP/GMP language that only says deviations must be reviewed/documented. "
         "Only treat historical incidents as evidence of a recurring problem if they were approved/escalated (action='approved') or remain unresolved. "
         "Also: if duration_seconds < 30 AND notes explicitly state startup transient or maintenance confirmed no fault, "
         "set agent_recommendation to REJECT unless there is confirmed product quality impact or sustained equipment damage. "
+        "If you decide REJECT, Document Agent should create only the audit entry and must leave work_order_draft/work_order_id null. "
         "Examples of REJECT: single 8-second motor current spike during startup with no fault found; identical transient spikes previously rejected by human operators. "
         "Examples of APPROVE: sustained excursion >1 min, confirmed equipment fault, batch quality impact, repeat pattern with prior human-approved investigations. "
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
@@ -960,14 +963,16 @@ def _log_orchestrator_prompt_trace(
 
 def _configured_agent_models() -> dict[str, str]:
     return {
-        "research": _resolve_agent_model("FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_AGENT_MODEL),
+        "research": _resolve_agent_model(
+            "FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_RESEARCH_AGENT_MODEL
+        ),
         "document": _resolve_agent_model(
             "FOUNDRY_DOCUMENT_AGENT_MODEL",
             DEFAULT_DOCUMENT_AGENT_MODEL,
         ),
         "orchestrator": _resolve_agent_model(
             "FOUNDRY_ORCHESTRATOR_AGENT_MODEL",
-            DEFAULT_AGENT_MODEL,
+            DEFAULT_ORCHESTRATOR_AGENT_MODEL,
         ),
     }
 
