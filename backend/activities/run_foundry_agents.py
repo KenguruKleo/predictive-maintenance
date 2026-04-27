@@ -110,7 +110,7 @@ def run_foundry_agents(input_data: dict) -> dict:
 
     # Write analysis_started event on the first (non-more_info) run
     if more_info_round == 0:
-        _write_analysis_started_event(incident_id)
+        _write_analysis_started_event(incident_id, more_info_round)
 
     # HACKATHON: fallback to the provisioned agent ID so local runs work without a
     # full env-var setup. Remove the fallback before a production deployment.
@@ -2385,13 +2385,17 @@ def _infer_known_document(item: dict) -> dict | None:
     return None
 
 
-def _write_analysis_started_event(incident_id: str) -> None:
-    """Write an analysis_started audit event when the AI agent begins processing."""
+def _write_analysis_started_event(incident_id: str, more_info_round: int = 0) -> None:
+    """Write an analysis_started audit event when the AI agent begins processing.
+
+    Uses a stable, round-aware id so durable activity replays/retries hit the
+    CosmosResourceExistsError branch instead of writing duplicate history rows.
+    """
     from azure.cosmos.exceptions import CosmosResourceExistsError
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     event = {
-        "id": f"{incident_id}-analysis-started-{int(datetime.now(timezone.utc).timestamp())}",
+        "id": f"{incident_id}-analysis-started-r{more_info_round}",
         "incident_id": incident_id,
         "incidentId": incident_id,
         "timestamp": now,
