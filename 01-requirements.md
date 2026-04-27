@@ -1,242 +1,242 @@
-# 01 · Вимоги хакатону
+# 01 · Hackathon Requirements
 
-← [README](./README.md) · [02 Архітектура](./02-architecture.md) · [03 Аналіз](./03-analysis.md) · [04 План дій](./04-action-plan.md)
+← [README](./README.md) · [02 Architecture](./02-architecture.md) · [03 Analysis](./03-analysis.md) · [04 Action Plan](./04-action-plan.md)
 
-> **Призначення:** Єдине джерело правди про всі вимоги. Перевіряємо перед кожним ітерацією архітектури та кожним deliverable.
-
----
-
-## Зміст
-1. [Хакатон — загальні вимоги](#1-хакатон--загальні-вимоги)
-2. [Use Case — LS / Supply Chain (наш трек)](#2-use-case--ls--supply-chain-наш-трек)
-3. [Середовища (Tracks)](#3-середовища-tracks)
-4. [Критерії оцінки — Architecture (50 балів)](#4-критерії-оцінки-architecture-50-балів)
-5. [Критерії оцінки — Use Case (50 балів)](#5-критерії-оцінки-use-case-50-балів)
-6. [Azure WAF вимоги](#6-azure-waf-вимоги)
-7. [Azure AI Pillar вимоги](#7-azure-ai-pillar-вимоги)
-8. [Security & Monitoring вимоги](#8-security--monitoring-вимоги)
-9. [Deliverables по фазах](#9-deliverables-по-фазах)
-10. [Чеклист відповідності (живий)](#10-чеклист-відповідності-живий)
+> **Purpose:** Single source of truth for all requirements. Review before every architecture iteration and every deliverable.
 
 ---
 
-## 1. Хакатон — загальні вимоги
+## Contents
+1. [Hackathon — General Requirements](#1-hackathon--general-requirements)
+2. [Use Case — LS / Supply Chain (our track)](#2-use-case--ls--supply-chain-our-track)
+3. [Environments (Tracks)](#3-environments-tracks)
+4. [Evaluation Criteria — Architecture (50 points)](#4-evaluation-criteria--architecture-50-points)
+5. [Evaluation Criteria — Use Case (50 points)](#5-evaluation-criteria--use-case-50-points)
+6. [Azure WAF Requirements](#6-azure-waf-requirements)
+7. [Azure AI Pillar Requirements](#7-azure-ai-pillar-requirements)
+8. [Security & Monitoring Requirements](#8-security--monitoring-requirements)
+9. [Deliverables by Phase](#9-deliverables-by-phase)
+10. [Compliance Checklist (living)](#10-compliance-checklist-living)
 
-| Параметр | Значення |
+---
+
+## 1. Hackathon — General Requirements
+
+| Parameter | Value |
 |---|---|
-| Назва | Microsoft Agentic Industry Hackathon 2026 |
-| Організатори | Capgemini (Clemens Reijnen) + Microsoft |
-| Мета | Побудова working agentic solutions на Microsoft AI Platforms |
-| Команда | 2–7 осіб |
-| Оцінка | Architecture (50 балів) + Use Case (50 балів) = 100 |
+| Name | Microsoft Agentic Industry Hackathon 2026 |
+| Organizers | Capgemini (Clemens Reijnen) + Microsoft |
+| Goal | Build working agentic solutions on Microsoft AI Platforms |
+| Team | 2–7 people |
+| Scoring | Architecture (50 points) + Use Case (50 points) = 100 |
 
-**Загальні вимоги до рішення:**
-- Рішення повинно використовувати **Microsoft AI Platforms** повноцінно
-- Повинен бути продемонстрований **industry impact** та **quality**
-- Командою обирається один **Track (A/B/C/D)** — і архітектура будується під нього
-- Human-in-the-loop **обов'язковий** для GxP/regulated процесів
-- Рішення оцінюється як **MVP** — фокус на конкретному сценарії
+**General solution requirements:**
+- The solution must use **Microsoft AI Platforms** comprehensively.
+- It must demonstrate clear **industry impact** and **quality**.
+- The team must choose one **Track (A/B/C/D)**, and architecture must align with it.
+- Human-in-the-loop is **mandatory** for GxP/regulated processes.
+- The solution is evaluated as an **MVP**, with focus on a concrete scenario.
 
 ---
 
-## 2. Use Case — LS / Supply Chain (наш трек)
+## 2. Use Case — LS / Supply Chain (our track)
 
-### Problem Statement (офіційний з хакатону)
+### Problem Statement (official hackathon statement)
 > In life sciences (pharma/biotech/medical devices), GMP is the set of regulated quality standards that ensure products are consistently made and controlled so they are safe, effective, and meet specifications. Operations teams must keep assets and batches within validated limits while juggling equipment health, preventive maintenance, and strict SOP/BPR compliance, so monitoring assets in real time, detecting early failure signals, optimizing "golden batch" parameters, and identifying potential deviations fast without disrupting production.
 
-### 4 підходи для цього use case
+### 4 approaches for this use case
 
-| Підхід (Track) | Назва | Опис |
+| Approach (Track) | Name | Description |
 |---|---|---|
-| **A — Pro-code ✅ (наш)** | Predictive maintenance / Operations Assistant | Azure AI Foundry multi-agent, streaming SCADA/MES, RAG на SOP/BPR |
-| B — Low-code | Maintenance Coach (Copilot Studio) | Teams-based NL-query над SOP, guided checklists, Power Automate |
+| **A — Pro-code ✅ (ours)** | Predictive maintenance / Operations Assistant | Azure AI Foundry multi-agent, streaming SCADA/MES, RAG over SOP/BPR |
+| B — Low-code | Maintenance Coach (Copilot Studio) | Teams-based NL-query over SOP, guided checklists, Power Automate |
 | C — SaaS | Operations Copilot (Dynamics 365) | Closed-loop work orders, asset/field service, auditable workflows |
-| D — Fine-tune | Manufacturing Support (Mistral) | Fine-tune на site alarms, batch deviations, maintenance notes |
+| D — Fine-tune | Manufacturing Support (Mistral) | Fine-tune on site alarms, batch deviations, maintenance notes |
 
-### Наш підхід (Track A) — офіційний опис
+### Our approach (Track A) — official description
 > Using Microsoft AI Foundry, an Operations Agent orchestrates agents that stream real-time sensor/SCADA data to detect early wear patterns and cross-check them against SOP/BPR "golden batch" limits. Example: a vibration spike on a granulator triggers a predicted bearing failure alert plus a recommended PM plan and deviation-resolution playbook retrieved from validated SOPs. AI Foundry supports it with agent orchestration, RAG over controlled documents, evaluation, and governed deployment.
 
 ---
 
-## 3. Середовища (Tracks)
+## 3. Environments (Tracks)
 
-### Track A — наш вибір ✅
-**Склад:**
+### Track A — our choice ✅
+**Stack:**
 - GitHub (repo, CI/CD, GitHub Actions)
-- Azure (повний стек)
-- Azure AI Foundry (агенти, оркестрація, RAG, evaluation, governed deployment)
-- Microsoft Fabric — **опціонально** (якщо потрібно для data pipeline)
+- Azure (full stack)
+- Azure AI Foundry (agents, orchestration, RAG, evaluation, governed deployment)
+- Microsoft Fabric — **optional** (if needed for the data pipeline)
 
-**Що Microsoft надає командам Track A:**
+**What Microsoft provides to Track A teams:**
 - GitHub Copilot
 - Azure (Cognitive Services + OpenAI enabled)
 - Foundry IQ (preview)
-- Fabric IQ (preview, опціонально)
+- Fabric IQ (preview, optional)
 
-> ⚠️ **Критична вимога:** Track **повинен бути явно задекларований** у submission. У першому поданні цього не було — це Gap #1. Дивись → [03 · Аналіз Gap #1](./03-analysis.md#gap-1-track-не-задекларований)
+> ⚠️ **Critical requirement:** Track must be **explicitly declared** in the submission. This was missing in the first submission and became Gap #1. See [03 · Analysis Gap #1](./03-analysis.md#gap-1-track-not-declared)
 
 ---
 
-## 4. Критерії оцінки — Architecture (50 балів)
+## 4. Evaluation Criteria — Architecture (50 points)
 
-| Dimension | Макс. | Опис критерію |
+| Dimension | Max | Criterion description |
 |---|---|---|
-| **Clarity & Flow** | 10 | Чіткість потоку: detect → context → agents → approval → action. Agent roles та data sources видимі. Exception paths та runtime logic визначені. |
-| **Platform Fit** | 10 | Правильний вибір Azure сервісів для задачі. Track задекларований. Developer/platform setup показано. GitHub + CI/CD інтегровані. |
-| **Data / Governance / Security** | 10 | Identity (Entra ID), RBAC для всіх ролей, Key Vault, private endpoints, encryption, data classification, retention policy, controlled access до SOP/BPR/CAPA. |
-| **Reliability / Performance / Cost** | 10 | Event queuing, retries, dead-letter handling, fallback, latency SLOs (< 5 хв), caching, token budgets, cost controls, model timeout handling. |
-| **Scalability / Integration / Provisioning** | 10 | IaC/deployment approach, API contracts, environment topology, repeatable provisioning. Enterprise integrations MES/SCADA/CMMS/QMS деталізовані. |
+| **Clarity & Flow** | 10 | Clear flow: detect → context → agents → approval → action. Agent roles and data sources are visible. Exception paths and runtime logic are defined. |
+| **Platform Fit** | 10 | Correct Azure service selection for the problem. Track is declared. Developer/platform setup is shown. GitHub + CI/CD are integrated. |
+| **Data / Governance / Security** | 10 | Identity (Entra ID), RBAC for all roles, Key Vault, private endpoints, encryption, data classification, retention policy, controlled access to SOP/BPR/CAPA. |
+| **Reliability / Performance / Cost** | 10 | Event queuing, retries, dead-letter handling, fallback, latency SLOs (< 5 min), caching, token budgets, cost controls, model timeout handling. |
+| **Scalability / Integration / Provisioning** | 10 | IaC/deployment approach, API contracts, environment topology, repeatable provisioning. Enterprise integrations with MES/SCADA/CMMS/QMS are detailed. |
 
-> Поточний стан: **33/50** → [Деталі в аналізі](./03-analysis.md#architecture-dimensions)
+> Current state: **33/50** → [Analysis details](./03-analysis.md#architecture-dimensions)
 
 ---
 
-## 5. Критерії оцінки — Use Case (50 балів)
+## 5. Evaluation Criteria — Use Case (50 points)
 
-| Dimension | Макс. | Опис критерію |
+| Dimension | Max | Criterion description |
 |---|---|---|
-| **Value & KPI Impact** | 10 | Чіткі business pain points, evidence-based KPI quantification, вимірюваний вплив на regulated process. |
-| **Innovation** | 10 | Диференційоване рішення (не basic chatbot/anomaly detector). Thoughtful multi-agent design tied to regulated workflow. |
-| **AI Fit** | 10 | AI добре підходить до задачі. Confidence thresholds, evidence gating, окрема verification-перевірка документів і citations, hallucination controls, prompt-injection defenses, agent observability. Responsible AI явний. |
-| **UX Simplicity** | 10 | Конкретний operator interface показаний. Approval ergonomics та explainability. Sample decision package з rationale/evidence. |
-| **Build–Scale–Reuse** | 10 | MVP чітко звужений (один тип активу, один клас відхилення, невеликий SOP/CAPA set). Reusable patterns та MCP assets. Production-scale constraints визначені. |
+| **Value & KPI Impact** | 10 | Clear business pain points, evidence-based KPI quantification, measurable impact on regulated processes. |
+| **Innovation** | 10 | Differentiated solution (not a basic chatbot/anomaly detector). Thoughtful multi-agent design tied to regulated workflow. |
+| **AI Fit** | 10 | AI is an appropriate fit for the problem. Confidence thresholds, evidence gating, separate document/citation verification, hallucination controls, prompt-injection defenses, agent observability. Responsible AI is explicit. |
+| **UX Simplicity** | 10 | Concrete operator interface is shown. Approval ergonomics and explainability are present. Sample decision package includes rationale/evidence. |
+| **Build–Scale–Reuse** | 10 | MVP is clearly scoped (one asset type, one deviation class, small SOP/CAPA set). Reusable patterns and MCP assets. Production-scale constraints are defined. |
 
-> Поточний стан: **38/50** → [Деталі в аналізі](./03-analysis.md#use-case-dimensions)
+> Current state: **38/50** → [Analysis details](./03-analysis.md#use-case-dimensions)
 
 ---
 
-## 6. Azure WAF вимоги
+## 6. Azure WAF Requirements
 
-Hackathon явно перевіряє **Azure Well-Architected Framework**:
+The hackathon explicitly evaluates the **Azure Well-Architected Framework**:
 
-| Pillar | Вимога | Наш стан |
+| Pillar | Requirement | Current state |
 |---|---|---|
-| **Reliability** | Retry strategy, queuing, dead-letter, fallback mode, degraded/manual-only mode | ❌ Відсутній |
-| **Security** | Entra ID, secrets handling, network isolation, encryption, SIEM | ❌ Відсутній |
-| **Cost Optimisation** | Token controls, caching, model routing, cost per event | ❌ Відсутній |
-| **Operational Excellence** | Monitoring, alerting, CI/CD, observability | ❌ Відсутній |
-| **Performance Efficiency** | Latency budgets, throughput, scaling triggers | ⚠️ Частково (< 5 хв KPI є) |
+| **Reliability** | Retry strategy, queuing, dead-letter, fallback mode, degraded/manual-only mode | ❌ Missing |
+| **Security** | Entra ID, secrets handling, network isolation, encryption, SIEM | ❌ Missing |
+| **Cost Optimisation** | Token controls, caching, model routing, cost per event | ❌ Missing |
+| **Operational Excellence** | Monitoring, alerting, CI/CD, observability | ❌ Missing |
+| **Performance Efficiency** | Latency budgets, throughput, scaling triggers | ⚠️ Partial (< 5 min KPI exists) |
 
-> Все WAF покриття → [03 · Аналіз](./03-analysis.md#azure-waf-gaps)
+> Full WAF coverage analysis → [03 · Analysis](./03-analysis.md#azure-waf-gaps)
 
 ---
 
-## 7. Azure AI Pillar вимоги
+## 7. Azure AI Pillar Requirements
 
-| Вимога | Опис | Наш стан |
+| Requirement | Description | Current state |
 |---|---|---|
-| **Agent Design** | Multi-agent orchestration, clear agent roles | ✅ Добре |
-| **Grounding / RAG** | Validated SOP/BPR, CAPA history retrieval | ✅ Добре |
-| **Document & Citation Verification** | Separate post-generation check validates document identity, section claim, and deep link against authoritative retrieved chunks before evidence is shown to user | ⚠️ Частково — backend citation normalization and unresolved-evidence downgrade exist, but the scenario still needs to be demonstrated consistently in UX / demo artifacts |
-| **Model Lifecycle** | Evaluation, governed deployment, versioning/rollback | ⚠️ Частково (згадано, не деталізовано) |
-| **Responsible AI** | Confidence thresholds, evidence gating, separate document/citation verification | ⚠️ Частково — confidence gate path and citation verification path exist, але Content Safety / prompt-injection guard ще не завершені |
-| **AI Observability** | Agent monitoring, output tracing | ⚠️ Частково — incident-scoped App Insights prompt and response traces are now implemented in backend; Cosmos `incident_events` covers only business audit / transcript; dashboards, alerts, and admin retrieval UX are still pending |
-| **Prompt Injection Defense** | Content safety, input validation | ❌ Відсутній |
+| **Agent Design** | Multi-agent orchestration, clear agent roles | ✅ Good |
+| **Grounding / RAG** | Validated SOP/BPR, CAPA history retrieval | ✅ Good |
+| **Document & Citation Verification** | Separate post-generation check validates document identity, section claim, and deep link against authoritative retrieved chunks before evidence is shown to user | ⚠️ Partial — backend citation normalization and unresolved-evidence downgrade exist, but the scenario still needs to be demonstrated consistently in UX/demo artifacts |
+| **Model Lifecycle** | Evaluation, governed deployment, versioning/rollback | ⚠️ Partial (mentioned, not yet detailed) |
+| **Responsible AI** | Confidence thresholds, evidence gating, separate document/citation verification | ⚠️ Partial — confidence gate and citation verification paths exist, but Content Safety and prompt-injection guard are still incomplete |
+| **AI Observability** | Agent monitoring, output tracing | ⚠️ Partial — incident-scoped App Insights prompt/response traces are implemented in backend; Cosmos `incident_events` covers only business audit/transcript; dashboards, alerts, and admin retrieval UX are still pending |
+| **Prompt Injection Defense** | Content safety, input validation | ❌ Missing |
 
 ---
 
-## 8. Security & Monitoring вимоги
+## 8. Security & Monitoring Requirements
 
-Хакатон явно перевіряє **Microsoft Security & Monitoring**:
+The hackathon explicitly evaluates **Microsoft Security & Monitoring**:
 
 - [ ] Identity architecture (Entra ID / Managed Identities)
-- [ ] RBAC model (operators / QA / compliance / IT ролі)
+- [ ] RBAC model (operators / QA / compliance / IT roles)
 - [ ] Secrets handling (Azure Key Vault)
 - [ ] Network isolation (Private Endpoints, VNet integration)
 - [ ] Encryption (at rest + in transit)
-- [ ] Data classification та retention
+- [ ] Data classification and retention
 - [ ] SIEM / monitoring (Azure Monitor, Log Analytics)
 - [ ] Alerting
-- [ ] Audit logging ✅ — вже є, але тільки це
+- [ ] Audit logging ✅ — already present, but only this part
 
 ---
 
-## 9. Deliverables по фазах
+## 9. Deliverables by Phase
 
-### Semi-finals (кінець березня) — ✅ ЗРОБЛЕНО
-- [x] PowerPoint з описом use case
+### Semi-finals (end of March) — ✅ COMPLETED
+- [x] PowerPoint with use case description
 - [x] Business process AS-IS → TO-BE
-- [x] High-level архітектура
-- [ ] ⚠️ Track задекларований — **НЕ ЗАФІКСОВАНО** в submission
+- [x] High-level architecture
+- [ ] ⚠️ Track declaration — **NOT CAPTURED** in submission
 
-### Implementation (квітень 2026) — 🔄 ЗАРАЗ
-- [ ] Working code у GitHub repo
+### Implementation (April 2026) — 🔄 CURRENT
+- [ ] Working code in the GitHub repo
 - [ ] Azure Foundry agents deployed
-- [ ] RAG pipeline (Azure AI Search) налаштований
-- [ ] Integration з mock data sources
+- [ ] RAG pipeline (Azure AI Search) configured
+- [ ] Integration with mock data sources
 - [ ] Security layer (Entra ID, RBAC, Key Vault)
 - [ ] Reliability layer (queuing, retry)
 - [ ] Responsible AI controls
-- [ ] Demo scenario готовий (один asset, один deviation class)
+- [ ] Demo scenario ready (one asset, one deviation class)
 
-### Final submission (1-й тиж. травня)
-- [ ] **5-хвилинне demo відео** (детальні вимоги нижче ↓)
-- [ ] GitHub repo з повним кодом
+### Final submission (first week of May)
+- [ ] **5-minute demo video** (detailed requirements below ↓)
+- [ ] GitHub repo with full codebase
 - [ ] Working implementation
 
-#### 📹 Вимоги до фінального відео (5 хвилин)
+#### 📹 Final video requirements (5 minutes)
 
-> ⚡ **Критично важливо.** Це єдиний touchpoint для Capgemini executives та Microsoft judges на фіналі. 5 хвилин = рішення про переможця.
+> ⚡ **Critically important.** This is the only touchpoint for Capgemini executives and Microsoft judges at the final stage. 5 minutes can determine the winner.
 
-**Обов'язкові елементи відео:**
-- [ ] Hook — проблема + ключова цифра (30–60 хв → < 5 хв)
-- [ ] Cartoon/анімація AS-IS процесу (без додатку) — ~60 сек
-- [ ] Cartoon/анімація TO-BE процесу (з додатком) — ~60 сек  
-- [ ] Live demo робочого додатку (один повний сценарій: SCADA alert → decision package → approval → audit trail)
-- [ ] Архітектура — один слайд (Track A + всі компоненти)
-- [ ] KPI summary та impact
-- [ ] Тривалість: ≤ 5:10 хв
-- [ ] Мова: **English**
-- [ ] Субтитри (judges можуть дивитись без звуку)
+**Mandatory video elements:**
+- [ ] Hook: problem + key metric (30-60 min → < 5 min)
+- [ ] Cartoon/animation of AS-IS process (without app) — ~60 sec
+- [ ] Cartoon/animation of TO-BE process (with app) — ~60 sec
+- [ ] Live demo of the working app (one full scenario: SCADA alert → decision package → approval → audit trail)
+- [ ] Architecture shown on one slide (Track A + all components)
+- [ ] KPI summary and impact
+- [ ] Duration: ≤ 5:10 min
+- [ ] Language: **English**
+- [ ] Subtitles (judges may watch without audio)
 
-**Детальний план відео:** → [04 · План дій — T-002](./04-action-plan.md#фінальне-відео-t-002)
+**Detailed video plan:** [04 · Action Plan — T-002](./04-action-plan.md#final-video-t-002)
 
-### Finals (2-й тиж. травня)
-- [ ] Presentation топ-10 для Capgemini executives + Microsoft
+### Finals (second week of May)
+- [ ] Top-10 presentation for Capgemini executives + Microsoft
 
 ---
 
-## 10. Чеклист відповідності (живий)
+## 10. Compliance Checklist (living)
 
-Перевіряємо при кожній ітерації архітектури:
+Review at every architecture iteration:
 
-### ✅ Реалізовано (код або інфраструктура існує)
+### ✅ Implemented (code or infrastructure exists)
 - [x] Strong GMP problem statement
-- [x] Multi-agent design на Azure AI Foundry (архітектура)
-- [x] Human approval step (GxP) — механізм Durable `waitForExternalEvent` задокументовано (ADR-001)
-- [x] Enterprise integrations названі (MES, SCADA, CMMS, QMS)
-- [x] Clear KPIs (< 5 хв decision time)
-- [x] Stakeholders визначені
-- [x] **Track A явно задекларований** — в 02-architecture.md v2.0, GitHub Actions + Bicep
-- [x] **GitHub + CI/CD** — `ci.yml` (lint+test+bicep validate) + `deploy.yml` (push main) живі та зелені
-- [x] **Event Queue** — Azure Service Bus `alert-queue` + DLQ задеплоєно (Bicep, Sweden Central)
-- [x] **Cosmos DB** — 8 containers задеплоєно (incidents, incident_events, notifications, equipment, batches, capa-plans, approval-tasks, templates)
-- [x] **IaC** — Bicep `infra/main.bicep` + 5 modules, 7 ресурсів задеплоєно
-- [x] **App Insights + Log Analytics** — задеплоєно, traces доступні
-- [x] **Mock data** — equipment (3), batches (2), incidents (3), templates (2) у `data/mock/`
-- [x] **Конкретний equipment scenario** — GR-204, Granulator, Plant-01, Line-2
-- [x] **Окрема verification-перевірка документів і citations** — backend нормалізує `evidence_citations` проти authoritative AI Search chunks; якщо секція не підтверджується, citation лишається visible як `unresolved`, але не піднімається в summary як verified fact
+- [x] Multi-agent design on Azure AI Foundry (architecture)
+- [x] Human approval step (GxP) — Durable `waitForExternalEvent` mechanism documented (ADR-001)
+- [x] Enterprise integrations identified (MES, SCADA, CMMS, QMS)
+- [x] Clear KPIs (< 5 min decision time)
+- [x] Stakeholders defined
+- [x] **Track A explicitly declared** in 02-architecture.md v2.0, with GitHub Actions + Bicep
+- [x] **GitHub + CI/CD** — `ci.yml` (lint+test+bicep validate) + `deploy.yml` (push main) are active and green
+- [x] **Event Queue** — Azure Service Bus `alert-queue` + DLQ deployed (Bicep, Sweden Central)
+- [x] **Cosmos DB** — 8 containers deployed (incidents, incident_events, notifications, equipment, batches, capa-plans, approval-tasks, templates)
+- [x] **IaC** — Bicep `infra/main.bicep` + 5 modules, 7 resources deployed
+- [x] **App Insights + Log Analytics** — deployed, traces available
+- [x] **Mock data** — equipment (3), batches (2), incidents (3), templates (2) in `data/mock/`
+- [x] **Concrete equipment scenario** — GR-204, Granulator, Plant-01, Line-2
+- [x] **Separate document/citation verification** — backend normalizes `evidence_citations` against authoritative AI Search chunks; if a section is not validated, the citation remains visible as `unresolved` but is not promoted to summary as a verified fact
 
-### 🎨 Спроектовано (архітектура описана, реалізація не завершена)
-- [ ] **Entra ID / Managed Identities** — архітектура в §8.1, реалізація T-035, T-038
-- [ ] **RBAC модель** — 5 ролей визначено (§8.1), реалізація T-035
-- [ ] **Azure Key Vault** — архітектура в §8.1, не задеплоєно, T-038
-- [ ] **Retry / DLQ / Fallback** — Service Bus DLQ задеплоєно, retry logic у Durable orchestrator T-024, T-039
-- [ ] **Responsible AI** — confidence gate + evidence schema у §8.3, реалізація T-040
-- [ ] **Prompt injection defenses** — описано в §8, реалізація T-040
-- [ ] **Content Safety** — архітектура в cross-cutting concerns, реалізація T-040
+### 🎨 Designed (documented architecture, implementation not finished)
+- [ ] **Entra ID / Managed Identities** — architecture in §8.1, implementation T-035, T-038
+- [ ] **RBAC model** — 5 roles defined (§8.1), implementation T-035
+- [ ] **Azure Key Vault** — architecture in §8.1, not deployed yet, T-038
+- [ ] **Retry / DLQ / Fallback** — Service Bus DLQ deployed, retry logic in Durable orchestrator T-024, T-039
+- [ ] **Responsible AI** — confidence gate + evidence schema in §8.3, implementation T-040
+- [ ] **Prompt injection defenses** — described in §8, implementation T-040
+- [ ] **Content Safety** — architecture documented in cross-cutting concerns, implementation T-040
 - [ ] **Agent observability** — incident-scoped prompt and response traces implemented in backend, current frontend can only read `incident_events` business timeline, and dedicated admin retrieval / normalization is still pending (T-040, T-043)
-- [ ] **RAG на SOP/BPR/CAPA** — 4 AI Search indexes описано (§8.5), AI Search не задеплоєно, T-037
-- [ ] **Operator UI** — wireframe у T-033, React проект не створено, T-032
-- [ ] **Sample decision package** — schema у §8.3, реалізація T-026
+- [ ] **RAG for SOP/BPR/CAPA** — 4 AI Search indexes documented (§8.5), AI Search not yet deployed, T-037
+- [ ] **Operator UI** — wireframe in T-033, React project not created, T-032
+- [ ] **Sample decision package** — schema in §8.3, implementation T-026
 
-### 🔧 В розробці (реалізація — квітень 2026)
-- [ ] Private Endpoints / VNet — реалізація T-038
-- [ ] Latency SLOs — реалізація під час dev (T-039)
+### 🔧 In development (implementation — April 2026)
+- [ ] Private Endpoints / VNet — implementation T-038
+- [ ] Latency SLOs — implementation during development (T-039)
 - [ ] Token budgets / caching — T-039 nice-to-have
 - [ ] Model versioning / rollback — T-040
-- [ ] Усі implementation задачі T-020 → T-042 (див. [04 · План дій](./04-action-plan.md))
+- [ ] All implementation tasks T-020 → T-042 (see [04 · Action Plan](./04-action-plan.md))
 
 ---
 
-← [README](./README.md) · [02 Архітектура →](./02-architecture.md)
+← [README](./README.md) · [02 Architecture →](./02-architecture.md)

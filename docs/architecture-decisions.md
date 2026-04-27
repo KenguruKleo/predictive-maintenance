@@ -1,10 +1,10 @@
 # Architecture Decision Records — Sentinel Intelligence
 
-← [README](../README.md) · [02 Архітектура](../02-architecture.md) · [docs/hackathon-scope.md](./hackathon-scope.md) · [docs/architecture-history.md](./architecture-history.md)
+← [README](../README.md) · [02 Architecture](../02-architecture.md) · [docs/hackathon-scope.md](./hackathon-scope.md) · [docs/architecture-history.md](./architecture-history.md)
 
-> Архітектурні рішення, прийняті під час проектування системи. Кожне ADR фіксує контекст, розглянуті варіанти, рішення та наслідки. Додавайте нові ADR як `ADR-XXX` у хронологічному порядку.
+> Architecture decisions made during system design. Each ADR records context, options considered, decision, and consequences. Add new ADRs as `ADR-XXX` in chronological order.
 
-## Зміст
+## Contents
 
 - [ADR-001 — Human-in-the-loop mechanism](#adr-001--human-in-the-loop-mechanism)
 - [ADR-002 — Foundry Connected Agents](#adr-002--foundry-connected-agents)
@@ -13,53 +13,53 @@
 
 ## ADR-001 — Human-in-the-loop mechanism
 
-> **Тип:** ADR · **Дата:** 17 квітня 2026 · **Статус:** Прийнято ✅
+> **Type:** ADR · **Date:** April 17, 2026 · **Status:** Accepted ✅
 
-**Контекст.** GMP вимагає mandatory human approval. Operator має до 24 годин на рішення. Потрібен механізм: пауза workflow, resume з рішенням, timeout + escalation.
+**Context.** GMP requires mandatory human approval. The operator has up to 24 hours to decide. The workflow needs a pause mechanism, resume with decision, and timeout + escalation.
 
-**Варіанти:**
+**Options considered:**
 
-- **A. Foundry function_call + `previous_response_id`.** Run expires через 10 хв → не підходить для 24h паузи. Джерело: [Microsoft Foundry docs (квітень 2026)](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/function-calling) — *«Runs expire 10 minutes after creation. Submit your tool outputs before they expire.»*
-- **B. Durable Functions `waitForExternalEvent` + `raise_event`.** Безкоштовна пауза скільки потрібно (Azure Storage persists state). Resume через HTTP endpoint.
+- **A. Foundry function_call + `previous_response_id`.** Run expires in 10 minutes, so it is not suitable for a 24h pause. Source: [Microsoft Foundry docs (April 2026)](https://learn.microsoft.com/en-us/azure/foundry/agents/how-to/tools/function-calling) — *"Runs expire 10 minutes after creation. Submit your tool outputs before they expire."*
+- **B. Durable Functions `waitForExternalEvent` + `raise_event`.** Free pause for as long as needed (Azure Storage persists state). Resume via HTTP endpoint.
 
-**Рішення: B.**
+**Decision: B.**
 
-| Критерій | A (Foundry) | B (Durable) |
+| Criterion | A (Foundry) | B (Durable) |
 |---|---|---|
-| Максимальна пауза | 10 хв | необмежено |
-| Відновлення після restart/crash | втрачається | persisted |
-| Вартість під час паузи | N/A (протухає) | $0 (Consumption) |
+| Maximum pause | 10 min | unlimited |
+| Recovery after restart/crash | lost | persisted |
+| Cost during pause | N/A (run expires) | $0 (Consumption) |
 | Resume API | N/A | `raiseEvent` HTTP |
-| Timeout + escalation | немає | `create_timer` race pattern |
+| Timeout + escalation | none | `create_timer` race pattern |
 
-**Наслідки.** Foundry агенти — короткі activity functions (≤ 10 хв). Workflow state живе у Durable (Azure Storage). `approval-tasks` Cosmos container тримає pending approval для React UI. SignalR пушить «очікується рішення оператора». `POST /api/incidents/{id}/decision` викликає `raise_event` → orchestrator resume.
+**Consequences.** Foundry agents run as short activity functions (≤ 10 min). Workflow state is managed by Durable (Azure Storage). The `approval-tasks` Cosmos container stores pending approvals for the React UI. SignalR pushes "operator decision required" updates. `POST /api/incidents/{id}/decision` calls `raise_event` to resume the orchestrator.
 
 ---
 
 ## ADR-002 — Foundry Connected Agents
 
-> **Тип:** ADR · **Дата:** 17 квітня 2026 · **Статус:** Прийнято ✅
+> **Type:** ADR · **Date:** April 17, 2026 · **Status:** Accepted ✅
 
-**Контекст.** Початкова ідея — окремі Durable activities на кожного агента з ручною передачею результатів та кастомним лічильником `loop_count` для `more_info`.
+**Context.** The initial idea was separate Durable activities for each agent with manual result passing and a custom `loop_count` for `more_info`.
 
-**Варіанти:**
+**Options considered:**
 
-- **A. Ручна оркестрація у Durable.** Окрема activity для кожного агента, ручна передача `ResearchAgentOutput` → Document Agent через Durable state, `loop_count` у Python коді.
-- **B. Foundry Connected Agents.** Одна activity `run_foundry_agents` → Orchestrator Agent, до якого Research та Document підключені як `AgentTool`. Foundry нативно керує reasoning loop, `max_iterations`, routing, MCP + RAG tool connections.
+- **A. Manual orchestration in Durable.** One activity per agent, manual transfer of `ResearchAgentOutput` → Document Agent via Durable state, and `loop_count` in Python.
+- **B. Foundry Connected Agents.** Single `run_foundry_agents` activity calling the Orchestrator Agent, with Research and Document connected as `AgentTool`. Foundry natively manages the reasoning loop, `max_iterations`, routing, and MCP + RAG tool connections.
 
-**Рішення: B.**
+**Decision: B.**
 
-| Критерій | A (ручна) | B (Connected Agents) |
+| Criterion | A (manual) | B (Connected Agents) |
 |---|---|---|
-| Кількість activity functions | 2 | 1 |
-| Передача даних між агентами | через Durable state | нативно (Foundry thread) |
-| more_info loop | кастомний лічильник | `max_iterations` у Foundry |
-| MCP tool connections | кастомний wrapper | нативно |
-| RAG tools | кастомний SDK код | `AzureAISearchTool` нативно |
-| Рядків коду | ~200 | ~50 |
+| Number of activity functions | 2 | 1 |
+| Data transfer between agents | through Durable state | native (Foundry thread) |
+| `more_info` loop | custom counter | `max_iterations` in Foundry |
+| MCP tool connections | custom wrapper | native |
+| RAG tools | custom SDK code | `AzureAISearchTool` native |
+| Lines of code | ~200 | ~50 |
 
-**Наслідки.** T-024 спрощується: одна activity `run_foundry_agents`. T-025/T-026 — Foundry Agent definitions, не Durable activities. `more_info`: Durable отримує decision, append-ить `operator_question` у context, повторно викликає `run_foundry_agents` — Foundry handle-ить новий round internally. Кількість rounds регулюється через `max_iterations` у Foundry + `MAX_MORE_INFO_ROUNDS` у Durable (для GMP audit trail).
+**Consequences.** T-024 is simplified to a single `run_foundry_agents` activity. T-025/T-026 are Foundry Agent definitions, not Durable activities. For `more_info`, Durable receives the decision, appends `operator_question` to context, and calls `run_foundry_agents` again while Foundry handles the new round internally. Round limits are controlled by `max_iterations` in Foundry + `MAX_MORE_INFO_ROUNDS` in Durable (for GMP audit trail).
 
 ---
 
-← [02 Архітектура](../02-architecture.md) · [docs/architecture-history.md →](./architecture-history.md)
+← [02 Architecture](../02-architecture.md) · [docs/architecture-history.md →](./architecture-history.md)

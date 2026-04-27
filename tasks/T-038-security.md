@@ -1,16 +1,16 @@
 # T-038 · Security Layer (Key Vault, VNet, Managed Identities)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟡 MEDIUM  
-**Статус:** 🔜 TODO  
+**Priority:** 🟡 MEDIUM
+**Status:** 🔜 TODO
 **Gap:** Gap #2 Security ✅
 
 ---
 
-## Мета
+## Goal
 
-Закрити Gap #2: Azure Key Vault + Managed Identities для всіх Functions + VNet Private Endpoints для Cosmos DB та AI Search.
+Close Gap #2: Azure Key Vault + Managed Identities for all Functions + VNet Private Endpoints for Cosmos DB and AI Search.
 
 ---
 
@@ -71,11 +71,11 @@ infra/
 
 ## Definition of Done
 
-- [ ] Key Vault provisioned; Functions читають secrets через Key Vault references (не env vars)
-- [ ] Managed Identity має мінімально необхідні ролі на всіх сервісах
-- [ ] `az network private-endpoint list` показує 3 endpoints (Cosmos, Service Bus, AI Search)
-- [ ] `curl http://cosmos-...documents.azure.com` з публічного IP → connection refused
-- [ ] Cosmos `audit-log` container має `defaultTtl = -1` (перевірити в portal)
+- [ ] Key Vault provisioned; Functions read secrets via Key Vault references (not env vars)
+- [ ] Managed Identity has minimum required roles on all services
+- [ ] `az network private-endpoint list` shows 3 endpoints (Cosmos, Service Bus, AI Search)
+- [ ] `curl http://cosmos-...documents.azure.com` from public IP → connection refused
+- [ ] Cosmos `audit-log` container has `defaultTtl = -1` (check in the portal)
 - [ ] Log Analytics retention = 90 days
 
 ## Note for hackathon

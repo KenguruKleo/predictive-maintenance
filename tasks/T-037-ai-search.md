@@ -1,19 +1,19 @@
 # T-037 · AI Search Indexes + Mock Documents
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Блокує:** T-025 (Research Agent RAG tools), T-036 (needs indexes to exist before populating)  
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Blocks:** T-025 (Research Agent RAG tools), T-036 (needs indexes to exist before populating)
 **Gap:** Gap #4 RAI
 
-> **Завершено 17 квітня 2026:** `srch-sentinel-intel-dev-erzrpo` (westeurope, basic SKU) + `oai-sentinel-intel-dev-erzrpo` (swedencentral, S0) задеплоєно. 9 док. завантажено до 4 blob containers. 5 indexes створено, **117 chunks** заіндексовано з HNSW vector embeddings (1536d, `text-embedding-3-small`). Spot-checks пройшли.
+> **Completed 17 April 2026:** `srch-sentinel-intel-dev-erzrpo` (westeurope, basic SKU) + `oai-sentinel-intel-dev-erzrpo` (swedencentral, S0) deployed. 9 Doc. loaded up to 4 blob containers. 5 indexes created, **117 chunks** indexed with HNSW vector embeddings (1536d, `text-embedding-3-small`). Spot-checks passed.
 
 ---
 
-## Мета
+## Goal
 
-Створити 4 Azure AI Search indexes з правильними схемами та заповнити mock документами (chunked).
+Create 4 Azure AI Search indexes with the correct schemas and fill them with mock documents (chunked).
 
 ---
 

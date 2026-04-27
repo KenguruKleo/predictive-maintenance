@@ -1,21 +1,21 @@
 # T-027 · Execution Agent (Azure AI Foundry + MCP-QMS + MCP-CMMS)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** 🔜 TODO  
-**Блокує:** T-024 (step 6a — execute_decision activity)  
-**Залежить від:** T-028 (MCP servers — qms-mock, cmms-mock), T-026 (Document Agent output schema)
-
----
-
-## Мета
-
-Execution Agent виконує дії ПІСЛЯ human approval: створює work order в mock CMMS та audit entry в mock QMS. Викликається тільки коли `operator_decision == "approved"`.
+**Priority:** 🔴 CRITICAL
+**Status:** 🔜 TODO
+**Blocks:** T-024 (step 6a — execute_decision activity)
+**Depends on:** T-028 (MCP servers — qms-mock, cmms-mock), T-026 (Document Agent output schema)
 
 ---
 
-## Tools які має Execution Agent
+## Goal
+
+Execution Agent performs actions AFTER human approval: creates work order in mock CMMS and audit entry in mock QMS. Called only when `operator_decision == "approved"`.
+
+---
+
+## Tools that the Execution Agent has
 
 | Tool | Source | Purpose |
 |---|---|---|

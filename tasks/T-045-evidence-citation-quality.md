@@ -1,21 +1,21 @@
 # T-045 · Evidence Citations Quality + Historical Evidence Links
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Блокує:** Trustworthy demo evidence UX / operator confidence in recommendation package  
-**Залежить від:** T-026 (Document Agent), T-031 (Backend API), T-032 (Frontend core), T-037 (AI Search indexes)
-
----
-
-## Мета
-
-Підвищити якість блоку `Evidence From Documents`, щоб кожна видима картка була канонічною, зрозумілою, без дублікатів, з робочим посиланням, достатнім контекстом в excerpt, і без hallucinatory fallback labels на кшталт `Evidence source`.
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Blocks:** Trustworthy demo evidence UX / operator confidence in recommendation package
+**Depends on:** T-026 (Document Agent), T-031 (Backend API), T-032 (Frontend core), T-037 (AI Search indexes)
 
 ---
 
-## Progress (19-20 квітня 2026)
+## Goal
+
+Improve the quality of the `Evidence From Documents` block so that every visible card is canonical, clear, without duplicates, with a working link, sufficient context in the excerpt, and without hallucinatory fallback labels like `Evidence source`.
+
+---
+
+## Progress (April 19-20, 2026)
 
 - [x] Frontend incident detail now reads only `ai_analysis.evidence_citations` for visible evidence cards.
 - [x] Backend normalization now emits canonical citations with `resolution_status` / `unresolved_reason` instead of relying on fake fallback titles.
@@ -37,93 +37,93 @@
 
 ---
 
-## Контекст / проблема
+## Context / problem
 
-Поточний UX review по live incident `INC-2026-0013` показав кілька системних проблем у presentation layer evidence cards:
+The current UX review of live incident `INC-2026-0013` showed several system problems in the presentation layer evidence cards:
 
-1. Frontend зараз змішує `evidence_citations`, `sop_refs` і `regulatory_refs`, тому одна й та сама підстава може рендеритись кілька разів у різній якості.
-2. Backend допускає partial citations без стабільного `document_title` / `source_blob` / `url`, після чого UI підставляє generic labels (`Evidence source`, `GMP reference`) замість реальної назви документа.
-3. Dedupe будується на display title, section і excerpt, а не на канонічній ідентичності документа, через що `Deviation Management (SOP-DEV-001)` і `Evidence source` роз'їжджаються в окремі картки.
-4. `text_excerpt` часто занадто короткий або нерівномірний: іноді це 1 рядок без контексту, іноді це просто fragment без зрозумілого прив'язування до рішення.
-5. Historical incidents мають окремий structural mismatch:
-   - `idx-incident-history` зараз генерується напряму з Cosmos incident records, без реального blob artifact;
-   - evidence normalization мапить ці результати на `blob-history`, тому historical citations не мають надійного document link contract;
-   - індексер наразі бере `closed`, `resolved`, `rejected`, тоді як для evidence reuse потрібен business-rule review: враховувати лише попередні інциденти, які реально пройшли approved/closed lifecycle, а не відхилені кейси.
+1. Frontend now mixes `evidence_citations`, `sop_refs` and `regulatory_refs`, so the same base can be rendered multiple times with different quality.
+2. The backend allows partial citations without stable `document_title` / `source_blob` / `url`, after which the UI substitutes generic labels (`Evidence source`, `GMP reference`) instead of the real document name.
+3. Dedupe is based on the display title, section and excerpt, and not on the canonical identity of the document, due to which `Deviation Management (SOP-DEV-001)` and `Evidence source` diverge into separate cards.
+4. `text_excerpt` is often too short or uneven: sometimes it's 1 line without context, sometimes it's just a fragment with no clear connection to the solution.
+5. Historical incidents have a separate structural mismatch:
+- `idx-incident-history` is now generated directly from Cosmos incident records, without a real blob artifact;
+- evidence normalization maps these results to `blob-history`, so historical citations do not have a reliable document link contract;
+- the indexer currently takes `closed`, `resolved`, `rejected`, while evidence reuse requires a business-rule review: consider only previous incidents that actually passed the approved/closed lifecycle, not rejected cases.
 
-> **Важливо:** не виправляти legacy/test incidents у базі вручну. Потрібно виправити тільки кодовий contract, normalization, indexing rules і UI rendering.
+> **Important:** do not fix legacy/test incidents in the database manually. It is necessary to correct only the code contract, normalization, indexing rules and UI rendering.
 
 ---
 
 ## Scope
 
-### 1. `evidence_citations` як єдиний source of truth для UI
+### 1. `evidence_citations` as the only source of truth for UI
 
-- Frontend повинен рендерити document evidence тільки з `ai_analysis.evidence_citations`.
-- `sop_refs` і `regulatory_refs` лишаються backend/model-facing fields, але не домішуються напряму в UI як окремі картки.
-- Backend має сам канонізувати дані з `sop_refs` / `regulatory_refs` / `evidence_citations` у єдиний normalized список перед збереженням incident payload.
+- Frontend should render document evidence only with `ai_analysis.evidence_citations`.
+- `sop_refs` and `regulatory_refs` remain backend/model-facing fields, but are not mixed directly into the UI as separate cards.
+- The backend must itself canonicalize the data from `sop_refs` / `regulatory_refs` / `evidence_citations` into a single normalized list before saving the incident payload.
 
-### 2. Жорсткий citation contract на бекенді
+### 2. Hard citation contract on the backend
 
-Кожна **видима** картка типу `document evidence` повинна мати:
+Each **visible** card of type `document evidence` must have:
 
 - `document_title`
 - `section`
-- `text_excerpt` з нормальним контекстом
-- або `url`, або пару `container + source_blob`, або окремий canonical incident link contract для historical case
+- `text_excerpt` with normal context
+- either `url`, or a pair of `container + source_blob`, or a separate canonical incident link contract for a historical case
 
-Якщо citation не проходить цей contract:
+If the citation does not pass this contract:
 
-- не показувати його як звичайну document card;
-- переводити в окремий unresolved state з явним маркуванням на UI, а не маскувати під `Evidence source`.
+- do not show it as an ordinary document card;
+- transfer to a separate unresolved state with clear marking on the UI, and not mask it under `Evidence source`.
 
 ### 3. Canonical dedupe
 
-Переробити dedupe key так, щоб він базувався на канонічному document identity:
+Refactor the dedupe key so that it is based on the canonical document identity:
 
-- `document_id`, якщо він є;
-- інакше `source_blob`;
-- інакше canonical historical incident id / URL;
-- плюс `section`.
+- `document_id`, if it exists;
+- else `source_blob`;
+- otherwise canonical historical incident id / URL;
+- plus `section`.
 
-Display title не повинен брати участь як primary dedupe key.
+Display title should not participate as a primary dedupe key.
 
-### 4. Якість excerpt-ів
+### 4. Quality of excerpts
 
-- Не показувати сирий повний chunk як є.
-- Не лишати 1 короткий рядок без контексту, якщо можна backfill-ити кращий excerpt.
-- Цільовий формат: приблизно 180–300 символів або 1–2 речення навколо matching fragment.
-- Якщо агент повернув слабкий `text_excerpt`, backend має backfill-ити excerpt з matched AI Search hit / source chunk.
+- Do not show raw full chunk as is.
+- Do not leave 1 short line without context, if you can backfill a better excerpt.
+- Target format: approximately 180–300 characters or 1–2 sentences around the matching fragment.
+- If the agent returned a weak `text_excerpt`, the backend should backfill an excerpt from the matched AI Search hit / source chunk.
 
 ### 5. Historical incidents as evidence
 
-- Визначити й зафіксувати business rule, які попередні incidents взагалі можна використовувати як evidence.
-- Поточний кандидат на policy: включати тільки кейси, які пройшли operator approval та завершились у `closed` / `completed` (або інший явно погоджений equivalent), виключити `rejected`.
-- Перевірити розбіжність між:
+- Define and record a business rule, which previous incidents can generally be used as evidence.
+- Current policy candidate: include only cases that passed operator approval and ended in `closed` / `completed` (or another clearly agreed equivalent), exclude `rejected`.
+- Check the discrepancy between:
   - search indexing (`closed` / `resolved` / `rejected`),
   - API/list semantics (`approved` / `closed` / `executed` / `completed`),
-  - UX expectations для similar cases.
-- Historical citations мають відкриватися через working incident link:
-  - або deep-link на incident detail,
-  - або спеціальний API endpoint для historical preview,
-  - але не через `blob-history`, якщо фізичного blob немає.
+- UX expectations for similar cases.
+- Historical citations should be opened via the working incident link:
+- or deep-link to the incident detail,
+- or a special API endpoint for historical preview,
+- but not through `blob-history` if there is no physical blob.
 
 ### 6. UI presentation
 
-- Для canonical document cards показувати зрозумілу назву документа, section, excerpt, type badge і working link.
-- Для historical evidence показувати окремий тип картки (`History` / `Similar incident`) з incident id, статусом, датою і посиланням на incident.
-- Для unresolved evidence показувати окреме явне маркування (`Unresolved evidence`) замість generic fake title.
+- For canonical document cards, show the understandable name of the document, section, excerpt, type badge and working link.
+- For historical evidence, show a separate type of card (`History` / `Similar incident`) with incident id, status, date and reference to the incident.
+- For unresolved evidence, show a separate explicit marking (`Unresolved evidence`) instead of a generic fake title.
 
 ---
 
-## Очікувані зміни у файлах
+## Expected changes in files
 
 ### Backend
 
 ```text
 backend/activities/run_foundry_agents.py
 backend/shared/search_utils.py
-backend/triggers/http_incidents.py          # якщо знадобиться historical link / payload enrichment
-backend/triggers/http_documents.py          # тільки якщо підтвердиться потреба в окремому historical preview route
+backend/triggers/http_incidents.py # if historical link / payload enrichment is needed
+backend/triggers/http_documents.py # only if the need for a separate historical preview route is confirmed
 scripts/create_search_indexes.py            # status policy for idx-incident-history
 ```
 
@@ -146,29 +146,29 @@ frontend/... tests if present
 
 ## Definition of Done
 
-- [x] UI рендерить document evidence тільки з normalized `evidence_citations`
-- [x] Для одного документа/section не з'являються дублікати з різними display titles
-- [x] Для canonical document cards більше не з'являються labels `Evidence source`, `SOP reference`, `GMP reference`
-- [x] Кожна видима document card має working `Open document` link
-- [x] Historical evidence cards мають working `Open incident` або equivalent link
-- [x] Historical evidence використовує тільки incident statuses, погоджені як valid precedent (без rejected cases)
-- [x] `text_excerpt` у canonical cards має достатній контекст, а не 1 рядок без сенсу
-- [x] Неканонічні citations не маскуються під документ, а показуються як unresolved evidence або не рендеряться як card
-- [x] Додані focused regression tests на normalization, dedupe, unresolved state і historical link semantics
-- [ ] Live/manual validation на incident detail screen показує зрозумілий, недубльований, linkable evidence block
+- [x] UI renders document evidence only with normalized `evidence_citations`
+- [x] Duplicates with different display titles do not appear for one document/section
+- [x] Labels `Evidence source`, `SOP reference`, `GMP reference` no longer appear for canonical document cards
+- [x] Every visible document card has a working `Open document` link
+- [x] Historical evidence cards have a working `Open incident` or equivalent link
+- [x] Historical evidence uses only incident statuses agreed as valid precedent (without rejected cases)
+- [x] `text_excerpt` in canonical cards has enough context, not 1 line without meaning
+- [x] Non-canonical citations are not disguised as a document, but are shown as unresolved evidence or are not rendered as a card
+- [x] Added focused regression tests on normalization, dedupe, unresolved state and historical link semantics
+- [ ] Live/manual validation on the incident detail screen shows a clear, unduplicated, linkable evidence block
 
 ---
 
-## Validation сценарії
+## Validation script
 
-1. Incident з SOP + GMP evidence, де раніше з'являлись дублікати `document title` vs `Evidence source`
-2. Incident з дуже коротким `text_excerpt`, де backend повинен backfill-ити кращий snippet
-3. Incident з similar historical cases, де картка повинна вести на historical incident detail, а не на fake blob link
-4. Negative case: rejected historical incident не повинен потрапляти в visible precedent evidence
+1. Incident with SOP + GMP evidence, where duplicates of `document title` vs `Evidence source` previously appeared
+2. Incident with a very short `text_excerpt`, where the backend should backfill a better snippet
+3. Incident with similar historical cases, where the card should lead to the historical incident detail, and not to the fake blob link
+4. Negative case: rejected historical incident should not fall into visible precedent evidence
 
 ---
 
-## Примітки
+## Notes
 
-- Це task на code-path quality, а не на cleanup test data.
-- Якщо виявиться, що historical cases логічно не є `documents`, можна перейменувати UI block або split-нути його на `Evidence From Documents` + `Similar Historical Incidents`, але тільки після узгодження UX direction.
+- This is a task on code-path quality, not on cleanup test data.
+- If it turns out that historical cases are not logically `documents`, you can rename the UI block or split it to `Evidence From Documents` + `Similar Historical Incidents`, but only after agreeing on the UX direction.

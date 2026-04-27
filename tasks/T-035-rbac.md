@@ -1,11 +1,11 @@
 # T-035 · RBAC Setup (Azure Entra ID — 5 Roles + Token Validation)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Блокує:** T-031 (role-filtering in API), T-029 (role check in decision API)  
-**Залежить від:** Azure Entra ID tenant access  
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Blocks:** T-031 (role-filtering in API), T-029 (role check in decision API)
+**Depends on:** Azure Entra ID tenant access
 **Gap:** Gap #2 Security ✅
 
 ---

@@ -1,16 +1,16 @@
 # T-034 · React Frontend — Manager / Auditor / IT Admin Views
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Залежить від:** T-032 (core frontend), T-031 (backend API — stats/templates endpoints)
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Depends on:** T-032 (core frontend), T-031 (backend API — stats/templates endpoints)
 
 ---
 
-## Мета
+## Goal
 
-Додаткові views для non-operator ролей: QA Manager dashboard, Auditor full audit trail, IT Admin template management.
+Additional views for non-operator roles: QA Manager dashboard, Auditor full audit trail, IT Admin template management.
 
 ---
 
@@ -34,7 +34,7 @@ src/pages/AuditTrailPage.tsx
 Features:
 - Full audit trail across all incidents
 - Filter by: date range, equipment, batch, deviation type
-- Export to CSV (для inspection readiness demo)
+- Export to CSV (for inspection readiness demo)
 - Each row: incident ID, timestamp, actor, action, result
 ```
 
@@ -51,7 +51,7 @@ Features:
 - Version history display
 - Agent telemetry by incident: timeline of agent/sub-agent/tool events with filters (incidentId, status, agent)
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] `ManagerDashboardPage` no longer crashes for IT Admin / QA Manager when `/api/stats/summary` returns the current backend aggregate shape without `recent_decisions`
 - [x] `frontend/src/api/stats.ts` now normalizes legacy stats payloads (`by_status`, `open_incidents`) into the `StatsSummary` shape the UI expects, defaulting `recent_decisions` to `[]`

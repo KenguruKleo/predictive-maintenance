@@ -1,42 +1,42 @@
 # T-036 · Document Ingestion Pipeline (Blob → Chunk → Embed → AI Search)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE (one-shot script approach)  
-**Блокує:** T-037 (AI Search indexes populated), T-025 (Research Agent RAG calls)  
-**Залежить від:** T-020 (Cosmos DB not strictly, but same infra setup time)  
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE (one-shot script approach)
+**Blocks:** T-037 (AI Search indexes populated), T-025 (Research Agent RAG calls)
+**Depends on:** T-020 (Cosmos DB not strictly, but same infra setup time)
 **Gap:** Gap #4 RAI (RAG quality)
 
-> **Реалізовано через `scripts/create_search_indexes.py`** — one-shot скрипт, який сам качає документи з Blob, чанкує, ембедить і уpsert-ить у AI Search. Всі 5 індексів створені, документи та інциденти проіндексовані. Live blob triggers — out of scope для поточного демо (див. секцію нижче).
+> **Implemented by `scripts/create_search_indexes.py`** — a one-shot script that itself downloads documents from Blob, chunks, embeds and upserts in AI Search. All 5 indexes have been created, documents and incidents have been indexed. Live blob triggers are out of scope for the current demo (see section below).
 
 ---
 
-## Мета
+## Goal
 
-Pipeline для завантаження SOP/manual документів у Azure Blob Storage → автоматичне chunking та embedding → Azure AI Search indexes.
+Pipeline for uploading SOP/manual documents to Azure Blob Storage → automatic chunking and embedding → Azure AI Search indexes.
 
 ---
 
-## Як реалізовано (фактично)
+## How implemented (actually)
 
 ```
-scripts/create_search_indexes.py   ← запускається один раз (або при оновленні документів)
+scripts/create_search_indexes.py ← runs once (or when updating documents)
     │
-    ├── читає блоби з 4 контейнерів (blob-sop, -manuals, -gmp, -bpr)
-    ├── читає закриті інциденти напряму з Cosmos DB → idx-incident-history
-    ├── чанкує (standard / table-aware для BPR)
-    ├── генерує ембедінги (Azure OpenAI text-embedding-3-small)
-    └── upsert → 5 AI Search індексів
+├── reads blobs from 4 containers (blob-sop, -manuals, -gmp, -bpr)
+├── reads closed incidents directly from Cosmos DB → idx-incident-history
+├── chunks (standard / table-aware for BPR)
+├── generates embeddings (Azure OpenAI text-embedding-3-small)
+└── upsert → 5 AI Search indexes
 ```
 
-### idx-incident-history — що це?
+### idx-incident-history - what is it?
 
-Це **індекс з históriєю закритих інцидентів** з Cosmos DB. Коли дослідницький агент шукає "чи була подібна девіація раніше?", він шукає в цьому індексі. Cosmos DB містить **25 закритих інцидентів** (статус `closed`), які автоматично конвертуються у текстові документи і індексуються. `blob-history/` контейнер і `generate_history_chunks.py` **не потрібні** — дані беруться напряму з Cosmos DB.
+This is an **index with history of closed incidents** from Cosmos DB. When a research agent searches for "has there been a similar deviation before?", it searches this index. Cosmos DB contains **25 closed incidents** (status `closed`), which are automatically converted to text documents and indexed. `blob-history/` container and `generate_history_chunks.py` are **not required** - data is taken directly from Cosmos DB.
 
 ---
 
-## Flow (оригінальний — production)
+## Flow (original — production)
 
 ```
 Upload .md/.pdf/.docx to Blob Storage (5 separate containers per source type)
@@ -98,12 +98,12 @@ Local source files: `data/documents/` mirrored to respective containers via `scr
 
 ---
 
-## Files (фактично реалізовано)
+## Files (actually implemented)
 
 ```
 scripts/
-  create_search_indexes.py  ✅  Chunking + embedding + upsert для всіх 5 індексів
-  upload_documents.py       ✅  Завантаження data/documents/ → Blob контейнери
+create_search_indexes.py ✅ Chunking + embedding + upsert for all 5 indexes
+upload_documents.py ✅ Upload data/documents/ → Blob containers
 
 infra/
   modules/storage.bicep     ✅  5 blob containers (blob-sop, -manuals, -gmp, -bpr, -history)
@@ -135,21 +135,21 @@ infra/
 - [x] `infra/modules/storage.bicep` provisions 5 separate blob containers
 - [x] `scripts/upload_documents.py` uploads docs from `data/documents/{sop,manuals,gmp,bpr}/` to correct blob containers
 - [x] 5 AI Search indexes contain chunks from mock documents
-- [x] `idx-incident-history` populated from 25 closed Cosmos DB incidents (напряму, без `blob-history/`)
-- [x] Table-aware BPR chunking реалізовано в `create_search_indexes.py` (`chunk_table_aware()`)
-- [ ] Research Agent semantic search "Metformin impeller speed validated range" → returns BPR-MET-500 §3.2 result — _потребує smoke test_
-- [ ] Research Agent semantic search "impeller speed deviation procedure" → returns SOP-DEV-001 §4.2 result — _потребує smoke test_
+- [x] `idx-incident-history` populated from 25 closed Cosmos DB incidents (directly, without `blob-history/`)
+- [x] Table-aware BPR chunking is implemented in `create_search_indexes.py` (`chunk_table_aware()`)
+- [ ] Research Agent semantic search "Metformin impeller speed validated range" → returns BPR-MET-500 §3.2 result — _requires smoke test_
+- [ ] Research Agent semantic search "impeller speed deviation procedure" → returns SOP-DEV-001 §4.2 result — _requires smoke test_
 
 ---
 
-## 🚫 Out of Scope (Production gaps — не потрібно для демо)
+## 🚫 Out of Scope (Production gaps - not required for demo)
 
-Ці компоненти описані в оригінальному плані як production pipeline для живої системи, але для демо не потрібні — реалізовані через one-shot скрипт.
+These components are described in the original plan as a production pipeline for a live system, but are not needed for the demo — they are implemented through a one-shot script.
 
-| Компонент | Чому out of scope |
+| Component | Why out of scope |
 |---|---|
-| `backend/triggers/blob_trigger_*.py` — 5 Azure Function blob triggers | Потрібні для автоматичного re-indexing при завантаженні нового документа. Для демо індексуємо вручну через `create_search_indexes.py` |
-| `backend/ingestion/` (chunker.py, embedder.py, search_upserter.py, bpr_chunker.py) | Shared модулі для triggers. Не потрібні поки немає triggers |
-| `scripts/generate_history_chunks.py` + `blob-history/` контейнер | Замінено кращим підходом: `documents_from_incidents()` читає Cosmos DB напряму, без проміжного Blob |
+| `backend/triggers/blob_trigger_*.py` — 5 Azure Function blob triggers | Required for automatic re-indexing when loading a new document. For the demo, we manually index through `create_search_indexes.py` |
+| `backend/ingestion/` (chunker.py, embedder.py, search_upserter.py, bpr_chunker.py) | Shared modules for triggers. Not needed while there are no triggers |
+| `scripts/generate_history_chunks.py` + `blob-history/` container | Replaced by a better approach: `documents_from_incidents()` reads Cosmos DB directly, without intermediate Blob |
 
-> **Для production:** реалізувати triggers + ingestion модуль, щоб нові документи автоматично індексувались при upload в Blob Storage.
+> **For production:** implement the triggers + ingestion module so that new documents are automatically indexed when uploaded to Blob Storage.

@@ -1,42 +1,42 @@
 # T-024 · Azure Durable Functions — Workflow Orchestrator
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE (18-19 квітня 2026)  
-**Блокує:** T-029, T-033  
-**Залежить від:** T-020 (Cosmos DB), T-022 (Service Bus), T-025, T-026, T-027
-
----
-
-## Мета
-
-Реалізувати stateful workflow через Azure Durable Functions (Python) з паузою на human-in-the-loop.  
-Агентна логіка (Research → Document pipeline) делегована Foundry Connected Agents — **ADR-002** (дивись [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація)).
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE (April 18-19, 2026)
+**Blocks:** T-029, T-033
+**Depends on:** T-020 (Cosmos DB), T-022 (Service Bus), T-025, T-026, T-027
 
 ---
 
-## Архітектурне рішення (ADR-002)
+## Goal
 
-> **Ключова зміна від початкового плану:**  
-> Замість окремих activities `run_research_agent` + `run_document_agent` — одна activity `run_foundry_agents`.  
-> Foundry Orchestrator Agent (Connected Agents pattern) керує Research → Document pipeline нативно.  
-> `more_info` loop count та reasoning iterations — конфігуруються через `max_iterations` у Foundry та `MAX_MORE_INFO_ROUNDS` env var.
+Implement stateful workflow through Azure Durable Functions (Python) with pause on human-in-the-loop.
+Agent logic (Research → Document pipeline) is delegated to Foundry Connected Agents — **ADR-002** (see [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-manual-orchestration)).
 
 ---
 
-## Файли
+## Architectural solution (ADR-002)
+
+> **Key change from original plan:**
+> Instead of separate activities `run_research_agent` + `run_document_agent` — one activity `run_foundry_agents`.
+> Foundry Orchestrator Agent (Connected Agents pattern) manages the Research → Document pipeline natively.
+> `more_info` loop count and reasoning iterations — configured via `max_iterations` in Foundry and `MAX_MORE_INFO_ROUNDS` env var.
+
+---
+
+## Files
 
 ```
 backend/
   function_app.py                    # Azure Functions app entry point
   orchestrators/
-    incident_orchestrator.py         # @app.orchestration_trigger — головний workflow
+incident_orchestrator.py # @app.orchestration_trigger is the main workflow
   activities/
     enrich_context.py                # Cosmos DB: fetch equipment + batch context
     run_foundry_agents.py            # Foundry: Orchestrator Agent (Research + Document via Connected Agents)
-    notify_operator.py               # SignalR: push notification до React UI
-    run_execution_agent.py           # Foundry: Execution Agent (після approval)
+notify_operator.py # SignalR: push notification to React UI
+run_execution_agent.py # Foundry: Execution Agent (after approval)
     close_incident.py                # Cosmos DB: set status=rejected
     finalize_audit.py                # Cosmos DB: final audit record + status=closed
   triggers/
@@ -44,7 +44,7 @@ backend/
     http_decision.py                 # POST /api/incidents/{id}/decision — resume orchestrator
 ```
 
-## Workflow — покроково
+## Workflow — step by step
 
 ```python
 # incident_orchestrator.py (pseudo-code)
@@ -166,7 +166,7 @@ async def service_bus_start_orchestrator(msg, client):
 # → raises external event "operator_decision" on Durable instance
 ```
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] Escalation ownership is now preserved across the `more_info` loop: once a timeout hands review to QA, follow-up rounds stay QA-owned instead of drifting back to the operator lane
 - [x] `notify_operator.py` now keeps QA-owned follow-ups in `escalated` / `awaiting_qa_manager_decision` semantics so downstream notifications and SignalR delivery continue targeting QA correctly
@@ -174,9 +174,9 @@ async def service_bus_start_orchestrator(msg, client):
 
 ## Definition of Done
 
-- [ ] `service_bus_trigger` стартує orchestrator при повідомленні в черзі
-- [ ] Orchestrator проходить повний шлях approved (перевірено локально через Azurite)
-- [ ] Human approval: `waitForExternalEvent` коректно відновлюється після POST /decision
-- [ ] Timeout 24h → escalation event видається (тест з 30-секундним timeout)
-- [ ] `more_info` loop працює (максимум 3 ітерації)
-- [ ] Всі activities записують події в `incident_events` collection
+- [ ] `service_bus_trigger` starts the orchestrator when a message is in the queue
+- [ ] Orchestrator passes full path approved (verified locally via Azurite)
+- [ ] Human approval: `waitForExternalEvent` is correctly restored after POST /decision
+- [ ] Timeout 24h → escalation event is issued (test with 30-second timeout)
+- [ ] `more_info` loop works (maximum 3 iterations)
+- [ ] All activities record events in the `incident_events` collection

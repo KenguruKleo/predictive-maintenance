@@ -1,68 +1,68 @@
-# T-010 · Cartoon / Анімація «До і Після» (Descoped)
+# T-010 · Cartoon / Animation "Before and After" (Descoped)
 
-← [04 · План дій](../04-action-plan.md) · [T-002 · Фінальне відео](./T-002-final-video.md)
+← [04 · Action plan](../04-action-plan.md) · [T-002 · Final video](./T-002-final-video.md)
 
-| Поле | Значення |
+| Field | Value |
 |---|---|
 | **ID** | T-010 |
-| **Пріоритет** | 🟡 LOW |
-| **Статус** | ✅ CLOSED (descoped for finals) |
-| **Залежності** | Немає |
-| **Блокує** | Нічого |
-| **Тривалість** | Не планується для finals submission |
+| **Priority** | 🟡 LOW |
+| **Status** | ✅ CLOSED (scoped for finals) |
+| **Dependencies** | There is no |
+| **Blocks** | Nothing
+| **Duration** | Not planned for finals submission |
 
 ---
 
-## Рішення
+## Solution
 
-Cartoon прибрано з critical path finals.
+Cartoon removed from critical path finals.
 
-Фінальне відео [T-002](./T-002-final-video.md) переходить у **demo-first** формат:
+Final video [T-002](./T-002-final-video.md) goes to **demo-first** format:
 
-1. живий walkthrough додатка
+1. live walkthrough of the application
 2. role-based screens: Operator, QA Manager, Auditor / IT Admin
-3. короткі architecture slides замість анімаційних вставок
+3. short architecture slides instead of animated inserts
 
-> Причина: judging requirement акцентує **working demo**. Уже наявний продукт краще показує value, governance і AI behavior, ніж окремий cartoon block.
-
----
-
-## Чому це знято з плану
-
-- Менше production risk перед дедлайном
-- Більше judging value: більше часу у відео йде на реальний продукт
-- Уже наявні екрани покривають story: decision package, evidence verification, escalation, traceability, RBAC
-- Architecture slide дає контекст без дублювання окремою анімацією
+> Reason: judging requirement emphasizes **working demo**. An already existing product shows value, governance and AI behavior better than a separate cartoon block.
 
 ---
 
-## Що замінює cartoon у відео
+## Why it was removed from the plan
 
-- **Hook slide** — одна проблема + одна цифра
+- Less production risk before the deadline
+- More judging value: more time in the video goes to the real product
+- Already available screens cover story: decision package, evidence verification, escalation, traceability, RBAC
+- Architecture slide provides context without duplicating a separate animation
+
+---
+
+## What replaces cartoon in video
+
+- **Hook slide** — one problem + one figure
 - **Operator demo** — recommendation, confidence, verified vs unresolved evidence, approval actions
-- **Safe failure state** — waiting/manual-review без fabricated conclusion
-- **QA escalation** — escalation queue і long-running workflow
+- **Safe failure state** — waiting/manual-review without fabricated conclusion
+- **QA escalation** — escalation queue and long-running workflow
 - **Auditor / IT Admin** — telemetry, auditability, export
 - **Architecture slide** — backend topology behind the product
 
 ---
 
-## Якщо повернемось до задачі після submission
+## If we return to the task after submission
 
-Cartoon можна повернути як:
+Cartoon can be returned as:
 
-- optional storytelling asset для marketing/demo day version
-- opening bumper для довшого product video
-- post-finals polish asset, якщо лишиться час
+- optional storytelling asset for marketing/demo day version
+- opening bumper for a longer product video
+- post-finals polish asset, if time remains
 
 ---
 
 ## Definition of Done
 
-- [x] Задача офіційно прибрана з critical path finals
-- [x] [T-002](./T-002-final-video.md) більше не залежить від cartoon
-- [x] [04-action-plan](../04-action-plan.md) синхронізований з demo-first strategy
+- [x] The task is officially removed from critical path finals
+- [x] [T-002](./T-002-final-video.md) no longer depends on cartoon
+- [x] [04-action-plan](../04-action-plan.md) synchronized with demo-first strategy
 
 ---
 
-← [04 · План дій](../04-action-plan.md) · [T-002 · Фінальне відео](./T-002-final-video.md)
+← [04 · Action plan](../04-action-plan.md) · [T-002 · Final video](./T-002-final-video.md)

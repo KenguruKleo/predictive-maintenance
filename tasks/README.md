@@ -1,10 +1,10 @@
 # Tasks
 
-← [04 · План дій](../04-action-plan.md)
+← [04 · Action Plan](../04-action-plan.md)
 
-> Кожна задача — окремий файл. Backlog, пріоритизація та статуси — у [04-action-plan.md](../04-action-plan.md).
+> Each task is maintained in a separate file. Backlog, prioritization, and statuses are tracked in [04-action-plan.md](../04-action-plan.md).
 
-| ID | Файл |
+| ID | File |
 |---|---|
 | T-001 | [T-001-architecture-presentation.md](./T-001-architecture-presentation.md) |
 | T-002 | [T-002-final-video.md](./T-002-final-video.md) |

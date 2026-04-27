@@ -1,17 +1,17 @@
 # T-031 · Backend API Functions (Incidents CRUD + Templates + Equipment)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** T-032 (React frontend needs these endpoints)  
-**Залежить від:** T-020 (Cosmos DB), T-035 (RBAC для role-filtering)
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** T-032 (React frontend needs these endpoints)
+**Depends on:** T-020 (Cosmos DB), T-035 (RBAC for role-filtering)
 
 ---
 
-## Мета
+## Goal
 
-REST API endpoints для React frontend: читання incidents, audit events, equipment, batches, templates.
+REST API endpoints for React frontend: reading incidents, audit events, equipment, batches, templates.
 
 ---
 

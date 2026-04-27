@@ -1,28 +1,28 @@
 # T-030 · Azure SignalR — Real-Time Notifications
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Блокує:** T-033 (real-time UX)  
-**Залежить від:** T-031 (backend API)
-
----
-
-## Мета
-
-Azure SignalR Service для real-time push notifications до React UI: оператор бачить новий incident без refresh, header bell показує unread count, а browser/system alerts працюють як progressive enhancement після дозволу користувача.
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Blocks:** T-033 (real-time UX)
+**Depends on:** T-031 (backend API)
 
 ---
 
-## Hub та Events
+## Goal
 
-> Детальний контракт визначено в [§8.12 архітектури](../02-architecture.md#812-azure-signalr--контракт).
+Azure SignalR Service for real-time push notifications to React UI: operator sees new incident without refresh, header bell shows unread count, and browser/system alerts work as progressive enhancement after user permission.
+
+---
+
+## Hub and Events
+
+> The detailed contract is defined in [§8.12 architecture](../02-architecture.md#812-azure-signalr--contract).
 
 ```
-Hub name: deviationHub  (змінено з "sentinel")
+Hub name: deviationHub (changed from "sentinel")
 
-Groups (підписки):
+Groups (subscriptions):
 - role:operator      → incident_pending_approval, incident_updated
 - role:qa-manager    → incident_escalated, incident_pending_approval
 - incident:{id}      → incident_status_changed, agent_step_completed
@@ -36,7 +36,7 @@ Events (server → client):
 
 ---
 
-## Endpoints у backend
+## Endpoints in the backend
 
 ```
 GET /api/negotiate       → returns { url, accessToken } for React client
@@ -56,7 +56,7 @@ POST /api/incidents/{id}/notifications/read → mark all visible incident notifi
 - Opening `/incidents/{id}` alone does not clear unread state anymore; acknowledgment happens only on explicit user interaction from the bell dropdown or the left active-incident rail.
 - Browser/system notifications are optional enhancement only: request permission from a user gesture, then show alerts only when the tab is hidden or unfocused.
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] Notification documents now persist read-state fields (`isRead`, `readAt`, `readBy`) in Cosmos
 - [x] SignalR approval payloads now include `notification_id` and `title` for frontend reconciliation / browser alerts
@@ -72,7 +72,7 @@ POST /api/incidents/{id}/notifications/read → mark all visible incident notifi
 
 - Manual secure-context popup smoke can be exercised during demo prep in [T-002](./T-002-final-video.md); it is not blocking implementation closure for T-030
 
-## Live hotfix note (20 квітня 2026)
+## Live hotfix note (April 20, 2026)
 
 - Multi-user bell visibility bug was fixed in production after investigating `INC-2026-0025`: backend unread state is now caller-scoped, notification visibility uses the full caller role set instead of only `primary role`, and the old operator fallback assignee `ivan.petrenko` was removed from new approval notifications/tasks/incidents.
 - Existing active Cosmos records polluted by that demo assignee were backfilled so already-open pending operator incidents recover notification visibility without waiting for a fresh re-ingest.
@@ -115,7 +115,7 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 
     connection.on("incident_pending_approval", ({ incident_id, equipment_id, risk_level }) => {
       onIncidentUpdate(incident_id, "pending_approval");
-      toast(`Новий інцидент потребує рішення: ${incident_id} [ризик: ${risk_level}]`);
+      toast(`A new incident requires a decision: ${incident_id} [risk: ${risk_level}]`);
     });
     connection.on("incident_status_changed", ({ incident_id, new_status }) => {
       onIncidentUpdate(incident_id, new_status);
@@ -136,7 +136,7 @@ export function useSignalR(onIncidentUpdate: (id: string, status: string) => voi
 
 ## Definition of Done
 
-- [x] SignalR service provisioned via `infra/modules/signalr.bicep` (додати до `infra/main.bicep`)
+- [x] SignalR service provisioned via `infra/modules/signalr.bicep` (add to `infra/main.bicep`)
 - [x] `GET /api/negotiate` returns valid SignalR connection info (hub: `deviationHub`)
 - [x] React `useSignalR` hook connects successfully
 - [x] Toast notification appears in UI when new incident created (test: POST /api/alerts)

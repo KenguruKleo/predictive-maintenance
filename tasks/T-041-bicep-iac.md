@@ -1,24 +1,24 @@
 # T-041 · Bicep IaC Templates
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE (17 квітня 2026, updated 19 квітня 2026)  
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE (April 17, 2026, updated April 19, 2026)
 **Gap:** Gap #1 (Track A) + Gap #6 (IaC) ✅
 
-> **Що задеплоєно:** 7 ресурсів у `ODL-GHAZ-2177134` (Sweden Central): Storage, Log Analytics, App Insights, Cosmos DB (5 containers), Service Bus (`alert-queue`), App Service Plan (Y1), Azure Functions (Python 3.11).  
-> **Що не задеплоєно:** AI Search, SignalR, Key Vault, Static Web App, Azure AI Foundry — дивись T-037, T-030, T-038, T-032, T-025.
-> **Операційне оновлення (19 квітня 2026):** у `functions.bicep` додано `AzureWebJobsFeatureFlags=EnableWorkerIndexing` для runtime parity між local/Core Tools та Azure host.
+> **What is deployed:** 7 resources in `ODL-GHAZ-2177134` (Sweden Central): Storage, Log Analytics, App Insights, Cosmos DB (5 containers), Service Bus (`alert-queue`), App Service Plan (Y1), Azure Functions (Python 3.11).
+> **What is not deployed:** AI Search, SignalR, Key Vault, Static Web App, Azure AI Foundry - see T-037, T-030, T-038, T-032, T-025.
+> **Operational update (April 19, 2026):** Added `AzureWebJobsFeatureFlags=EnableWorkerIndexing` to `functions.bicep` for runtime parity between local/Core Tools and Azure host.
 
 ---
 
-## Мета
+## Goal
 
-Bicep templates для repeatable provisioning всіх Azure ресурсів. Demonstrates IaC capability для hackathon judges.
+Bicep templates for repeatable provisioning of all Azure resources. Demonstrates IaC capability for hackathon judges.
 
 ---
 
-## Структура
+## Structure
 
 ```
 infra/

@@ -1,15 +1,15 @@
 # T-049 · WAR Easy Wins — Security & Cost
 
-**Статус:** 🔜 TODO  
-**Пріоритет:** 🟡 MEDIUM (post-hackathon, ~4h total)  
+**Status:** 🔜 TODO
+**Priority:** 🟡 MEDIUM (post-hackathon, ~4h total)
 **WAR gaps:** SE:10 P:90, SE:03, SE:08, SE:09, CO:04  
-**Архітектура:** [02-architecture.md §8.16](../02-architecture.md)
+**Architecture:** [02-architecture.md §8.16](../02-architecture.md)
 
 ---
 
-## Мета
+## Goal
 
-Закрити 5 lightweight WAR gaps через зміни в Bicep та Entra ID — без зміни application logic. Кожен item ~30–60 хвилин.
+Close 5 lightweight WAR gaps due to changes in Bicep and Entra ID — without changing application logic. Each item ~30–60 minutes.
 
 ---
 
@@ -17,10 +17,10 @@
 
 ### 1. SE:10 — Microsoft Defender for Cloud (~1h)
 
-**Що:** Увімкнути Defender plans для App Service + Key Vault у Bicep.
+**What:** Enable Defender plans for App Service + Key Vault in Bicep.
 
 ```bicep
-// infra/modules/security.bicep (новий модуль або в main.bicep)
+// infra/modules/security.bicep (new module or in main.bicep)
 resource defenderAppService 'Microsoft.Security/pricings@2023-01-01' = {
   name: 'AppServices'
   properties: {
@@ -36,16 +36,16 @@ resource defenderKeyVault 'Microsoft.Security/pricings@2023-01-01' = {
 }
 ```
 
-**DoD:** `az security pricing list` показує `Standard` для AppServices та KeyVaults.
+**DoD:** `az security pricing list` shows `Standard` for AppServices and KeyVaults.
 
 ---
 
 ### 2. SE:03 — Resource tags (~30min)
 
-**Що:** Додати уніфіковані теги на всі Bicep modules.
+**What:** Add unified tags to all Bicep modules.
 
 ```bicep
-// infra/main.bicep — додати параметр
+// infra/main.bicep — add parameter
 param tags object = {
   environment: 'dev'
   project: 'sentinel-intelligence'
@@ -55,15 +55,15 @@ param tags object = {
 }
 ```
 
-Передати `tags: tags` у всі module виклики: `functionApp`, `cosmosDb`, `serviceBus`, `aiSearch`, `storage`, `keyVault`, `signalR`.
+Pass `tags: tags` to all module calls: `functionApp`, `cosmosDb`, `serviceBus`, `aiSearch`, `storage`, `keyVault`, `signalR`.
 
-**DoD:** `az resource list --tag project=sentinel-intelligence` повертає всі 7+ ресурсів.
+**DoD:** `az resource list --tag project=sentinel-intelligence` returns all 7+ resources.
 
 ---
 
 ### 3. SE:08 — Block legacy auth (~30min)
 
-**Що:** CA policy в Entra ID — block legacy authentication protocols.
+**What:** CA policy in Entra ID — block legacy authentication protocols.
 
 ```
 Entra ID → Security → Conditional Access → New policy
@@ -74,42 +74,42 @@ Entra ID → Security → Conditional Access → New policy
   State: On
 ```
 
-Або через Bicep (якщо є Entra ID P1+):
+Or via Bicep (if there is an Entra ID P1+):
 ```bicep
-// Потребує Microsoft Graph API / bicep-extensions — або ручна конфігурація
+// Requires Microsoft Graph API / bicep-extensions — or manual configuration
 ```
 
-**DoD:** Спроба auth з Basic credentials → 400 Block.
+**DoD:** Attempting auth with Basic credentials → 400 Block.
 
 ---
 
 ### 4. SE:09 — Secret rotation (~1h)
 
-**Що:** Увімкнути Key Vault rotation policy для всіх secrets.
+**What:** Enable Key Vault rotation policy for all secrets.
 
 ```bicep
-// infra/modules/keyvault.bicep — для кожного secret
+// infra/modules/keyvault.bicep — for each secret
 resource secretRotation 'Microsoft.KeyVault/vaults/secrets@2023-07-01' = {
   // ...
   properties: {
     // ...
     attributes: {
       enabled: true
-      exp: dateTimeToEpoch(dateTimeAdd(utcNow(), 'P90D')) // 90 днів
+exp: dateTimeToEpoch(dateTimeAdd(utcNow(), 'P90D')) // 90 days
     }
   }
 }
 ```
 
-Додатково: Event Grid subscription `Microsoft.KeyVault.SecretNearExpiry` → Function App alert або Logic App notification.
+Additionally: Event Grid subscription `Microsoft.KeyVault.SecretNearExpiry` → Function App alert or Logic App notification.
 
-**DoD:** KV secrets мають `expiresOn` = now + 90 days; Event Grid alert спрацьовує за 30 днів до expiry.
+**DoD:** KV secrets have `expiresOn` = now + 90 days; Event Grid alert is triggered 30 days before expiry.
 
 ---
 
 ### 5. CO:04 — Cost budget alerts (~30min)
 
-**Що:** Azure Budget $100/місяць з alert при 80% та 100%.
+**What:** Azure Budget $100/month with alert at 80% and 100%.
 
 ```bicep
 // infra/modules/budget.bicep
@@ -141,24 +141,24 @@ resource budget 'Microsoft.Consumption/budgets@2023-05-01' = {
 }
 ```
 
-**DoD:** `az consumption budget list` показує бюджет; тестовий alert отриманий на email.
+**DoD:** `az consumption budget list` shows the budget; test alert received by email.
 
 ---
 
 ## Definition of Done
 
-- [ ] Defender for Cloud увімкнено (AppService + KeyVault plans = Standard)
-- [ ] Теги на всіх ресурсах (≥5 tags per resource)
+- [ ] Defender for Cloud enabled (AppService + KeyVault plans = Standard)
+- [ ] Tags on all resources (≥5 tags per resource)
 - [ ] CA policy blocking legacy auth — On
-- [ ] KV secrets мають expiry + Event Grid near-expiry alert
-- [ ] Azure Budget $100/місяць з 80%+100% alerts
+- [ ] KV secrets have expiry + Event Grid near-expiry alert
+- [ ] Azure Budget $100/month with 80%+100% alerts
 
 ## Estimated effort
 
-~4 години (1 dev session)
+~4 hours (1 dev session)
 
 ## Dependencies
 
-- Доступ до Azure subscription з Owner/Contributor правами
-- Entra ID з правами Global Admin / Security Admin (для CA policies)
-- Bicep redeploy після змін infra
+- Access to Azure subscription with Owner/Contributor rights
+- Entra ID with Global Admin / Security Admin rights (for CA policies)
+- Bicep redeploy after infra changes

@@ -1,40 +1,40 @@
 # T-028 · MCP Servers (mcp-sentinel-db, mcp-qms, mcp-cmms)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** T-025, T-026, T-027  
-**Залежить від:** T-020 (Cosmos DB), T-021 (mock data)
-
----
-
-## Мета
-
-Реалізувати 3 MCP servers (stdio transport) для надання Foundry Agents доступу до структурованих даних і mock external systems.
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** T-025, T-026, T-027
+**Depends on:** T-020 (Cosmos DB), T-021 (mock data)
 
 ---
 
-## Структура
+## Goal
+
+Implement 3 MCP servers (stdio transport) to provide Foundry Agents with access to structured data and mock external systems.
+
+---
+
+## Structure
 
 ```
 backend/
-  mcp_sentinel_db/     # ← всередині Functions deployment package
+mcp_sentinel_db/ # ← inside Functions deployment package
     __init__.py
     server.py          # FastMCP app + 5 read tools (Cosmos DB)
     
-  mcp_qms/             # ← всередині Functions deployment package
+mcp_qms/ # ← inside Functions deployment package
     __init__.py
     server.py          # FastMCP app + create_audit_entry tool
     
-  mcp_cmms/            # ← всередині Functions deployment package
+mcp_cmms/ # ← inside the Functions deployment package
     __init__.py
     server.py          # FastMCP app + create_work_order tool
 ```
 
-> MCP пакети знаходяться в `backend/` — вони потрапляють в Azure Functions deployment  
-> та імпортуються напряму з `run_foundry_agents.py` без subprocess.  
-> `mcp==1.6.0` вже є в `backend/requirements.txt`.
+> MCP packages are in `backend/` — they go into Azure Functions deployment
+> and imported directly from `run_foundry_agents.py` without subprocess.
+> `mcp==1.6.0` is already in `backend/requirements.txt`.
 
 ---
 
@@ -100,9 +100,9 @@ if __name__ == "__main__":
 
 ---
 
-## Використання в Activities (run_foundry_agents.py)
+## Usage in Activities (run_foundry_agents.py)
 
-MCP пакети імпортуються напряму — без subprocess або HTTP:
+MCP packages are imported directly — without subprocess or HTTP:
 
 ```python
 # backend/activities/run_foundry_agents.py
@@ -111,15 +111,15 @@ from mcp_qms.server import create_audit_entry
 from mcp_cmms.server import create_work_order
 ```
 
-Функції реєструються як `FunctionTool` при створенні Foundry агента (T-024).  
-Foundry повертає `requires_action` з `tool_calls`, наш код виконує виклики і повертає `tool_outputs`.
+Functions are registered as `FunctionTool` when creating a Foundry agent (T-024).
+Foundry returns `requires_action` from `tool_calls`, our code makes the calls and returns `tool_outputs`.
 
 ---
 
 ## Definition of Done
 
-- [x] `mcp-sentinel-db`: всі 5 tools повертають коректні дані при тесті з seed'ованою Cosmos DB
-- [x] `mcp-qms`: `create_audit_entry` повертає AE ID і записує в Cosmos DB `capa-plans`
-- [x] `mcp-cmms`: `create_work_order` повертає WO ID і записує в Cosmos DB `capa-plans`
-- [x] Foundry Agent може викликати MCP tools через stdio transport (test script: `scripts/test_mcp_servers.py` — 8/8 passed)
-- [x] `requirements.txt` актуальний
+- [x] `mcp-sentinel-db`: all 5 tools return correct data when tested with seeded Cosmos DB
+- [x] `mcp-qms`: `create_audit_entry` returns AE ID and writes to Cosmos DB `capa-plans`
+- [x] `mcp-cmms`: `create_work_order` returns WO ID and writes to Cosmos DB `capa-plans`
+- [x] Foundry Agent can call MCP tools via stdio transport (test script: `scripts/test_mcp_servers.py` — 8/8 passed)
+- [x] `requirements.txt` is current

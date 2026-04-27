@@ -1,47 +1,47 @@
 # T-025 · Research Agent (Azure AI Foundry Connected Agents — sub-agent)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE (18-19 квітня 2026)  
-**Блокує:** T-024 (run_foundry_agents activity)  
-**Залежить від:** T-024 (Orchestrator Agent), T-028 (MCP servers), T-037 (AI Search indexes)
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE (April 18-19, 2026)
+**Blocks:** T-024 (run_foundry_agents activity)
+**Depends on:** T-024 (Orchestrator Agent), T-028 (MCP servers), T-037 (AI Search indexes)
 
-> **ADR-002:** Research Agent є **sub-agent** в Foundry Connected Agents pattern.  
-> Він не викликається безпосередньо з Durable Functions — Foundry Orchestrator Agent підключає його як `AgentTool`.  
-> Дивись [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація).
-
----
-
-## Мета
-
-Реалізувати Research Agent на Azure AI Foundry Agent Service як **sub-agent** Orchestrator Agent (Connected Agents pattern).  
-Агент збирає повний контекст для incident: equipment history, similar past cases, relevant SOPs/manuals, GMP policies.  
-Orchestrator Agent викликає Research Agent через `AgentTool`, отримує structured JSON output і передає його до Document Agent.
+> **ADR-002:** Research Agent is a **sub-agent** in the Foundry Connected Agents pattern.
+> It is not called directly from Durable Functions - the Foundry Orchestrator Agent hooks it as `AgentTool`.
+> See [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-manual-orchestration).
 
 ---
 
-## Файли
+## Goal
+
+Implement Research Agent on Azure AI Foundry Agent Service as **sub-agent** Orchestrator Agent (Connected Agents pattern).
+The agent gathers the full context for the incident: equipment history, similar past cases, relevant SOPs/manuals, GMP policies.
+The Orchestrator Agent calls the Research Agent through `AgentTool`, receives the structured JSON output and passes it to the Document Agent.
+
+---
+
+## Files
 
 ```
 agents/
   create_agents.py         # Script: create/update all agents in Foundry (Research + Document + Orchestrator + Execution)
-  research_agent.py        # Sub-agent definition: tools + system prompt (без standalone run logic)
+research_agent.py # Sub-agent definition: tools + system prompt (without standalone run logic)
   document_agent.py        # (T-026)
-  orchestrator_agent.py    # (T-024) Orchestrator Agent з підключеними sub-agents як AgentTool
+orchestrator_agent.py # (T-024) Orchestrator Agent with connected sub-agents as AgentTool
   execution_agent.py       # (T-027)
   prompts/
-    research_system.md     # System prompt для Research Agent
+research_system.md # System prompt for Research Agent
 ```
 
-**Важливо:** `research_agent.py` містить лише визначення агента (tools, instructions, model).  
-Станова виклику (`run_research_agent()`) відсутня — Foundry Orchestrator Agent керує запуском нативно через `AgentTool`.
+**Important:** `research_agent.py` contains only agent definitions (tools, instructions, model).
+Call state (`run_research_agent()`) missing - The Foundry Orchestrator Agent manages the launch natively via `AgentTool`.
 
 ---
 
-## Tools які має Research Agent
+## Tools that Research Agent has
 
-| Tool | Тип у Foundry | Source | Purpose |
+| Tool | Type in Foundry | Source | Purpose |
 |---|---|---|---|
 | `get_equipment` | MCP ServerTool | MCP `mcp-sentinel-db` | Equipment master data + equipment-level validated params (PAR) |
 | `get_batch` | MCP ServerTool | MCP `mcp-sentinel-db` | Current batch context |
@@ -52,8 +52,8 @@ agents/
 | **`search_bpr_documents`** | **`AzureAISearchTool`** | **AI Search `idx-bpr-documents`** | **RAG: product-specific CPP NOR/PAR — narrower than equipment PAR** |
 | `search_incident_history` | `AzureAISearchTool` | AI Search `idx-incident-history` | RAG: similar historical cases (semantic) |
 
-> **Foundry native tools:** AI Search tool calls використовують `AzureAISearchTool` з SDK `azure-ai-projects`.  
-> MCP servers підключаються через `McpTool` / `ToolSet` з endpoint MCP server (T-028).
+> **Foundry native tools:** AI Search tool calls use `AzureAISearchTool` from SDK `azure-ai-projects`.
+> MCP servers are connected via `McpTool` / `ToolSet` with endpoint MCP server (T-028).
 
 ---
 
@@ -97,18 +97,18 @@ Always cite your sources. Never fabricate data. If a tool returns no results, sa
 
 ---
 
-## Реєстрація як AgentTool (у orchestrator_agent.py)
+## Register as AgentTool (in orchestrator_agent.py)
 
-Research Agent **не має окремої функції запуску**. Orchestrator Agent реєструє його як `AgentTool`:
+Research Agent **does not have a separate launch function**. The Orchestrator Agent registers it as `AgentTool`:
 
 ```python
-# agents/orchestrator_agent.py — фрагмент create_agents.py
+# agents/orchestrator_agent.py is a fragment of create_agents.py
 from azure.ai.projects.models import AgentTool
 
-# 1. Research Agent вже створений — отримуємо ID з env або Cosmos
+# 1. Research Agent is already created - we get the ID from env or Cosmos
 research_agent_id = os.environ["RESEARCH_AGENT_ID"]
 
-# 2. Підключаємо до Orchestrator Agent як AgentTool
+# 2. Connect to Orchestrator Agent as AgentTool
 research_tool = AgentTool(agent_id=research_agent_id)
 
 orchestrator = client.agents.create_agent(
@@ -120,18 +120,18 @@ orchestrator = client.agents.create_agent(
 )
 ```
 
-Коли Orchestrator Agent вирішує зателефонувати до Research Agent — він робить це нативно через Foundry Connected Agents механізм. Durable не бачить цього виклику.
+When the Orchestrator Agent decides to call the Research Agent, it does so natively through the Foundry Connected Agents mechanism. Durable does not see this challenge.
 
 ---
 
 ## Definition of Done
 
-- [ ] Azure AI Foundry Hub + Project provisioned via `infra/modules/ai-foundry.bicep` (додати до `infra/main.bicep`)
-- [ ] `agents/create_agents.py` створює Research Agent в Foundry з усіма tools (MCP + AzureAISearchTool)
-- [ ] Research Agent зареєстрований як `AgentTool` в Orchestrator Agent (T-024)
-- [ ] Orchestrator Agent може викликати Research Agent через Connected Agents механізм
-- [ ] MCP tools (`get_equipment`, `get_batch`, `search_incidents`) викликаються і повертають дані (INC-2026-0001)
-- [ ] RAG search (`AzureAISearchTool`) повертає релевантні SOP chunks (>0 результатів для GR-204)
-- [ ] Research Agent output (structured JSON, 7 секцій) передається Orchestrator Attorney → Document Agent без Durable state
-- [ ] System prompt збережений у `agents/prompts/research_system.md`
-- [ ] Source citations присутні у відповіді
+- [ ] Azure AI Foundry Hub + Project provisioned via `infra/modules/ai-foundry.bicep` (add to `infra/main.bicep`)
+- [ ] `agents/create_agents.py` creates Research Agent in Foundry with all tools (MCP + AzureAISearchTool)
+- [ ] Research Agent registered as `AgentTool` in Orchestrator Agent (T-024)
+- [ ] Orchestrator Agent can call Research Agent through Connected Agents mechanism
+- [ ] MCP tools (`get_equipment`, `get_batch`, `search_incidents`) are called and return data (INC-2026-0001)
+- [ ] RAG search (`AzureAISearchTool`) returns relevant SOP chunks (>0 results for GR-204)
+- [ ] Research Agent output (structured JSON, 7 sections) is transferred to Orchestrator Attorney → Document Agent without Durable state
+- [ ] System prompt saved in `agents/prompts/research_system.md`
+- [ ] Source citations are present in the answer

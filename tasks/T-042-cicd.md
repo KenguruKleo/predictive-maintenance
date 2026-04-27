@@ -1,20 +1,20 @@
 # T-042 · GitHub Actions CI/CD Pipeline
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE (17 квітня 2026, updated 19 квітня 2026)  
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE (April 17, 2026, updated April 19, 2026)
 **Gap:** Gap #1 — Track A (GitHub + CI/CD) ✅
 
-> **Що працює:** `ci.yml` (ruff lint + pytest + az bicep build) запускається на PR; `deploy.yml` (Bicep deploy + Functions deploy) запускається на push в `main`. CI/CD зелений.  
-> **Що не додано:** frontend build step (коментар — чекає T-032), Foundry eval pipeline (чекає T-025/T-026).
-> **Операційне оновлення (19 квітня 2026):** backend deploy hardened після regression, де Azure Functions host стартував, але індексував `0 functions`; workflow тепер деплоїть через Azure Functions Core Tools (`func azure functionapp publish --python`), тобто тим самим remote-build path, який був підтверджений як робочий вручну.
+> **What works:** `ci.yml` (ruff lint + pytest + az bicep build) runs on PR; `deploy.yml` (Bicep deploy + Functions deploy) is launched on push in `main`. CI/CD is green.
+> **What is not added:** frontend build step (comment - waiting for T-032), Foundry eval pipeline (waiting for T-025/T-026).
+> **Operational update (April 19, 2026):** backend deploy hardened after regression where Azure Functions host started but indexed `0 functions`; workflow will now deploy via Azure Functions Core Tools (`func azure functionapp publish --python`), i.e. the same remote-build path that was confirmed as working manually.
 
 ---
 
-## Мета
+## Goal
 
-GitHub Actions pipelines для build, test, Bicep validation, і deploy. Доводить Track A compliance для hackathon judges.
+GitHub Actions pipelines for build, test, Bicep validation, and deploy. Proves Track A compliance for hackathon judges.
 
 ---
 

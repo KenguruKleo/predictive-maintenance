@@ -2,62 +2,62 @@
 
 ← [Backlog](../04-action-plan.md)
 
-> **Мета:** Показувати WO draft та audit entry draft як редаговані multi-line форми в decision package UI. Pre-filled від Document Agent; operator/QA може редагувати перед Approve. При BLOCKED-стані (agent failure) — форми порожні, operator заповнює вручну (обов'язково для Approve).
+> **Purpose:** Show WO draft and audit entry draft as editable multi-line forms in decision package UI. Pre-filled by Document Agent; operator/QA can edit before Approve. In the BLOCKED state (agent failure), the forms are empty, the operator fills in manually (required for Approve).
 
 ---
 
-## Контекст
+## Context
 
-Після approval Execution Agent створює реальні записи в CMMS і QMS. Payload для цих calls береться з форм, які оператор переглянув і підтвердив — це:
-1. гарантує що дані в зовнішніх системах відповідають рішенню оператора;
-2. вирішує кейс BLOCKED (agent fail = zero confidence) — оператор може вручну внести WO і audit entry, не блокуючи процес;
-3. дозволяє QA Manager коригувати drafts при ескалації.
+After approval, the Execution Agent creates real records in CMMS and QMS. The payload for these calls is taken from the forms that the operator reviewed and confirmed — these are:
+1. guarantees that data in external systems correspond to the operator's decision;
+2. resolves the BLOCKED case (agent fail = zero confidence) — the operator can manually enter the WO and audit entry without blocking the process;
+3. allows QA Manager to adjust drafts during escalation.
 
 ---
 
-## Дані flow (важливо для GxP)
+## Flow data (important for GxP)
 
 ```
 DocumentAgentOutput
-  └── ai_analysis.work_order_draft    ← AI оригінал (ЗБЕРІГАЄТЬСЯ незмінним в Cosmos)
-  └── ai_analysis.audit_entry_draft  ← AI оригінал (ЗБЕРІГАЄТЬСЯ незмінним в Cosmos)
+└── ai_analysis.work_order_draft ← AI original (KEPT constant in Cosmos)
+└── ai_analysis.audit_entry_draft ← AI original (KEPT constant in Cosmos)
            ↓ pre-fills editable form
-      [frontend: operator редагує або заповнює вручну при BLOCKED]
+[frontend: operator edits or fills manually when BLOCKED]
            ↓ POST /api/incidents/{id}/decision
-      body.work_order_draft / body.audit_entry_draft  ← operator-confirmed версія
-           ↓ зберігається окремо
+body.work_order_draft / body.audit_entry_draft ← operator-confirmed version
+↓ is stored separately
       incident.operatorWorkOrderDraft     ← operator-final
       incident.operatorAuditEntryDraft    ← operator-final
            ↓
-      run_execution_agent читає operator версію, НЕ ai_analysis
+run_execution_agent reads the operator version, NOT ai_analysis
 ```
 
-**Обидві версії залишаються:** `ai_analysis.work_order_draft` = що запропонував AI; `operatorWorkOrderDraft` = що підтвердив/змінив оператор. Auditor бачить обидва — це є документальний trail змін для GMP.
+**Both versions remain:** `ai_analysis.work_order_draft` = suggested by AI; `operatorWorkOrderDraft` = what was confirmed/changed by the operator. Auditor sees both — this is a documented change trail for GMP.
 
 ## Affected components
 
-- `frontend/src/components/Approval/` — `WorkOrderPreview.tsx` / `AuditEntryPreview.tsx` → зробити editable (або замінити на нові компоненти)
-- `backend/triggers/http_decision.py` — прийняти `work_order_draft` та `audit_entry_draft` у тілі; зберегти як `operatorWorkOrderDraft` / `operatorAuditEntryDraft` на incident
-- `backend/activities/run_execution_agent.py` — читати `operatorWorkOrderDraft` / `operatorAuditEntryDraft` замість re-генерації через GPT-4o
+- `frontend/src/components/Approval/` — `WorkOrderPreview.tsx` / `AuditEntryPreview.tsx` → make editable (or replace with new components)
+- `backend/triggers/http_decision.py` — accept `work_order_draft` and `audit_entry_draft` in the body; save as `operatorWorkOrderDraft` / `operatorAuditEntryDraft` per incident
+- `backend/activities/run_execution_agent.py` — read `operatorWorkOrderDraft` / `operatorAuditEntryDraft` instead of re-generation through GPT-4o
 
 ---
 
-## UI поведінка
+## UI behavior
 
-| Стан агента | WO draft | Audit entry draft | Approve доступний |
+| Agent status | WO draft | Audit entry draft Approve is available |
 |---|---|---|---|
-| NORMAL (conf ≥ 0.7) | Pre-filled від Document Agent, editable | Pre-filled від Document Agent, editable | Так, без додаткових вимог |
-| LOW_CONFIDENCE | Pre-filled, editable | Pre-filled, editable | Так, + mandatory comment |
-| BLOCKED (agent fail) | Порожній, **обов'язковий** | Порожній, **обов'язковий** | Тільки після заповнення |
+| NORMAL (conf ≥ 0.7) | Pre-filled by Document Agent, editable | Pre-filled by Document Agent, editable | Yes, without additional requirements
+| LOW_CONFIDENCE | Pre-filled, editable | Pre-filled, editable | Yes, + mandatory comment |
+| BLOCKED (agent fail) | Empty, **required** | Empty, **required** | Only after filling |
 
-**Доступ до редагування:**
-- `operator`, `qa-manager` — може редагувати
+**Editing access:**
+- `operator`, `qa-manager` — can edit
 - `maint-tech`, `auditor`, `it-admin` — read-only
 
-**UI елементи:**
-- `<textarea>` або structured form з мінімальними полями: `description`, `priority` (WO) та `deviation_type`, `gmp_clause` (audit)
-- Кнопка Approve disabled якщо BLOCKED + форми порожні
-- Hint text в порожніх полях: "Introduce work order description manually (AI was unable to generate a recommendation)"
+**UI elements:**
+- `<textarea>` or structured form with minimal fields: `description`, `priority` (WO) and `deviation_type`, `gmp_clause` (audit)
+- Approve button disabled if BLOCKED + forms are empty
+- Hint text in empty fields: "Introduce work order description manually (AI was unable to generate a recommendation)"
 
 ---
 
@@ -65,7 +65,7 @@ DocumentAgentOutput
 
 ### `POST /api/incidents/{id}/decision`
 
-Нові поля в request body:
+New fields in the request body:
 ```json
 {
   "decision": "approved",
@@ -83,38 +83,38 @@ DocumentAgentOutput
 }
 ```
 
-- Якщо `decision == "approved"`: `work_order_draft` та `audit_entry_draft` обов'язкові (validation).
-- Якщо `decision == "rejected"`: поля ігноруються.
-- Backend зберігає `operator_edited_draft` у `approval-tasks` → Durable читає при виклику `run_execution_agent`.
+- If `decision == "approved"`: `work_order_draft` and `audit_entry_draft` are mandatory (validation).
+- If `decision == "rejected"`: Fields are ignored.
+- Backend stores `operator_edited_draft` in `approval-tasks` → Durable reads when `run_execution_agent` is called.
 
 ### `run_execution_agent.py`
 
-- Читає `work_order_draft` та `audit_entry_draft` з `approval-tasks` container (operator-edited версія).
-- Більше **не генерує** payload самостійно з Document Agent output.
+- Reads `work_order_draft` and `audit_entry_draft` from `approval-tasks` container (operator-edited version).
+- No longer **generates** payload independently from Document Agent output.
 
 ---
 
 ## Audit trail
 
-Поля у `finalize_audit`:
-- `human_override_text` — operator-edited WO/audit drafts (якщо відрізняються від agent draft, або якщо BLOCKED)
-- `human_override = true` якщо оператор змінив agent draft або заповнив вручну
+Fields in `finalize_audit`:
+- `human_override_text` — operator-edited WO/audit drafts (if different from the agent draft, or if BLOCKED)
+- `human_override = true` if the operator changed the agent draft or filled in manually
 
 ---
 
 ## Definition of Done
 
-- [ ] WO draft та audit entry draft відображаються як редаговані поля в approval UI
-- [ ] Pre-filled від Document Agent у нормальному сценарії
-- [ ] Порожні та обов'язкові при BLOCKED
-- [ ] Approve disabled якщо BLOCKED + порожні поля
-- [ ] Поля read-only для maint-tech, auditor, it-admin
-- [ ] Backend зберігає `operatorWorkOrderDraft` + `operatorAuditEntryDraft` окремо від `ai_analysis` (AI оригінал залишається незмінним)
-- [ ] `run_execution_agent` читає `operatorWorkOrderDraft` / `operatorAuditEntryDraft`, більше не генерує через GPT-4o
-- [ ] `human_override_text` записується у `finalize_audit` якщо оператор змінив або заповнив вручну
+- [ ] WO draft and audit entry draft are displayed as editable fields in the approval UI
+- [ ] Pre-filled by Document Agent in a normal scenario
+- [ ] Empty and mandatory when BLOCKED
+- [ ] Approve disabled if BLOCKED + empty fields
+- [ ] Read-only fields for maint-tech, auditor, it-admin
+- [ ] Backend stores `operatorWorkOrderDraft` + `operatorAuditEntryDraft` separately from `ai_analysis` (AI original remains unchanged)
+- [ ] `run_execution_agent` reads `operatorWorkOrderDraft` / `operatorAuditEntryDraft`, no longer generates via GPT-4o
+- [ ] `human_override_text` is written to `finalize_audit` if the operator changed or filled in manually
 
 ---
 
-## Пріоритет
+## Priority
 
-🟠 HIGH — блокує повноцінний BLOCKED-сценарій та GxP-коректність payload для зовнішніх систем.
+🟠 HIGH — blocks a full-fledged BLOCKED scenario and GxP payload correctness for external systems.

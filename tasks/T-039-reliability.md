@@ -1,16 +1,16 @@
 # T-039 · Reliability Layer (Retry, Fallback, Circuit Breaker, SLOs)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟡 MEDIUM  
-**Статус:** 🟡 IN PROGRESS  
+**Priority:** 🟡 MEDIUM
+**Status:** 🟡 IN PROGRESS
 **Gap:** Gap #3 Reliability ✅
 
 ---
 
-## Мета
+## Goal
 
-Довести до Demo-ready рівень надійності: retry policies, DLQ handling, fallback mode при деградації AI, latency budgets.
+Bring the level of reliability to Demo-ready: retry policies, DLQ handling, fallback mode in case of AI degradation, latency budgets.
 
 ---
 
@@ -19,12 +19,12 @@
 ### Retry Policies
 - [ ] Azure Functions: built-in retry policy (3 attempts, exponential backoff) for Service Bus
 - [ ] Durable Activities: `RetryOptions(max_number_of_attempts=3, first_retry_interval=timedelta(seconds=5))`
-- [ ] Cosmos DB client: `RetryOptions` з 3 retries для throttling (429)
-- [ ] AI Search client: retry на timeout
+- [ ] Cosmos DB client: `RetryOptions` with 3 retries for throttling (429)
+- [ ] AI Search client: retry on timeout
 
 ### Dead-Letter Queue
-- [ ] Service Bus DLQ monitored (alert якщо DLQ count > 0)
-- [ ] `scripts/process_dlq.py` — manual script для перегляду та re-process DLQ messages
+- [ ] Service Bus DLQ monitored (alert if DLQ count > 0)
+- [ ] `scripts/process_dlq.py` — manual script for viewing and re-processing DLQ messages
 
 ### Fallback Mode
 ```python
@@ -37,7 +37,7 @@
 # Operator can still approve/reject manually (without AI recommendation)
 ```
 
-### Реалізовано 19 квітня 2026
+### Implemented on April 19, 2026
 - [x] `backend/activities/run_foundry_agents.py` now emits incident-scoped structured App Insights traces behind `FOUNDRY_PROMPT_TRACE_ENABLED`
 - [x] Trace envelope includes `incident_id`, `round`, `trace_kind`, chunk metadata, and `thread_id` / `run_id` when available so one incident can be reconstructed later
 - [x] Trace kinds now cover the backend-visible Foundry path: prompt context, outer Orchestrator prompt, Foundry thread messages, raw response, parsed response, and normalized final result
@@ -59,7 +59,7 @@
 - [ ] Azure Functions: Consumption plan (pay per execution)
 - [ ] Foundry Agents: monitor token usage via App Insights custom metrics
 - [ ] Custom metric: `incident_total_tokens` per incident (input + output tokens, all agent calls)
-- [ ] Custom metric: `incident_cost_usd` estimated (tokens × model rate) — для presentation "cost per incident" slide
+- [ ] Custom metric: `incident_cost_usd` estimated (tokens × model rate) — for presentation "cost per incident" slide
 
 ---
 

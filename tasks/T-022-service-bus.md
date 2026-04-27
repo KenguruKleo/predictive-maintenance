@@ -1,32 +1,32 @@
 # T-022 · Azure Service Bus — Alert Queue Setup
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE (17 квітня 2026)  
-**Блокує:** T-023 (ingestion API publishes here), T-024 (trigger reads from here)  
-**Залежить від:** T-041 (Bicep IaC) ✅
+**Priority:** 🟠 HIGH  
+**Status:** ✅ DONE (April 17, 2026)  
+**Blocks:** T-023 (ingestion API publishes here), T-024 (trigger reads from here)  
+**Depends on:** T-041 (Bicep IaC) ✅
 
-> **Що задеплоєно:** `sb-sentinel-intel-dev-erzrpo` (Standard tier, Sweden Central). Черга `alert-queue`: maxDeliveryCount=5, DLQ активний. Відмінність від задачі: maxDeliveryCount=5 (задокументовано 3), змінюється просто в `infra/modules/servicebus.bicep` у T-041.
-
----
-
-## Мета
-
-Налаштувати Azure Service Bus з чергою `alert-queue` як reliability layer між ingestion API і Durable Functions orchestrator.
+> **What is deployed:** `sb-sentinel-intel-dev-erzrpo` (Standard tier, Sweden Central). Queue `alert-queue`: `maxDeliveryCount=5`, DLQ enabled. Difference from this task: `maxDeliveryCount=5` (documented as 3 here), easily updated in `infra/modules/servicebus.bicep` under T-041.
 
 ---
 
-## Конфігурація
+## Goal
+
+Configure Azure Service Bus with `alert-queue` as a reliability layer between the ingestion API and the Durable Functions orchestrator.
+
+---
+
+## Configuration
 
 ```
 Namespace: sentinel-intelligence-sb  
-Tier: Standard (достатньо для hackathon)
+Tier: Standard (sufficient for hackathon)
 
 Queue: alert-queue
   - Max size: 1 GB
   - Message TTL: 7 days
-  - Lock duration: 5 minutes (достатньо для orchestrator start)
+  - Lock duration: 5 minutes (sufficient for orchestrator start)
   - Max delivery count: 3 → then DLQ
   - Dead-letter queue: alert-queue/$DeadLetterQueue
   - Session: false
@@ -34,7 +34,7 @@ Queue: alert-queue
 
 ---
 
-## Файли
+## Files
 
 ```
 infra/
@@ -71,8 +71,8 @@ async def publish_alert(payload: dict) -> str:
 
 ## Definition of Done
 
-- [ ] Service Bus namespace provisioned (Bicep або Azure Portal для dev)
-- [ ] `alert-queue` queue існує з DLQ enabled
-- [ ] `publish_alert()` puts message in queue (test з `scripts/test_service_bus.py`)
+- [ ] Service Bus namespace provisioned (Bicep or Azure Portal for dev)
+- [ ] `alert-queue` queue exists with DLQ enabled
+- [ ] `publish_alert()` puts a message in queue (test with `scripts/test_service_bus.py`)
 - [ ] DLQ contains messages after max delivery count exceeded (manual test)
-- [ ] Connection string / namespace в `.env.example`
+- [ ] Connection string / namespace in `.env.example`

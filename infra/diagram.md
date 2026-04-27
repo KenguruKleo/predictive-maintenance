@@ -1,10 +1,10 @@
 # Azure Infrastructure Diagram — Sentinel Intelligence (Target Architecture)
 
-> **Ресурсна група:** `ODL-GHAZ-2177134` · **Регіон:** Sweden Central · **Secondary DR:** North Europe  
+> **Resource group:** `ODL-GHAZ-2177134` · **Region:** Sweden Central · **Secondary DR:** North Europe  
 > **Subscription:** `Sandbox AI DS - 1003462`  
-> **Суфікс:** `erzrpo` (derived from RG id)
+> **Suffix:** `erzrpo` (derived from RG id)
 >
-> Ця діаграма описує **цільову (production) інфраструктуру**. Скорочення, зроблені для хакатонного прототипу (відсутні VNet/PE, CA/PIM, multi-region DR, load testing тощо), перераховані у [../docs/hackathon-scope.md](../docs/hackathon-scope.md).
+> This diagram describes the **target (production) infrastructure**. Scope reductions made for the hackathon prototype (missing VNet/PE, CA/PIM, multi-region DR, load testing, and similar items) are listed in [../docs/hackathon-scope.md](../docs/hackathon-scope.md).
 
 ```mermaid
 flowchart TB
@@ -90,7 +90,7 @@ flowchart TB
     %% CI/CD
     GHA -->|"bicep deploy + functions deploy"| rg
 
-    %% External → Azure (через Private Endpoints в production; див. hackathon-scope для прототипу)
+    %% External → Azure (through Private Endpoints in production; see hackathon-scope for prototype scope)
     SCADA -->|"POST /api/alerts"| SB
     REACT -->|"REST + SignalR\nEntra ID token"| FUNC
 
@@ -147,18 +147,18 @@ flowchart TB
     SB -.->|"geo-recovery pair"| SBDR
 ```
 
-## Azure ресурси (цільовий стан)
+## Azure Resources (target state)
 
 | Resource | Name | Bicep module | Purpose |
 |---|---|---|---|
-| Storage Account | `stsentinelintelerzrpo` | `modules/storage.bicep` | Durable state + 5 blob containers для document ingestion |
+| Storage Account | `stsentinelintelerzrpo` | `modules/storage.bicep` | Durable state + 5 blob containers for document ingestion |
 | Log Analytics | `log-sentinel-intel-dev-erzrpo` | `modules/monitoring.bicep` | Workspace (30d hot, 2y archive) |
 | Application Insights | `appi-sentinel-intel-dev-erzrpo` | `modules/monitoring.bicep` | Traces, metrics, FOUNDRY_PROMPT_TRACE |
 | Cosmos DB Serverless | `cosmos-sentinel-intel-dev-erzrpo` | `modules/cosmos.bicep` | 8 containers, geo-redundant |
 | Service Bus | `sb-sentinel-intel-dev-erzrpo` | `modules/servicebus.bicep` | `alert-queue` DLQ, geo-recovery pair |
 | App Service Plan | `asp-func-sentinel-intel-dev-erzrpo` | `modules/functions.bicep` | Flex Consumption, Linux |
 | Azure Functions | `func-sentinel-intel-dev-erzrpo` | `modules/functions.bicep` | Python 3.11, Durable, VNet Integration |
-| AI Search | `srch-sentinel-intel-dev-erzrpo` | `modules/search.bicep` | 5 indexes, HNSW, replica у DR region |
+| AI Search | `srch-sentinel-intel-dev-erzrpo` | `modules/search.bicep` | 5 indexes, HNSW, replica in DR region |
 | SignalR Service | `sigr-sentinel-intel-dev-erzrpo` | `modules/signalr.bicep` | `deviationHub`, role-based groups |
 | Key Vault | `kv-sentinel-intel-erzrpo` | `modules/keyvault.bicep` | Secrets + 90d rotation |
 | Static Web App | `swa-sentinel-intel-dev` | `modules/swa.bicep` | React + Vite SPA hosting |
@@ -168,7 +168,7 @@ flowchart TB
 | Defender for Cloud | — | `modules/security.bicep` | `Microsoft.Security/pricings` |
 | Azure Budget | `budget-sentinel-intel-dev` | `modules/cost.bicep` | 50/80/100% email alerts |
 | Entra App Registration | — | `scripts/setup_entra.sh` | App Roles × 5 · `assignment_required = true` |
-| Conditional Access + PIM | — | Entra portal + automation | MFA · geo · JIT Contributor для IT Admin |
+| Conditional Access + PIM | — | Entra portal + automation | MFA · geo · JIT Contributor for IT Admin |
 
 ## Cosmos DB containers (`sentinel-intelligence`)
 
@@ -185,4 +185,4 @@ flowchart TB
 
 ---
 
-> **Поточний deployment-статус прототипу** та post-hackathon backlog (T-039 / T-040 / T-047 / T-048 / T-049 / T-050 / T-051) — див. [../docs/hackathon-scope.md](../docs/hackathon-scope.md).
+> **Current prototype deployment status** and post-hackathon backlog (T-039 / T-040 / T-047 / T-048 / T-049 / T-050 / T-051) are listed in [../docs/hackathon-scope.md](../docs/hackathon-scope.md).

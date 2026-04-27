@@ -8,22 +8,22 @@
 **Negotiate endpoint:** `GET /api/negotiate` (Azure Functions HTTP trigger with SignalR input binding)  
 **Auth:** Bearer token (Entra ID) → SignalR Groups per user role
 
-## Groups (підписки)
+## Groups (subscriptions)
 
-| Group | Хто підписується | Які events отримує |
+| Group | Who subscribes | Which events they receive |
 |---|---|---|
-| `role:operator` | Всі operator-role users | `incident_pending_approval`, `incident_updated` |
+| `role:operator` | All operator-role users | `incident_pending_approval`, `incident_updated` |
 | `role:qa-manager` | QA Manager role | `incident_escalated`, `incident_pending_approval` |
-| `incident:{id}` | Будь-хто хто відкрив деталі incident | `incident_status_changed`, `agent_step_completed` |
+| `incident:{id}` | Any user who opened incident details | `incident_status_changed`, `agent_step_completed` |
 
 ## Events (server → client)
 
-| Event name | Payload | Коли |
+| Event name | Payload | When |
 |---|---|---|
-| `incident_pending_approval` | `{ incident_id, equipment_id, risk_level, created_at }` | Після `notify_operator` activity |
-| `incident_status_changed` | `{ incident_id, old_status, new_status, timestamp }` | При кожній зміні status в Cosmos |
-| `agent_step_completed` | `{ incident_id, step, result_summary }` | Після completion кожної Durable activity |
-| `incident_escalated` | `{ incident_id, escalated_to, reason }` | Після 24h timer → QA Manager |
+| `incident_pending_approval` | `{ incident_id, equipment_id, risk_level, created_at }` | After `notify_operator` activity |
+| `incident_status_changed` | `{ incident_id, old_status, new_status, timestamp }` | On every status change in Cosmos |
+| `agent_step_completed` | `{ incident_id, step, result_summary }` | After completion of each Durable activity |
+| `incident_escalated` | `{ incident_id, escalated_to, reason }` | After 24h timer → QA Manager |
 
 ## Negotiation flow
 

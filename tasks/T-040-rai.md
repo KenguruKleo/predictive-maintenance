@@ -1,18 +1,18 @@
 # T-040 · RAI Layer (Confidence Gate, Content Safety, Prompt Injection, Observability)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟡 MEDIUM  
-**Статус:** 🟡 IN PROGRESS  
+**Priority:** 🟡 MEDIUM
+**Status:** 🟡 IN PROGRESS
 **Gap:** Gap #4 Responsible AI ✅
 
 ---
 
-## Мета
+## Goal
 
-Закрити Gap #4: Confidence gate + Azure Content Safety + Prompt injection guard + Agent output observability.
+Close Gap #4: Confidence gate + Azure Content Safety + Prompt injection guard + Agent output observability.
 
-Окремо зафіксувати для хакатонної оцінки, що hallucination control не зводиться лише до prompt/RAG: після генерації має існувати незалежний verification pass, який перевіряє документи та citations перед тим, як вони потрапляють у decision package.
+Separately, for the hackathon evaluation, it should be noted that hallucination control is not limited to prompt/RAG: after generation, there must be an independent verification pass that checks documents and citations before they enter the decision package.
 
 ---
 
@@ -22,15 +22,15 @@
 - [ ] Document Agent output includes `confidence` float (0.0–1.0)
 - [ ] `apply_confidence_gate()` in `run_agents` activity:
   - `confidence < 0.70` → `risk_level = "LOW_CONFIDENCE"`, warning prepended to recommendation
-- [ ] Frontend показує red banner якщо `confidence_flag == "LOW_CONFIDENCE"`
-- [ ] LOW_CONFIDENCE incidents auto-escalated до qa-manager (not assigned to operator alone)
+- [ ] Frontend shows red banner if `confidence_flag == "LOW_CONFIDENCE"`
+- [ ] LOW_CONFIDENCE incidents auto-escalated to qa-manager (not assigned to operator alone)
 
 ### Grounding / Citation Verification
-- [ ] Існує окремий post-generation verification pass для `evidence_citations`, `sop_refs`, `regulatory_refs`, `regulatory_reference`
-- [ ] Для кожної citation перевіряється окремо: document identity, deep link, section claim, excerpt anchor
-- [ ] Якщо document match є, але section claim не підтверджується authoritative chunk, citation лишається visible як `unresolved`, але section не потрапляє в top-level summary fields
-- [ ] Generic placeholders типу `sop`, `gmp` або synthetic section values типу `§15` не потрапляють у decision summary
-- [ ] UI чітко відрізняє verified evidence від unresolved evidence, а verified evidence threshold не рахує непідтверджені citations
+- [ ] There is a separate post-generation verification pass for `evidence_citations`, `sop_refs`, `regulatory_refs`, `regulatory_reference`
+- [ ] Each citation is checked separately: document identity, deep link, section claim, excerpt anchor
+- [ ] If there is a document match, but the section claim is not confirmed by the authoritative chunk, the citation remains visible as `unresolved`, but the section does not enter the top-level summary fields
+- [ ] Generic placeholders of type `sop`, `gmp` or synthetic section values ​​of type `§15` do not enter the decision summary
+- [ ] The UI clearly distinguishes verified evidence from unresolved evidence, and the verified evidence threshold does not count unconfirmed citations
 
 ### Content Safety
 ```python
@@ -84,7 +84,7 @@ def sanitize_string_fields(body: dict) -> dict:
 
 ---
 
-## Сценарій для hackathon demo / review
+## Script for hackathon demo / review
 
 **Scenario:** `GR-204` spray rate excursion during wet granulation for `Metformin HCl 500mg Tablets`.
 
@@ -92,24 +92,24 @@ def sanitize_string_fields(body: dict) -> dict:
     - `SOP-DEV-001 §4.2 Process Parameter Excursions — Granulation`
     - `EU GMP Annex 15` excerpts from Azure AI Search
 2. Document Agent drafts recommendation and citations.
-3. Verification layer runs **окремо від reasoning агента** and checks:
-    - чи існує cited document у knowledge base;
-    - чи збігається document identity / link;
-    - чи section claim реально відповідає authoritative chunk;
-    - чи excerpt можна простежити до retrieved evidence.
-4. Якщо модель заявляє `EU GMP Annex 15 §6.3`, але authoritative chunk реально відповідає лише `§6.1 General Principles`, то system behavior має бути таким:
-    - документ `EU GMP Annex 15` залишається у visible evidence;
-    - citation status = `unresolved` для section claim;
-    - top-level summary не повинен показувати непідтверджену секцію як verified fact.
-5. Reviewer / judge повинен побачити, що система не приховує evidence, але й не маскує hallucinated citation як достовірне джерело.
+3. Verification layer runs **separately from the reasoning agent** and checks:
+- does the cited document exist in the knowledge base;
+- does the document identity / link match;
+- does the section claim really correspond to the authoritative chunk;
+- whether the excerpt can be traced to the retrieved evidence.
+4. If the model declares `EU GMP Annex 15 §6.3`, but the authoritative chunk actually corresponds only to `§6.1 General Principles`, then the system behavior should be as follows:
+- document `EU GMP Annex 15` remains in visible evidence;
+- citation status = `unresolved` for section claim;
+- top-level summary should not show unconfirmed section as verified fact.
+5. Reviewer / judge must see that the system does not hide evidence, but also does not mask hallucinated citation as a reliable source.
 
 ---
 
 ## Definition of Done
 
 - [ ] Confidence gate tested: confidence=0.5 → LOW_CONFIDENCE shown in UI
-- [ ] Hackathon scenario вище відтворюється на fixture або live incident payload і показує separate verification pass
-- [ ] Unverified section claims не потрапляють у `regulatory_reference` / summary fields як verified fact
+- [ ] Hackathon scenario above is played on fixture or live incident payload and shows separate verification pass
+- [ ] Unverified section claims do not enter `regulatory_reference` / summary fields as verified fact
 - [ ] Verified vs unresolved evidence visibly different in stored payload / UI contract
 - [ ] Content Safety check runs on agent output (verified in App Insights logs)
 - [ ] Prompt injection attempt in POST /api/alerts `description` field → 400 response

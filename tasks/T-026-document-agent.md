@@ -1,23 +1,23 @@
 # T-026 · Document Agent (Azure AI Foundry Connected Agents — sub-agent)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE (18-19 квітня 2026; updated 19 квітня 2026 for round-0 operator_dialogue hardening)  
-**Блокує:** T-024 (run_foundry_agents activity), T-033 (approval UX shows this output)  
-**Залежить від:** T-024 (Orchestrator Agent), T-025 (Research Agent output via Orchestrator), T-020 (templates collection)
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE (April 18-19, 2026; updated April 19, 2026 for round-0 operator_dialogue hardening)
+**Blocks:** T-024 (run_foundry_agents activity), T-033 (approval UX shows this output)
+**Depends on:** T-024 (Orchestrator Agent), T-025 (Research Agent output via Orchestrator), T-020 (templates collection)
 
-> **ADR-002:** Document Agent є **sub-agent** в Foundry Connected Agents pattern.  
-> Orchestrator Agent підключає його як `AgentTool` і передає Research Agent output безпосередньо в контексті thread — **не через Durable state**.  
-> Дивись [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-ручна-оркестрація).
+> **ADR-002:** Document Agent is a **sub-agent** in the Foundry Connected Agents pattern.
+> The Orchestrator Agent connects it as `AgentTool` and passes the Research Agent output directly in the thread context — **not via Durable state**.
+> See [02-architecture §8.10b](../02-architecture.md#810b-adr-002-foundry-connected-agents-vs-manual-orchestration).
 
 ---
 
-## Мета
+## Goal
 
-Document Agent є sub-agent Foundry Orchestrator Agent (Connected Agents pattern).  
-Orchestrator Agent передає йому Research Agent output та alert context через thread всередині размови — Document Agent формує decision package: classification, risk level, CAPA recommendation, work order draft, audit entry draft.  
-Включає confidence gate (RAI Gap #4).
+The Document Agent is a sub-agent of the Foundry Orchestrator Agent (Connected Agents pattern).
+Orchestrator Agent transmits Research Agent output and alert context to it through a thread inside the conversation — Document Agent forms a decision package: classification, risk level, CAPA recommendation, work order draft, audit entry draft.
+Includes confidence gate (RAI Gap #4).
 
 ---
 
@@ -69,7 +69,7 @@ def apply_confidence_gate(result: dict) -> dict:
         result["confidence_flag"] = "LOW_CONFIDENCE"
         result["risk_level"] = "LOW_CONFIDENCE"
         result["recommendation"] = (
-            f"⚠️ AI впевненість низька ({confidence:.0%}). Коментар QA обов'язковий. \n"
+f"⚠️ AI confidence is low ({confidence:.0%}). QA comment required. \n"
             + result["recommendation"]
         )
     else:
@@ -82,17 +82,17 @@ def apply_confidence_gate(result: dict) -> dict:
     return result
 ```
 
-**Operator UI показує:**
+**Operator UI shows:**
 - `confidence_flag == None` → normal recommendation display
-- `confidence_flag == "LOW_CONFIDENCE"` → червоний банер + коментар обов'язковий перед approve
-- `confidence_flag == "BLOCKED"` → recommendation не видно; авто-ескалація до QA Manager
+- `confidence_flag == "LOW_CONFIDENCE"` → red banner + comment is mandatory before approve
+- `confidence_flag == "BLOCKED"` → recommendation is not visible; auto-escalation to QA Manager
 
-## Реєстрація як AgentTool (у orchestrator_agent.py)
+## Register as AgentTool (in orchestrator_agent.py)
 
-Document Agent **не має окремої функції запуску**. Orchestrator Agent реєструє його як `AgentTool`:
+Document Agent **does not have a separate launch function**. The Orchestrator Agent registers it as `AgentTool`:
 
 ```python
-# agents/orchestrator_agent.py — фрагмент create_agents.py
+# agents/orchestrator_agent.py is a fragment of create_agents.py
 from azure.ai.projects.models import AgentTool
 
 document_agent_id = os.environ["DOCUMENT_AGENT_ID"]
@@ -107,8 +107,8 @@ orchestrator = client.agents.create_agent(
 )
 ```
 
-Orchestrator Agent передає Research Agent output у Document Agent через thread context (нативний Foundry механізм).  
-Без окремого Durable state serialization.
+Orchestrator Agent passes Research Agent output to Document Agent via thread context (native Foundry mechanism).
+Without separate Durable state serialization.
 
 ---
 
@@ -142,16 +142,16 @@ CRITICAL RULES:
 
 ## Definition of Done
 
-- [ ] Document Agent створений у Foundry з правильними instructions
-- [ ] Document Agent зареєстрований як `AgentTool` в Orchestrator Agent (T-024)
-- [ ] Orchestrator Agent передає Research Agent output в Document Agent через thread context
-- [ ] Document Agent повертає повний structured JSON (всі поля зі схеми вище)
-- [ ] Confidence gate застосовується в `run_foundry_agents.py`: confidence < 0.7 → `risk_level = "LOW_CONFIDENCE"`
-- [ ] Evidence citations присутні (мінімум 2 на кожну рекомендацію)
-- [ ] Work order draft і audit entry draft коректно заповнені на основі templates
-- [ ] Тест на INC-2026-0001 (GR-204 impeller speed): ai_result відповідає очікуваному в mock incident
+- [ ] Document Agent created in Foundry with correct instructions
+- [ ] Document Agent registered as `AgentTool` in Orchestrator Agent (T-024)
+- [ ] Orchestrator Agent passes Research Agent output to Document Agent via thread context
+- [ ] Document Agent returns full structured JSON (all fields from the scheme above)
+- [ ] Confidence gate is used in `run_foundry_agents.py`: confidence < 0.7 → `risk_level = "LOW_CONFIDENCE"`
+- [ ] Evidence citations are present (minimum 2 for each recommendation)
+- [ ] Work order draft and audit entry draft are correctly filled out based on templates
+- [ ] Test for INC-2026-0001 (GR-204 impeller speed): ai_result corresponds to the expected in mock incident
 
-## Post-completion hardening (19 квітня 2026)
+## Post-completion hardening (April 19, 2026)
 
 - `run_foundry_agents.py` now rewrites impossible initial transcript phrasing on round `0` (for example, "the recommendation remains the same") instead of exposing that raw wording to the operator UI.
 - Added a focused regression test in `tests/test_operator_followup_dialogue.py` for stale comparison language on the first recommendation.

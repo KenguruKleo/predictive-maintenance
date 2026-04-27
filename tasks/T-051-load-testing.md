@@ -1,25 +1,25 @@
 # T-051 · Azure Load Testing — Scaling & Performance (PE:05/06)
 
-**Статус:** 🔜 TODO  
-**Пріоритет:** 🟡 MEDIUM (post-finals, ~1 тиждень)  
+**Status:** 🔜 TODO
+**Priority:** 🟡 MEDIUM (post-finals, ~1 week)
 **WAR gap:** PE:05 P:80, PE:06  
-**Архітектура:** [02-architecture.md §8.16](../02-architecture.md)
+**Architecture:** [02-architecture.md §8.16](../02-architecture.md)
 
 ---
 
-## Мета
+## Goal
 
-Валідувати, що архітектура витримує production-scale навантаження фармзаводу. Azure Load Testing запускає JMeter/Locust test plans та інтегрується з Azure Monitor для аналізу результатів.
+Validate that the architecture can withstand the production-scale load of a pharmaceutical factory. Azure Load Testing runs JMeter/Locust test plans and integrates with Azure Monitor to analyze results.
 
-*Очікується що Azure Functions Flex Consumption + Cosmos DB Serverless автоматично масштабуються без ручного tuning. Load test потрібен для виявлення cold start затримок, Cosmos RU throttling та SignalR connection limits.*
+*Azure Functions Flex Consumption + Cosmos DB Serverless is expected to scale automatically without manual tuning. Load test is required to detect cold start delays, Cosmos RU throttling and SignalR connection limits.*
 
 ---
 
 ## Expected load profile
 
-| Компонент | Peak load | SLO |
+| Component | Peak load | SLO |
 |---|---|---|
-| POST /api/alerts | 200 RPS (batch close зміни) | P95 < 2s |
+| POST /api/alerts | 200 RPS (batch close changes) | P95 < 2s |
 | GET /api/incidents | 500 RPS (50 operators polling) | P95 < 500ms |
 | SignalR connections | 200 concurrent clients | Connection established < 2s |
 | Foundry agent pipeline | 10 concurrent orchestrations | E2E < 120s |
@@ -85,7 +85,7 @@ class AlertSpikeUser(HttpUser):
 ## Azure Load Testing setup
 
 ```bash
-# 1. Create Azure Load Testing resource (Bicep або CLI)
+# 1. Create Azure Load Testing resource (Bicep or CLI)
 az load create --name "alt-sentinel-intel" \
   --resource-group rg-sentinel-intel-dev \
   --location eastus
@@ -123,7 +123,7 @@ resource loadTesting 'Microsoft.LoadTestService/loadTests@2022-12-01' = {
 
 ---
 
-## Integration з GitHub Actions (CI gate)
+## Integration with GitHub Actions (CI gate)
 
 ```yaml
 # .github/workflows/load-test.yml (post-deploy)
@@ -140,22 +140,22 @@ resource loadTesting 'Microsoft.LoadTestService/loadTests@2022-12-01' = {
 
 ## Definition of Done
 
-- [ ] `locust/` директорія з 4 test scenarios
-- [ ] Azure Load Testing resource в Bicep (optional module)
-- [ ] Scenario 1 (alert spike): P95 < 2s при 200 RPS
+- [ ] `locust/` directory with 4 test scenarios
+- [ ] Azure Load Testing resource in Bicep (optional module)
+- [ ] Scenario 1 (alert spike): P95 < 2s at 200 RPS
 - [ ] Scenario 2 (SignalR): 200 concurrent, 0% dropped events
 - [ ] Scenario 3 (E2E pipeline): P95 < 120s, 0 DLQ
-- [ ] Scenario 4 (read API): P95 < 500ms при 500 RPS
+- [ ] Scenario 4 (read API): P95 < 500ms at 500 RPS
 - [ ] GitHub Actions CI load test gate (optional)
-- [ ] Azure Monitor dashboard з load test results
+- [ ] Azure Monitor dashboard with load test results
 
 ## Estimated effort
 
-~1 тиждень (test plan writing + infra + baseline run + tuning)
+~1 week (test plan writing + infra + baseline run + tuning)
 
 ## Dependencies
 
-- Production-like environment (не dev sandbox — потрібні Flex Consumption + реальні Cosmos RU)
+- Production-like environment (not a dev sandbox — you need Flex Consumption + real Cosmos RU)
 - Azure Load Testing resource (pay-per-use ~$0.005/VUh)
-- Entra ID service principal для тестових Bearer tokens
-- T-047 (VNet) бажано завершити перед load test — щоб тестувати realistic network topology
+- Entra ID service principal for test Bearer tokens
+- T-047 (VNet) should be completed before load test — to test realistic network topology

@@ -1,76 +1,76 @@
-# T-001 · Оновити архітектурну презентацію
+# T-001 · Update the architectural presentation
 
-← [04 · План дій](../04-action-plan.md) · [02 · Архітектура](../02-architecture.md) · [03 · Аналіз](../03-analysis.md)
+← [04 · Action plan](../04-action-plan.md) · [02 · Architecture](../02-architecture.md) · [03 · Analysis](../03-analysis.md)
 
-| Поле | Значення |
+| Field | Value |
 |---|---|
 | **ID** | T-001 |
-| **Пріоритет** | 🔴 CRITICAL |
-| **Статус** | 🔜 TODO |
-| **Залежності** | Немає (перша задача) |
-| **Блокує** | T-002 (відео потребує оновленого architecture slide) |
+| **Priority** | 🔴 CRITICAL |
+| **Status** | 🔜 TODO |
+| **Dependencies** | None (first task) |
+| **Blocks** | T-002 (the video needs an updated architecture slide) |
 
 ---
 
-## Мета
+## Goal
 
-Оновити архітектурну презентацію (PowerPoint/slides) так, щоб:
-1. Закрити всі 6 gaps з тріаж-звіту
-2. Відображати **реальну збудовану архітектуру** (не тільки концепт)
-3. Явно задекларувати **Track A**
-4. Бути готовою як слайд для фінального відео [T-002](./T-002-final-video.md)
+Update the architectural presentation (PowerPoint/slides) so that:
+1. Close all 6 gaps from the triage report
+2. Display the **real built architecture** (not just the concept)
+3. Explicitly declare **Track A**
+4. To be ready as a slide for the final video [T-002](./T-002-final-video.md)
 
 ---
 
-## Gaps, які закриваємо
+## Gaps that we close
 
-| Gap | Деталі | Що додаємо до презентації |
+| Gap | Details | What we add to the presentation
 |---|---|---|
-| **#1 Track** | Track A не задекларований | Явний label "Track A: GitHub + Azure + Azure AI Foundry" на титульній сторінці та архітектурній діаграмі |
-| **#2 Security** | Identity, RBAC, Key Vault, network — відсутні | Security шар: Entra ID, Key Vault, Private Endpoints/VNet, RBAC roles + **PIM JIT** (Contributor 1–4h), **Conditional Access** (MFA + geo-block), **Microsoft Defender for Cloud**, **Azure Policy** (publicNetworkAccess=Disabled, allowed regions) |
-| **#3 Reliability** | Queuing, retry, DLQ, fallback — відсутні | Service Bus між SCADA→Functions, retry/DLQ позначки, Fallback mode + **конкретні SLO**: E2E < 120s, P95 API < 500ms, DLQ=0 + **Chaos Studio** сценарії + **multi-region DR** (Cosmos geo-redundancy, AI Search replica) |
-| **#4 RAI** | Confidence thresholds, content safety, observability | RAI layer: Content Safety + Prompt Shield, Confidence Gate (три стани: NORMAL / LOW_CONFIDENCE / BLOCKED), **Evidence Verification Pass** (backend незалежно верифікує citations, verified vs unresolved), Observability + **Foundry Eval Gate** як CI/CD deployment gate |
-| **#5 UX** | Operator UI не визначений | React portal: notification bell, unread queue, approval package з editable WO/audit drafts, consistent status color language + **BLOCKED state** (порожні форми при agent fail) + **operator_agrees_with_agent** tracking |
-| **#6 IaC** | Немає deployment layer | GitHub Actions CI/CD + IaC (Bicep) + **Foundry Eval Gate** у deploy.yml (блокує promotion якщо Groundedness/F1 < baseline) |
+| **#1 Track** | Track A is not declared | Explicit label "Track A: GitHub + Azure + Azure AI Foundry" on the title page and architecture diagram |
+| **#2 Security** | Identity, RBAC, Key Vault, network — absent | Security layer: Entra ID, Key Vault, Private Endpoints/VNet, RBAC roles + **PIM JIT** (Contributor 1–4h), **Conditional Access** (MFA + geo-block), **Microsoft Defender for Cloud**, **Azure Policy** (publicNetworkAccess=Disabled, allowed regions) |
+| **#3 Reliability** | Queuing, retry, DLQ, fallback — absent | Service Bus between SCADA→Functions, retry/DLQ marks, Fallback mode + **specific SLOs**: E2E < 120s, P95 API < 500ms, DLQ=0 + **Chaos Studio** scenarios + **multi-region DR** (Cosmos geo-redundancy, AI Search replica) |
+| **#4 RAI** | Confidence thresholds, content safety, observability | RAI layer: Content Safety + Prompt Shield, Confidence Gate (three states: NORMAL / LOW_CONFIDENCE / BLOCKED), **Evidence Verification Pass** (backend independently verifies citations, verified vs unresolved), Observability + **Foundry Eval Gate** as CI/CD deployment gate |
+| **#5 UX** | Operator UI is not defined | React portal: notification bell, unread queue, approval package with editable WO/audit drafts, consistent status color language + **BLOCKED state** (empty forms when agent fails) + **operator_agrees_with_agent** tracking |
+| **#6 IaC** | There is no deployment layer | GitHub Actions CI/CD + IaC (Bicep) + **Foundry Eval Gate** in deploy.yml (blocks promotion if Groundedness/F1 < baseline) |
 
-> Деталі кожного gap → [03 · Аналіз](../03-analysis.md#5-топ-6-gaps-для-виправлення)
+> Details of each gap → [03 · Analysis](../03-analysis.md#5-top-6-gaps-for-correction)
 
 ---
 
-## Структура оновленої презентації
+## The structure of the updated presentation
 
-### Слайд 1: Title
+### Slide 1: Title
 ```
 Deviation Management & CAPA in GMP Manufacturing
 Operations Assistant — Sentinel Intelligence
 Track A: GitHub + Azure + Azure AI Foundry
 ```
 
-### Слайд 2: Problem Statement
-- AS-IS процес (30–60 хв, manual, ризики)
-- KPI targets (< 5 хв, auto-drafted, GMP compliant)
+### Slide 2: Problem Statement
+- AS-IS process (30–60 min, manual, risks)
+- KPI targets (< 5 min, auto-drafted, GMP compliant)
 
-### Слайд 3: Solution Overview
+### Slide 3: Solution Overview
 - High-level flow: Detect → Context → Agents → Approve → Execute
 - Stakeholders
 
-### Слайд 4: Architecture Diagram (головний)
-Оновлена діаграма з усіма шарами:
+### Slide 4: Architecture Diagram (main)
+Updated chart with all layers:
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  GITHUB + CI/CD (Track A)                               │  ← новий
+│ GITHUB + CI/CD (Track A) │ ← new
 │  GitHub Actions: ci.yml | deploy.yml | load-test.yml    │
 │  IaC: Bicep modules | Foundry Eval Gate (blocks deploy) │
 └─────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────┐
-│  SECURITY LAYER                                         │  ← новий
+│ SECURITY LAYER │ ← new
 │  Entra ID (MSAL, App Roles) | Key Vault (90-day rot.)   │
 │  VNet + Private Endpoints | Managed Identity            │
 │  PIM JIT (1–4h Contributor) | Conditional Access (MFA)  │
 │  Microsoft Defender for Cloud | Azure Policy            │
 └─────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────┐
-│  RELIABILITY LAYER                                      │  ← новий
+│ RELIABILITY LAYER │ ← new
 │  Service Bus DLQ | Durable retry (3×, exponential)      │
 │  Fallback/degraded mode | Circuit breaker               │
 │  SLO: E2E <120s | P95 API <500ms | DLQ=0               │
@@ -78,14 +78,14 @@ Track A: GitHub + Azure + Azure AI Foundry
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
-│  LEVEL 1 — Durable Functions (Workflow Orchestrator)    │  ← двохрівнева оркестрація
+│ LEVEL 1 — Durable Functions (Workflow Orchestrator) │ ← two-level orchestration
 │  create_incident → enrich_context → run_foundry_agents  │
 │  ⏸ waitForExternalEvent("operator_decision") / 24h timer│
 │  approved → run_execution_agent | rejected → close      │
 │  more_info → re-run (max MAX_MORE_INFO_ROUNDS)          │
 └─────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────┐
-│  LEVEL 2 — Azure AI Foundry (AI Orchestrator)           │  ← двохрівнева оркестрація
+│ LEVEL 2 — Azure AI Foundry (AI Orchestrator) │ ← two-level orchestration
 │  Orchestrator Agent                                     │
 │   ├─ Research Agent (RAG ×5 + MCP sentinel-db)         │
 │   └─ Document Agent (confidence gate 0.7 + ev.verify)  │
@@ -101,14 +101,14 @@ Track A: GitHub + Azure + Azure AI Foundry
 └─────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────┐
-│  RAI + OBSERVABILITY LAYER                              │  ← новий
+│ RAI + OBSERVABILITY LAYER │ ← new
 │  Content Safety + Prompt Shield | Confidence Gate       │
 │  NORMAL / LOW_CONFIDENCE / BLOCKED states               │
 │  Evidence Verification Pass (verified vs unresolved)    │
 │  App Insights FOUNDRY_PROMPT_TRACE | Foundry Eval Gate  │
 └─────────────────────────────────────────────────────────┘
 ┌─────────────────────────────────────────────────────────┐
-│  OPERATOR UX (React + Azure Static Web Apps)            │  ← новий
+│ OPERATOR UX (React + Azure Static Web Apps) │ ← new
 │  Notification bell | Unread queue | Decision package    │
 │  Editable WO/audit drafts | BLOCKED: manual fill        │
 │  [Approve] [Reject] [More info] | SignalR real-time      │
@@ -116,99 +116,99 @@ Track A: GitHub + Azure + Azure AI Foundry
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Слайд 5: Data Sources & Integrations
+### Slide 5: Data Sources & Integrations
 - SCADA, MES, BPR, SOP, CMMS, QMS
 
-### Слайд 6: KPI Impact
+### Slide 6: KPI Impact
 - Before/After table
 
 ---
 
 ---
 
-## 📋 Нотатки: Структурована презентація по шарах
+## 📋 Notes: Structured presentation in layers
 
-Ідея — показати додаток не тільки як "ось схема", а провести аудиторію через **6 шарів**, кожен з яких відповідає на своє питання.
-
----
-
-### Шар 0: Infrastructure / Deployment Topology
-*«Що і де крутиться?»*
-
-- Показати що в Azure, що можна тримати локально (наприклад MCP сервери як sidecar або локальний Docker)
-- Назвати це **Deployment Topology** або **Infrastructure Overview**
-- Ключові компоненти: Azure Functions, Cosmos DB, AI Search, Service Bus, Azure AI Foundry, Static Web App, SignalR
-- Позначити межу cloud/on-premise якщо є (SCADA, MES зазвичай локально, агенти — cloud)
+The idea is to show the application not only as "here's a diagram", but to guide the audience through **6 layers**, each of which answers its own question.
 
 ---
 
-### Шар 1: Functional Layer
-*«Як це працює і навіщо?»*
+### Layer 0: Infrastructure / Deployment Topology
+*"What and where is spinning?"*
 
-- Провести через end-to-end flow: Сенсор → Alert → Оркестратор → Агенти → Approval → Execution
-- Пояснити **чому** Durable Orchestrator (stateful, retry, long-running), **чому** окремі агенти (Research / Document / Execution), чому Human-in-the-loop
-- Показати що система ВИРІШУЄ: час реакції з 30–60 хв → < 5 хв, GMP-compliant документи, аудит кожного кроку
-- Показати "провали" без системи (ручна координація, помилки в документах, пропущені SLA)
-- **Innovation differentiator** — це не chatbot і не anomaly detector. Це перший клас рішень: **multi-agent regulated workflow**, де кожен агент має свою відповідальність (Research грундує, Document синтезує, Execution виконує), а MCP сервери є pluggable compliance layer. Організація може підключити свій CMMS або QMS без зміни жодного рядка agent-логіки. Нового класу рішення для GMP-regulated галузей
+- Show what is in Azure that can be kept locally (for example, MCP servers as a sidecar or local Docker)
+- Call it **Deployment Topology** or **Infrastructure Overview**
+- Key components: Azure Functions, Cosmos DB, AI Search, Service Bus, Azure AI Foundry, Static Web App, SignalR
+- Mark the cloud/on-premise boundary if there is one (SCADA, MES usually locally, agents — cloud)
+
+---
+
+### Layer 1: Functional Layer
+*"How does it work and why?"*
+
+- Go through the end-to-end flow: Sensor → Alert → Orchestrator → Agents → Approval → Execution
+- Explain **why** Durable Orchestrator (stateful, retry, long-running), **why** individual agents (Research / Document / Execution), why Human-in-the-loop
+- Show that the system DECIDES: reaction time from 30–60 min → < 5 min, GMP-compliant documents, audit of each step
+- Show "failures" without a system (manual coordination, errors in documents, missed SLAs)
+- **Innovation differentiator** is neither a chatbot nor an anomaly detector. This is the first class of solutions: **multi-agent regulated workflow**, where each agent has its responsibility (Research grounds, Document synthesizes, Execution performs), and MCP servers are a pluggable compliance layer. An organization can connect its CMMS or QMS without changing a single line of agent logic. A new class of solutions for GMP-regulated industries
 
 > 📌 Slide pitch: *"Not a chatbot. Not an anomaly detector. A multi-agent regulated workflow — built for GMP from the ground up."*
 
 ---
 
-### Шар 2: Security Layer
-*«Як ми захищаємо дані і доступи?»*
+### Layer 2: Security Layer
+*"How do we protect data and access?"*
 
-- **Entra ID** — аутентифікація і авторизація скрізь: frontend, API, агенти, MCP сервери
-- **RBAC** — оператор бачить тільки свої incidents, менеджер — зведення, аудитор — логи. Жодних зайвих даних
-- **Нема прямого доступу до БД і документів** — тільки через API/MCP шар. Це ключовий design decision:
-  - Агент не може "зробити SQL injection" або "злити весь Cosmos"
-  - Ми контролюємо кожен запит: що запитує, скільки, в яких межах
-  - Можна обмежити, логувати, блокувати підозрілу активність навіть від AI
-- **Key Vault** — всі ключі, connection strings, secrets на сервері. Людина не має до них доступу, frontend взагалі нічого не знає про backend credentials. **90-day rotation policy** + Event Grid trigger → auto-notification IT Admin
-- **Managed Identity** — сервіси Azure спілкуються між собою без паролів у коді
-- **Private Endpoints / VNet** — Cosmos DB, Service Bus, AI Search не виставлені в публічний internet; трафік йде по внутрішній мережі Azure. `publicNetworkAccess = Disabled` після PE активації
-- **Azure PIM (Privileged Identity Management)** — JIT-eligible Contributor для IT Admin: активація на 1–4h з justification, після чого доступ автоматично знімається. Постійно active: оператор, аудитор (read-only). Навіть IT Admin не має постійного privileged доступу — отримує його лише коли потрібно і залишає повний audit trail
-- **Conditional Access (Entra P2)** — MFA обов'язковий для всіх; блокування non-EU countries (GMP pharma compliance); require compliant device для IT Admin
-- **Microsoft Defender for Cloud** — threat protection для App Service, Key Vault, Cosmos DB, Storage. Автоматичне виявлення аномальної поведінки
-- **Azure Policy** enforcement — `publicNetworkAccess = Disabled` обов'язковий на всіх PaaS-ресурсах, allowed regions enforced. Будь-яке відхилення блокується автоматично
-- **Encryption** — дані зашифровані at rest (Cosmos DB, Blob) та in transit (TLS 1.2+); ключі в Key Vault
-- **Data classification & retention** — SOP/BPR документи мають окремий клас доступу; audit logs — immutable retention policy для відповідності 21 CFR Part 11
+- **Entra ID** — authentication and authorization everywhere: frontend, API, agents, MCP servers
+- **RBAC** — the operator sees only his incidents, the manager — summary, the auditor — logs. No extra data
+- **No direct access to DB and documents** — only via API/MCP layer. This is a key design decision:
+- Agent cannot "do SQL injection" or "flush all Cosmos"
+- We monitor every request: who is asking, how much, within what limits
+- You can limit, log, block suspicious activity even from AI
+- **Key Vault** — all keys, connection strings, secrets on the server. A person does not have access to them, the frontend does not know anything about backend credentials at all. **90-day rotation policy** + Event Grid trigger → auto-notification IT Admin
+- **Managed Identity** — Azure services communicate with each other without passwords in the code
+- **Private Endpoints / VNet** — Cosmos DB, Service Bus, AI Search are not exposed to the public internet; traffic goes through Azure's internal network. `publicNetworkAccess = Disabled` after PE activation
+- **Azure PIM (Privileged Identity Management)** — JIT-eligible Contributor for IT Admin: activation for 1–4h with justification, after which access is automatically withdrawn. Constantly active: operator, auditor (read-only). Even the IT Admin does not have permanent privileged access — he gets it only when needed and leaves a full audit trail
+- **Conditional Access (Entra P2)** — MFA is mandatory for everyone; blocking of non-EU countries (GMP pharma compliance); require compliant device for IT Admin
+- **Microsoft Defender for Cloud** — threat protection for App Service, Key Vault, Cosmos DB, Storage. Automatic detection of abnormal behavior
+- **Azure Policy** enforcement — `publicNetworkAccess = Disabled` is mandatory on all PaaS resources, allowed regions enforced. Any deviation is blocked automatically
+- **Encryption** — data is encrypted at rest (Cosmos DB, Blob) and in transit (TLS 1.2+); keys in Key Vault
+- **Data classification & retention** — SOP/BPR documents have a separate access class; audit logs — immutable retention policy for compliance with 21 CFR Part 11
 
 > 📌 Slide pitch: *"Security isn't an afterthought — it's structural. Every layer enforces it."*
 
 ---
 
-### Шар 3: Integration Layer
-*«Як ми підключаємось до зовнішніх систем?»*
+### Layer 3: Integration Layer
+*"How do we connect to external systems?"*
 
-- **MCP сервери** — кожна інтеграція (CMMS, QMS, Sentinel DB, AI Search) це окремий маленький сервер
-  - Аргумент: організація може замінити СВІЙ CMMS не чіпаючи логіку агентів
-  - Аргумент: новий data source = новий MCP сервер, решта не змінюється
-  - Назвати це **"pluggable integration layer"**
-- **RAG vs MCP — дві різні access patterns (architectural maturity):**
-  - **RAG** (Azure AI Search, HNSW vector + semantic ranker) — для документальних знань: SOPs, BPR product specs (NOR/CPP ranges), GMP policies, Maintenance manuals, Historical incidents. Знання рідко змінюється, потребує semantic similarity, потребує чанкінгу і embedding. Індекси: `idx-bpr-documents`, `idx-maintenance-docs`, `idx-incident-history`
-  - **MCP** — для operational data: equipment parameters (PAR — validated values), active incident records, QMS/CMMS records, real-time batch status. Дані структуровані, змінюються часто, потребують точного lookup. MCP дає агенту read/write доступ з повним контролем
-  - **Висновок:** система відповідає «знаймо» і «знайди» різними механізмами залежно від типу знань — це не overengineering, це правильна архітектурна рішення
-- **Azure AI Foundry** — дозволяє перенастроїти агента під конкретну організацію через system prompt або tool configuration, без зміни коду
-- Реюзабільність: той самий orchestrator + agents framework може бути задеплоєний для іншої галузі (інші MCP сервери, інші prompts — той самий pipeline)
-- **MVP scope — обмежений лише даними:** але це **production-ready система** у всьому іншому. Щоб масштабувати — потрібно тільки підключити нові легкі MCP сервери для доступу до нових даних (новий CMMS, новий QMS, нові SOP в AI Search індекс). Жодних змін в агентах, оркестраторі чи CI/CD pipeline. Архітектура **не змінюється**. Це "Build–Scale–Reuse" за дизайном
+- **MCP servers** — each integration (CMMS, QMS, Sentinel DB, AI Search) is a separate small server
+- Argument: an organization can replace ITS CMMS without affecting the agent logic
+- Argument: new data source = new MCP server, the rest does not change
+- Call it **"pluggable integration layer"**
+- **RAG vs MCP — two different access patterns (architectural maturity):**
+- **RAG** ​​(Azure AI Search, HNSW vector + semantic ranker) — for documentary knowledge: SOPs, BPR product specs (NOR/CPP ranges), GMP policies, Maintenance manuals, Historical incidents. Knowledge rarely changes, needs semantic similarity, needs chunking and embedding. Indexes: `idx-bpr-documents`, `idx-maintenance-docs`, `idx-incident-history`
+- **MCP** — for operational data: equipment parameters (PAR — validated values), active incident records, QMS/CMMS records, real-time batch status. The data is structured, changes frequently, and requires accurate lookup. MCP gives the agent read/write access with full control
+- **Conclusion:** the system responds to "know" and "find" with different mechanisms depending on the type of knowledge - this is not overengineering, this is the correct architectural solution
+- **Azure AI Foundry** — allows you to reconfigure the agent for a specific organization through the system prompt or tool configuration, without changing the code
+- Reusability: the same orchestrator + agents framework can be deployed for another industry (other MCP servers, other prompts — the same pipeline)
+- **MVP scope is limited to data only:** but it is a **production-ready system** in everything else. To scale, you only need to connect new lightweight MCP servers to access new data (new CMMS, new QMS, new SOPs in AI Search index). No changes to agents, orchestrator or CI/CD pipeline. The architecture **does not change**. It is "Build–Scale–Reuse" by design
 
 > 📌 Slide pitch: *"The process is universal. The integrations are configurable."*
 
 ---
 
-### Шар 4: Reliability Layer
-*«Що станеться якщо щось піде не так?»*
+### Layer 4: Reliability Layer
+*"What happens if something goes wrong?"*
 
-- **Service Bus черги** — SCADA і зовнішні системи скидають алерти в чергу і звільняються. Ніхто не чекає і не блокується. Ми обробляємо інциденти у своєму темпі, навіть якщо прийшла хвиля алертів одночасно
-- **Durable Functions** — оркестрація stateful за дизайном. Human-in-the-loop approval може чекати годинами або навіть кілька діб — функція «спить» і прокидається коли людина відповіла. Немає жодних таймаутів HTTP-запиту або ліміту чату. **3× retry з exponential backoff** на кожному activity step
-- **Ескалація** — якщо оператор не підтвердив у відведений час, система автоматично ескалює до наступного рівня (менеджер, і далі). Дедлайн не буде мовчки пропущений
-- **Push-нотифікації** — SignalR доставляє оновлення статусу у реальному часі. Відповідні люди бачать нову задачу одразу, без polling і без «а я не помітив email»
-- **Dead Letter Queue** — якщо обробка провалилась після всіх retry, повідомлення не губиться, а потрапляє в DLQ з повним контекстом для діагностики та ручного перезапуску. **DLQ depth = 0** як operational SLO, Azure Monitor Alert при порушенні
-- **Circuit breaker** — якщо external service (QMS/CMMS) повертає 5xx 3+ рази поспіль, circuit breaker відкривається на 60s; наступні виклики fail-fast без черги. Захист від cascading failures
-- **Конкретні SLO:**
+- **Service Bus queues** — SCADA and external systems drop alerts into the queue and release. No one is waiting or blocked. We process incidents at our own pace, even if a wave of alerts comes in at the same time
+- **Durable Functions** — stateful orchestration by design. Human-in-the-loop approval can wait for hours or even several days - the function "sleeps" and wakes up when a person has responded. There are no HTTP request timeouts or chat limits. **3× retry with exponential backoff** at each activity step
+- **Escalation** — if the operator has not confirmed within the allotted time, the system automatically escalates to the next level (manager, etc.). The deadline will not be passed silently
+- **Push Notifications** - SignalR delivers real-time status updates. Relevant people see the new task immediately, without polling and without "I didn't notice the email"
+- **Dead Letter Queue** — if processing fails after all retries, the message is not lost, but goes into the DLQ with full context for diagnosis and manual restart. **DLQ depth = 0** as operational SLO, Azure Monitor Alert when violated
+- **Circuit breaker** — if the external service (QMS/CMMS) returns 5xx 3+ times in a row, the circuit breaker opens for 60s; subsequent fail-fast calls without a queue. Protection against cascading failures
+- **Specific SLOs:**
 
-  | Метрика | Target |
+| Metric | Target |
   |---|---|
   | E2E (SCADA alert → decision package ready) | < 120s |
   | P95 API read (incidents list, GET) | < 500ms |
@@ -216,161 +216,161 @@ Track A: GitHub + Azure + Azure AI Foundry
   | Foundry agent timeout | 90s (hard limit) |
   | SignalR delivery latency | < 2s |
 
-- **Chaos Studio** — щомісячні fault injection сценарії: Foundry 429 (rate limit), Service Bus outage, Cosmos DB throttling. Підтверджує реальну behavior в production-like умовах, не тільки unit tests
-- **Multi-region DR** — Cosmos DB з geo-redundancy (Sweden Central primary + North Europe secondary), AI Search replica. RPO < 1h, RTO < 4h. Якщо primary region down — failover автоматичний. Це не buzzword, це конкретна Cosmos DB configuration зі switchover policy
-- **Model timeout handling** — якщо виклик Foundry agent не повернув відповідь за timeout window, Durable orchestrator перехоплює exception, логує timeout event і переводить incident у manual review без краша всього workflow
-- **Token budgets / Cost controls** — кожен incident має обмежений token budget; gpt-4o-mini для Research (збір фактів), gpt-4o для Document (синтез і draft). Pay-per-execution: немає алертів — нема витрат. Вартість одного incident логується (`incident_total_tokens`, `incident_cost_usd`)
-- **Degraded / manual-only mode** — якщо AI pipeline недоступний (Foundry rate limit, AI Search down, мережева партиція), система переходить у degraded mode: оператор отримує SignalR notification про degraded стан, incident відкривається з порожнім decision package для ручного заповнення. Жодних втрат інцидентів
+- **Chaos Studio** — monthly fault injection scenarios: Foundry 429 (rate limit), Service Bus outage, Cosmos DB throttling. Confirms real behavior in production-like conditions, not only unit tests
+- **Multi-region DR** — Cosmos DB with geo-redundancy (Sweden Central primary + North Europe secondary), AI Search replica. RPO < 1h, RTO < 4h. If the primary region is down, failover is automatic. This is not a buzzword, this is a specific Cosmos DB configuration with a switchover policy
+- **Model timeout handling** — if the Foundry agent call did not return a response after the timeout window, the Durable orchestrator catches the exception, logs the timeout event and transfers the incident to manual review without crashing the entire workflow
+- **Token budgets / Cost controls** — each incident has a limited token budget; gpt-4o-mini for Research (fact collection), gpt-4o for Document (synthesis and draft). Pay-per-execution: no alerts - no costs. The cost of one incident is logged (`incident_total_tokens`, `incident_cost_usd`)
+- **Degraded / manual-only mode** — if the AI ​​pipeline is unavailable (Foundry rate limit, AI Search down, network partition), the system goes into degraded mode: the operator receives a SignalR notification about the degraded state, the incident is opened with an empty decision package for manual filling. No loss incidents
 
 > 📌 Slide pitch: *"The system doesn't fail silently. It queues, retries, escalates — and always tells someone."*
 
 ---
 
-### Шар 5: Audit & Compliance Layer
-*«Хто що робив і коли?»*
+### Layer 5: Audit & Compliance Layer
+*"Who did what and when?"*
 
-- Кожна дія агента, кожен approval, кожна зміна статусу — логується в Cosmos DB з timestamp і user identity
-- **Audit pages** — окремі views:
-  - **Internal IT / Admin** — налаштування системи, перегляд конфігів, управління ролями
-  - **Internal Audit** — повний trail по інциденту: від alert до виконаної CAPA, хто підтвердив, які документи
-  - **External Audit / Regulatory** — read-only view для GMP інспекторів: immutable logs, signed approvals
-- Зовнішній аудитор не має доступу до операційних даних — тільки до audit trail
-- **One-click CSV export** — аудитор вивантажує повний список інцидентів у CSV одним кліком для inspection-readiness review та офлайн аналізу. Нульових запитів до IT під час інспекції
-- Це дозволяє **пройти 21 CFR Part 11 / GMP інспекцію** без "а покажіть нам базу даних"
-
----
-
-### Шар 6: Observability & Ops Layer
-*«Як ми знаємо що система здорова?»*
-
-- **Azure Monitor + Application Insights** — latency, error rates, agent execution times, кількість ескалацій
-- **Health dashboards** для внутрішньої IT команди — видно де черга росте, де агент повільний
-- **Alerting** — якщо агент не відповів за N секунд → автоматичний fallback до мануального процесу
-- **Distributed tracing** — кожен інцидент має correlation ID, можна відстежити весь шлях від alert до закриття
-- **Agent telemetry by incident (Admin view)** — окрема сторінка для IT Admin/QA: хронологія викликів agent -> sub-agent -> tools по конкретному incident (run IDs, duration, retries, помилки, токени, estimated cost). Це критично для tuning prompt/tool конфігурації та пост-мортем аналізу
-- **Model lifecycle / Foundry Evaluation** — evaluation pipeline в GitHub Actions запускає Foundry eval після кожного deploy: перевіряє якість відповідей агентів на тестових інцидентах і порівнює з baseline. Якщо eval score знижується — deploy блокується. Versioning і rollback агентів — через Foundry governed deployment. Жодних «тихих» деградацій моделі у production
+- Every action of the agent, every approval, every status change is logged in Cosmos DB with timestamp and user identity
+- **Audit pages** — separate views:
+- **Internal IT / Admin** — system settings, configuration viewing, role management
+- **Internal Audit** — complete incident trail: from alert to completed CAPA, who confirmed which documents
+- **External Audit / Regulatory** — read-only view for GMP inspectors: immutable logs, signed approvals
+- The external auditor does not have access to operational data — only to the audit trail
+- **One-click CSV export** — the auditor downloads a complete list of incidents to CSV with one click for inspection-readiness review and offline analysis. Zero requests to IT during the inspection
+- This allows you to **pass 21 CFR Part 11 / GMP inspection** without "show us the database"
 
 ---
 
-### Шар 7: Responsible AI Layer
-*«Як ми контролюємо поведінку AI і не даємо йому вигадувати?»*
+### Layer 6: Observability & Ops Layer
+*"How do we know that the system is healthy?"*
 
-> Це окремий scoring dimension в оцінці — **AI Fit (10 балів)**. Повинен бути явний, не закопаний в інші шари.
+- **Azure Monitor + Application Insights** — latency, error rates, agent execution times, number of escalations
+- **Health dashboards** for the internal IT team — you can see where the queue is growing, where the agent is slow
+- **Alerting** — if the agent did not respond in N seconds → automatic fallback to the manual process
+- **Distributed tracing** — each incident has a correlation ID, you can track the entire path from alert to closure
+- **Agent telemetry by incident (Admin view)** — a separate page for IT Admin/QA: chronology of agent -> sub-agent -> tools calls for a specific incident (run IDs, duration, retries, errors, tokens, estimated cost). This is critical for tuning prompt/tool ​​configuration and post-mortem analysis
+- **Model lifecycle / Foundry Evaluation** — the evaluation pipeline in GitHub Actions runs Foundry eval after each deploy: checks the quality of agent responses to test incidents and compares them to the baseline. If the eval score decreases, deploy is blocked. Versioning and rollback of agents — through Foundry governed deployment. No "quiet" model degradations in production
 
-- **Confidence gate — три чіткі стани:**
-  - `NORMAL` (score ≥ 0.7) — рекомендація показується повністю, оператор вирішує
-  - `LOW_CONFIDENCE` (0.4 ≤ score < 0.7) — **банер попередження** + обов'язковий коментар від оператора + можливість запросити "More Info". **Оператор ЗАВЖДИ вирішує сам** — LOW_CONFIDENCE не означає автоматичну ескалацію. Ескалація відбувається ТІЛЬКИ по `HITL_TIMEOUT_HOURS` таймауту (24h), якщо жодного рішення не прийнято
-  - `BLOCKED` (score < 0.4 або AI pipeline failed) — AI pipeline не відпрацював; оператор отримує **порожній decision package** для ручного заповнення + явний banner "AI unavailable". Graceful degradation — incident не губиться
-  - Це не просто "show/hide button" — це explicit RAI policy із зрозумілою семантикою для регуляторного mid у GxP контексті
-- **Evidence Verification Pass** — після Document Agent завершує draft, backend **незалежно** верифікує кожне посилання проти AI Search (не довіряє agent-генерованим citations сліпо):
-  - Кожен citation отримує статус: `verified` (знайдено в індексі, текст збігається) або `unresolved` (не підтверджено)
-  - Decision package показує ці два списки **окремо** — оператор одразу бачить що є фактом, що потребує QA review
-  - Це сильний RAI differentiator: AI не може видати непідтверджене посилання як верифіковане
-- **Evidence gating** — кожна рекомендація в decision package має посилання на конкретний SOP/BPR документ та конкретний параметр. Якщо джерела нема — рекомендація блокується
-- **Hallucination controls** — RAG over validated documents (AI Search); агент відповідає тільки на основі верифікованих SOP/CAPA, не "з голови"
-- **Prompt injection defense** — вхідний текст від SCADA/MES проходить валідацію та санітизацію; Content Safety API фільтрує шкідливий або маніпулятивний контент
-- **Content Safety + Prompt Shield** — Azure AI Content Safety перевіряє вхід і вихід агентів; блокує аномальні запити та prompt injection спроби
-- **Human-in-the-loop як RAI механізм** — не просто зручність, а вимога для GxP: AI пропонує, людина вирішує і бере відповідальність. Кожне рішення підписане конкретною людиною
-- **Foundry Eval Gate (CI/CD deployment blocker)** — у `deploy.yml` GitHub Actions є явний eval step: якщо Groundedness score або F1 падає нижче baseline → promotion заблоковано. Це не observability detail — це production safeguard, що захищає від regression у якості AI між deployments
-- **Agent observability** — всі виклики агентів трасуються в App Insights (`FOUNDRY_PROMPT_TRACE` custom event): який prompt, яка модель, яка відповідь, скільки токенів, confidence score. Пост-фактум аналіз можливий
-- **Pipeline exception contract** — визначені явні exception шляхи: якщо Research Agent повертає порожній результат → Document Agent отримує `no_grounding` стан і блокує рекомендацію; якщо confidence gate fails → incident переходить у `needs_review` замість автоматичного approve. Кожен exception логується і трасується
+---
+
+### Layer 7: Responsible AI Layer
+*"How do we control AI behavior and prevent it from inventing?"*
+
+> This is a separate scoring dimension in the assessment — **AI Fit (10 points)**. Must be clear, not buried in other layers.
+
+- **Confidence gate — three clear states:**
+- `NORMAL` (score ≥ 0.7) — the recommendation is displayed in full, the operator decides
+- `LOW_CONFIDENCE` (0.4 ≤ score < 0.7) — **warning banner** + mandatory comment from the operator + possibility to request "More Info". **Operator ALWAYS decides for himself** - LOW_CONFIDENCE does not mean automatic escalation. Escalation occurs ONLY after the `HITL_TIMEOUT_HOURS` timeout (24h), if no decision is made
+- `BLOCKED` (score < 0.4 or AI pipeline failed) — AI pipeline failed; the operator receives an **empty decision package** for manual filling + an explicit "AI unavailable" banner. Graceful degradation — the incident is not lost
+- This is not just a "show/hide button" — it is an explicit RAI policy with clear semantics for the regulatory mid in the GxP context
+- **Evidence Verification Pass** — after the Document Agent completes the draft, the backend **independently** verifies each citation against AI Search (does not trust agent-generated citations blindly):
+- Each citation receives the status: `verified` (found in the index, the text matches) or `unresolved` (not confirmed)
+- Decision package shows these two lists **separately** — the operator immediately sees what is a fact that needs QA review
+- This is a strong RAI differentiator: AI cannot pass an unverified link as a verified one
+- **Evidence gating** — each recommendation in the decision package has a link to a specific SOP/BPR document and a specific parameter. If there is no source, the recommendation is blocked
+- **Hallucination controls** — RAG over validated documents (AI Search); agent responds only based on verified SOP/CAPA, not "off the top of my head"
+- **Prompt injection defense** — input text from SCADA/MES undergoes validation and sanitization; The Content Safety API filters malicious or manipulative content
+- **Content Safety + Prompt Shield** — Azure AI Content Safety checks the entry and exit of agents; blocks abnormal requests and prompt injection attempts
+- **Human-in-the-loop as a RAI mechanism** is not just a convenience, but a requirement for GxP: AI suggests, a person decides and takes responsibility. Each decision is signed by a specific person
+- **Foundry Eval Gate (CI/CD deployment blocker)** — there is an explicit eval step in `deploy.yml` GitHub Actions: if Groundedness score or F1 falls below baseline → promotion is blocked. This is not an observability detail — it is a production safeguard that protects against regression in the quality of AI between deployments
+- **Agent observability** — all agent calls are traced in App Insights (`FOUNDRY_PROMPT_TRACE` custom event): which prompt, which model, which response, how many tokens, confidence score. Post-facto analysis is possible
+- **Pipeline exception contract** — explicit exception paths are defined: if Research Agent returns an empty result → Document Agent receives `no_grounding` status and blocks the recommendation; if confidence gate fails → the incident goes to `needs_review` instead of automatic approve. Every exception is logged and traced
 
 > 📌 Slide pitch: *"The AI suggests. The human decides. The system proves it."*
 
 ---
 
-### Шар 8: UX / Operator Experience
-*«Як виглядає це для людини?»*
+### Layer 8: UX / Operator Experience
+*"What does it look like for a person?"*
 
-> **UX Simplicity (10 балів)** — окремий scoring dimension. Потрібно показати конкретний UI, не wireframe.
+> **UX Simplicity (10 points)** is a separate scoring dimension. You need to show a specific UI, not a wireframe.
 
-- **Operator dashboard** — список активних incidents з пріоритетами, статусами, таймерами ескалації. Один клік → деталі
-- **Decision package** — на екрані approval оператор бачить: що сталося, які дані з SCADA, яке обладнання, що рекомендує AI і З ЯКИХ документів (з посиланнями), confidence score, попередня CAPA по схожих кейсах
-- **BLOCKED state (graceful degradation)** — якщо AI pipeline failed (score < 0.4, Foundry unavailable тощо), оператор отримує **порожній decision package** з явним banner "AI pipeline unavailable". Форми WO/audit entry відкриті для **ручного заповнення**. Incident не губиться, audit trail ведеться, все зберігається в Cosmos DB як зазвичай
-- **Approval ergonomics** — [Approve] / [Reject] / [More Info] одним кліком; поле для коментаря (обов'язкове при LOW_CONFIDENCE); підпис фіксується автоматично через Entra ID (хто + коли)
-- **operator_agrees_with_agent tracking** — при Approve фіксується булевий флаг `operator_agrees_with_agent`. При Reject — причина rejection зберігається і **асинхронно відправляється як сигнал зворотного зв'язку до SCADA/MES** (false positive learning loop). Це не тільки audit trail — це механізм покращення якості алертів у часі
-- **Explainability** — оператор може розгорнути "чому AI так вирішив" і побачити конкретний параметр з SOP та відхилення від golden batch. Verified vs unresolved citations показані окремо
-- **Real-time updates** — статус змінюється на екрані без перезавантаження (SignalR push); видно де зараз знаходиться кожен incident у pipeline
-- **Operator awareness** — header bell показує unread count, dropdown відкриває unread queue, а нові pending incidents підсвічуються в лівому rail навіть якщо оператор зараз на іншому екрані
-- **Consistent status color language** — одна й та сама кольорова схема для `pending_approval`, `escalated`, `approved`, `rejected`, `closed` використовується в dashboard, sidebar, manager queue, badges та status history timeline. Це зменшує cognitive load і дозволяє користувачу миттєво зчитувати стан інциденту без повторного читання тексту
-- **Role-based views** — оператор, менеджер, QA, аудитор — кожен бачить свій контекст, без зайвого шуму
-- **Command Palette (⌘K)** — швидка навігація між розділами без миші, як у VS Code або Linear. Keyboard-first UX — ознака enterprise-grade продукту
-- **Infinite scroll / one-screen UX** — всі таблиці (інциденти, історія, шаблони) без класичної пагінації: оператор бачить повний список і може швидко знайти потрібне без зайвих кліків
+- **Operator dashboard** — a list of active incidents with priorities, statuses, and escalation timers. One click → details
+- **Decision package** — on the approval screen, the operator sees: what happened, what data from SCADA, what equipment AI recommends and FROM WHICH documents (with links), confidence score, previous CAPA for similar cases
+- **BLOCKED state (graceful degradation)** — if the AI ​​pipeline failed (score < 0.4, Foundry unavailable, etc.), the operator receives an **empty decision package** with an explicit "AI pipeline unavailable" banner. WO/audit entry forms are open for **manual completion**. The incident is not lost, the audit trail is maintained, everything is stored in Cosmos DB as usual
+- **Approval ergonomics** — [Approve] / [Reject] / [More Info] with one click; comment field (required for LOW_CONFIDENCE); the signature is recorded automatically via Entra ID (who + when)
+- **operator_agrees_with_agent tracking** — when Approve, the boolean flag `operator_agrees_with_agent` is fixed. With Reject, the reason for rejection is stored and **asynchronously sent as a feedback signal to SCADA/MES** (false positive learning loop). This is not only an audit trail - it is a mechanism for improving the quality of alerts over time
+- **Explainability** — the operator can expand "why the AI ​​decided that way" and see a specific parameter from the SOP and deviations from the golden batch. Verified vs unresolved citations are shown separately
+- **Real-time updates** — the status changes on the screen without rebooting (SignalR push); you can see where each incident in the pipeline is now
+- **Operator awareness** — header bell shows unread count, dropdown opens unread queue, and new pending incidents are highlighted in the left rail even if the operator is currently on another screen
+- **Consistent status color language** — the same color scheme for `pending_approval`, `escalated`, `approved`, `rejected`, `closed` is used in dashboard, sidebar, manager queue, badges and status history timeline. This reduces the cognitive load and allows the user to instantly read the status of the incident without re-reading the text
+- **Role-based views** — operator, manager, QA, auditor — everyone sees their context, without unnecessary noise
+- **Command Palette (⌘K)** — quick navigation between sections without the mouse, like in VS Code or Linear. Keyboard-first UX is a sign of an enterprise-grade product
+- **Infinite scroll / one-screen UX** — all tables (incidents, history, templates) without classic pagination: the operator sees the full list and can quickly find what he needs without unnecessary clicks
 
 > 📌 Slide pitch: *"Every screen answers one question: what do I need to do right now, and why?"*
 
 ---
 
-### Шар 9: Business Value & KPI
-*«Навіщо це взагалі?»*
+### Layer 9: Business Value & KPI
+*"Why is this at all?"*
 
-> **Value & KPI Impact (10 балів)** — перший Use Case dimension. Краще починати або закінчувати презентацію з цього. Потрібні конкретні цифри, не просто "faster and better".
+> **Value & KPI Impact (10 points)** is the first Use Case dimension. It is better to start or end the presentation with this. We need specific numbers, not just "faster and better".
 
 - **AS-IS pain points:**
-  - Deviation виявлення: вручну під час обходу або після зміни — 30–60 хв затримка
-  - CAPA документ: 2–4 год зборки з кількох систем (SCADA prints, SOP PDF, Excel CAPA log)
-  - GMP audit prep: 2–3 дні підготовки на один інспекційний запит
-  - Людський фактор: пропущені ескалації, неправильна версія SOP, непідписаний approval
+- Deviation detection: manually during a bypass or after a change — 30–60 min delay
+- CAPA document: 2–4 hours of assembly from several systems (SCADA prints, SOP PDF, Excel CAPA log)
+- GMP audit prep: 2-3 days of preparation for one inspection request
+- Human factor: missed escalations, wrong version of SOP, unsigned approval
 
 - **TO-BE KPI targets:**
-  - Detection → Decision package ready: **< 5 хв** (зараз 30–60 хв)
-  - Manual CAPA drafting: **eliminiated** (AI генерує чернетку, людина затверджує)
-  - Audit prep: **real-time** (audit trail завжди ready, один клік)
-  - Missed escalations: **0** (автоматична ескалація + push notifications)
+- Detection → Decision package ready: **< 5 min** (now 30–60 min)
+- Manual CAPA drafting: **eliminiated** (AI generates draft, human approves)
+- Audit prep: **real-time** (audit trail is always ready, one click)
+- Missed escalations: **0** (automatic escalation + push notifications)
 
-- **Regulated context** — це не просто ефективність. В GMP кожна затримка з CAPA = ризик регуляторного порушення, batch rejection, або recall. Система не тільки швидша — вона документально відповідна за замовчуванням
+- **Regulated context** is not just efficiency. In GMP, every delay with CAPA = risk of regulatory violation, batch rejection, or recall. Not only is the system faster, it's document compliant by default
 
 > 📌 Slide pitch: *"From 60 minutes of manual guesswork to 5 minutes of evidence-based decision — with full GMP traceability built in."*
 
 ---
 
-### Покриття scoring dimensions — фінальний стан
+### Coverage of scoring dimensions — final state
 
-| Scoring dimension | Де в нотатках | Стан |
+| Scoring dimension | Where in the notes | Condition |
 |---|---|---|
-| **Clarity & Flow** (10) | Шар 1: end-to-end flow + exception contract | ✅ Covered |
-| **Platform Fit** (10) | Шар 0: deployment topology + Track A; Шар 6: CI/CD + Bicep IaC | ✅ Covered |
-| **Data / Governance / Security** (10) | Шар 2: Entra ID, RBAC, Key Vault, VNet, encryption, 21 CFR | ✅ Covered |
-| **Reliability / Performance / Cost** (10) | Шар 4: Service Bus, retry, DLQ, SLO, token budgets, timeout, degraded mode | ✅ Covered |
-| **Scalability / Integration / Provisioning** (10) | Шар 3: MCP pluggable layer, API contracts, MVP → production scale | ✅ Covered |
-| **Value & KPI Impact** (10) | Шар 9: AS-IS/TO-BE цифри, GMP regulated context | ✅ Covered |
-| **Innovation** (10) | Шар 1: multi-agent regulated workflow differentiator | ✅ Covered |
-| **AI Fit** (10) | Шар 7: confidence gate, evidence gating, hallucination controls, RAI, pipeline exceptions | ✅ Covered |
-| **UX Simplicity** (10) | Шар 8: decision package, approval ergonomics, role-based views, Command Palette | ✅ Covered |
-| **Build–Scale–Reuse** (10) | Шар 3: MVP scope + production-ready architecture + MCP reuse | ✅ Covered |
+| **Clarity & Flow** (10) | Layer 1: end-to-end flow + exception contract | ✅ Covered |
+| **Platform Fit** (10) | Layer 0: deployment topology + Track A; Layer 6: CI/CD + Bicep IaC | ✅ Covered |
+| **Data / Governance / Security** (10) | Layer 2: Entra ID, RBAC, Key Vault, VNet, encryption, 21 CFR | ✅ Covered |
+| **Reliability / Performance / Cost** (10) | Layer 4: Service Bus, retry, DLQ, SLO, token budgets, timeout, degraded mode | ✅ Covered |
+| **Scalability / Integration / Provisioning** (10) | Layer 3: MCP pluggable layer, API contracts, MVP → production scale | ✅ Covered |
+| **Value & KPI Impact** (10) | Layer 9: AS-IS/TO-BE figures, GMP regulated context | ✅ Covered |
+| **Innovation** (10) | Layer 1: multi-agent regulated workflow differentiator | ✅ Covered |
+| **AI Fit** (10) | Layer 7: confidence gate, evidence gating, hallucination controls, RAI, pipeline exceptions | ✅ Covered |
+| **UX Simplicity** (10) | Layer 8: decision package, approval ergonomics, role-based views, Command Palette | ✅ Covered |
+| **Build–Scale–Reuse** (10) | Layer 3: MVP scope + production-ready architecture + MCP reuse | ✅ Covered |
 
 ---
 
-> 💡 **Загальний pitch для всієї презентації:**
-> *"Ми не просто автоматизували процес — ми збудували систему, яка безпечна за дизайном, надійна за замовчуванням, інтегрується без lock-in, аудитується на кожному кроці і масштабується без змін в архітектурі."*
+> 💡 **General pitch for the entire presentation:**
+> *"We didn't just automate the process — we built a system that is secure by design, reliable by default, integrates without lock-in, is audited at every step, and scales without architecture changes."*
 
 ---
 
 ## Definition of Done
 
-- [ ] Track A явно вказаний у презентації
-- [ ] Архітектурна діаграма оновлена з усіма 6 gap-виправленнями
-- [ ] **Two-level orchestration показана на Architecture Diagram** (Durable Functions Level 1 + Foundry Level 2, із чітким розподілом відповідальностей)
-- [ ] Security шар присутній (Entra ID, Key Vault, VNet, RBAC)
-- [ ] **Azure PIM (JIT)**, **Conditional Access** та **Microsoft Defender for Cloud** присутні в Security шарі
-- [ ] Reliability шар присутній (Service Bus, retry, DLQ)
-- [ ] **Конкретні SLO числа** присутні в Reliability шарі (E2E < 120s, P95 API < 500ms, DLQ = 0)
-- [ ] **Chaos Studio** та **multi-region DR** зазначені в Reliability шарі
-- [ ] RAI шар присутній (Content Safety, Confidence Gate, Monitor)
-- [ ] **LOW_CONFIDENCE behavior коректно описаний** — банер + обов'язковий коментар, оператор вирішує сам; ескалація ТІЛЬКИ по таймауту
-- [ ] **Evidence Verification Pass** присутній в RAI шарі (verified vs unresolved citations, backend-independent check)
-- [ ] **Foundry Eval Gate** показаний як CI/CD deployment blocker (у deploy.yml, блокує promotion)
-- [ ] **RAG vs MCP access pattern** описаний в Integration шарі (документальні знання → RAG; operational data → MCP)
-- [ ] **BLOCKED state** описаний в UX шарі (порожні форми при AI pipeline failure)
-- [ ] **operator_agrees_with_agent** tracking + rejection feedback loop до SCADA/MES згаданий
-- [ ] Operator UX показаний (конкретний channel)
-- [ ] GitHub + CI/CD присутні
-- [ ] Презентація схвалена командою
-- [ ] Architecture slide готовий для монтажу у [T-002](./T-002-final-video.md)
-- [ ] [02 · Архітектура](../02-architecture.md) оновлено відповідно (Changelog §9)
-- [ ] [03 · Аналіз](../03-analysis.md#9-прогрес-виправлення-gaps) — всі gaps відмічені як закриті
-- [ ] [01 · Вимоги чеклист](../01-requirements.md#10-чеклист-відповідності-живий) оновлено
+- [ ] Track A is clearly indicated in the presentation
+- [ ] Architecture diagram updated with all 6 gap fixes
+- [ ] **Two-level orchestration is shown on the Architecture Diagram** (Durable Functions Level 1 + Foundry Level 2, with a clear division of responsibilities)
+- [ ] Security layer is present (Entra ID, Key Vault, VNet, RBAC)
+- [ ] **Azure PIM (JIT)**, **Conditional Access** and **Microsoft Defender for Cloud** are present in the Security layer
+- [ ] Reliability layer present (Service Bus, retry, DLQ)
+- [ ] **Specific SLO numbers** are present in the Reliability layer (E2E < 120s, P95 API < 500ms, DLQ = 0)
+- [ ] **Chaos Studio** and **multi-region DR** are specified in the Reliability layer
+- [ ] RAI layer present (Content Safety, Confidence Gate, Monitor)
+- [ ] **LOW_CONFIDENCE behavior correctly described** — banner + mandatory comment, operator decides himself; escalation ONLY by timeout
+- [ ] **Evidence Verification Pass** is present in the RAI layer (verified vs unresolved citations, backend-independent check)
+- [ ] **Foundry Eval Gate** shown as CI/CD deployment blocker (in deploy.yml, blocks promotion)
+- [ ] **RAG vs MCP access pattern** is described in the Integration layer (documentary knowledge → RAG; operational data → MCP)
+- [ ] **BLOCKED state** is described in the UX layer (empty forms in case of AI pipeline failure)
+- [ ] **operator_agrees_with_agent** tracking + rejection feedback loop to SCADA/MES mentioned
+- [ ] Operator UX is shown (specific channel)
+- [ ] GitHub + CI/CD present
+- [ ] The presentation is approved by the team
+- [ ] Architecture slide ready for installation in [T-002](./T-002-final-video.md)
+- [ ] [02 · Architecture](../02-architecture.md) updated accordingly (Changelog §9)
+- [ ] [03 · Analysis](../03-analysis.md#9-progress-correction-gaps) — all gaps are marked as closed
+- [ ] [01 · Requirements checklist](../01-requirements.md#10-checklist-compliance-alive) updated
 
 ---
 
-← [04 · План дій](../04-action-plan.md)
+← [04 · Action Plan](../04-action-plan.md)

@@ -1,49 +1,49 @@
-# Сценарій тесту оператора для INC-2026-0049
+# Operator Test Scenario for INC-2026-0049
 
-## Мета
-Перевірити, що після запиту More Info агент:
-- відповідає людською мовою в діалозі оператора;
-- пояснює, що саме перевірив;
-- явно вказує, що змінилося (або чому не змінилося) у рекомендації.
+## Goal
+Validate that after a More Info request, the agent:
+- responds in clear human language in the operator dialog;
+- explains what it checked;
+- explicitly states what changed (or why nothing changed) in the recommendation.
 
-## Передумови
-- Інцидент створено: INC-2026-0049
-- Статус: Pending Approval
-- У правому блоці є кнопка Need More Info і форма Send question
+## Preconditions
+- Incident created: INC-2026-0049
+- Status: Pending Approval
+- The right-side panel includes the Need More Info button and Send question form
 
-## Рекомендований порядок тесту
-1. Перевірка альтернативної гіпотези (сенсор vs tubing)
-2. Перевірка batch disposition
-3. Явна перевірка, чи агент формулює зміни між раундами
+## Recommended Test Order
+1. Check an alternative hypothesis (sensor vs tubing)
+2. Re-check batch disposition
+3. Explicitly verify whether the agent explains changes between rounds
 
-## Готові тексти запитів (копіпаст)
+## Ready-to-use Request Texts
 
-### Запит 1 (альтернативна причина)
+### Request 1 (alternative cause)
 Check if the cause could be in the sensor or flowmeter calibration, rather than the tubing. If so, review the root cause and recommendation with this hypothesis in mind.
 
-### Запит 2 (перевірка вимог BPR)
+### Request 2 (BPR requirement check)
 Check if the BPR for Metformin HCl 500mg has a direct requirement to stop the line at a spray rate of 138 g/min for 35 minutes. If there is no direct requirement, adjust the recommendation to be less stringent and explain why.
 
-### Запит 3 (історичні інциденти)
-Порівняй поточний кейс з історичними інцидентами для GR-204: скільки разів подібне відхилення закривалось без заміни tubing. Якщо більшість кейсів без заміни, онови рекомендацію і обґрунтуй.
+### Request 3 (historical incidents)
+Compare the current case with historical incidents for GR-204: how many times a similar deviation was closed without tubing replacement. If most cases were closed without replacement, update the recommendation and justify it.
 
-### Запит 4 (альтернативний план дій)
-Зроби альтернативний план: що робимо, якщо огляд tubing не виявив дефектів? Онови root cause hypothesis і дай 2-3 наступні кроки з пріоритетами.
+### Request 4 (alternative action plan)
+Provide an alternative plan: what do we do if tubing inspection finds no defects? Update the root cause hypothesis and provide 2-3 next steps with priorities.
 
-### Запит 5 (перегляд batch disposition)
-Оціни batch disposition повторно: чи дійсно hold pending review обов'язковий для цього кейсу, чи можливий conditional release pending testing? Дай чіткі критерії вибору.
+### Request 5 (batch disposition re-evaluation)
+Re-evaluate the batch disposition: is hold pending review truly mandatory for this case, or is a conditional release pending testing possible? Provide clear decision criteria.
 
-### Запит 6 (контроль змін між раундами)
-Вкажи, що саме змінилося після мого запиту: recommendation, root cause, risk level або batch disposition. Якщо нічого не змінилось, поясни чому на основі evidence.
+### Request 6 (cross-round change control)
+State exactly what changed after my request: recommendation, root cause, risk level, or batch disposition. If nothing changed, explain why based on evidence.
 
-## Що вважати хорошою відповіддю агента
-- Починає з короткого пояснення, що саме перевірив за запитом оператора.
-- Дає чіткий висновок: змінив або не змінив рекомендацію.
-- Якщо не змінив: пояснює причину з посиланням на факти з наявних даних.
-- Якщо змінив: явно називає, що саме оновлено (recommendation, root cause, risk або disposition).
+## What Counts as a Good Agent Response
+- Starts with a short explanation of what it checked based on the operator request.
+- Provides a clear conclusion: recommendation changed or did not change.
+- If unchanged: explains why with facts from available data.
+- If changed: explicitly names what was updated (recommendation, root cause, risk, or disposition).
 
-## Мінімальний чек після кожного запиту
-1. У чаті з'явився новий Follow-up від агента.
-2. Текст не дублює повністю центральний блок Decision Package.
-3. Є відповідь саме на поставлене питання оператора.
-4. Є пояснення зміни або відсутності зміни рішення.
+## Minimal Check After Each Request
+1. A new agent follow-up appears in chat.
+2. The text does not fully duplicate the central Decision Package block.
+3. The response directly addresses the operator's question.
+4. The response explains either the change or no-change outcome.

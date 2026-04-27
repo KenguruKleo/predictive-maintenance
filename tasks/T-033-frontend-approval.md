@@ -1,26 +1,26 @@
 # T-033 · React Frontend — Approval UX (Decision Package + Approve/Reject/More Info)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** finals demo  
-**Залежить від:** T-032 (core frontend), T-029 (decision API), T-030 (SignalR)
-
----
-
-## Мета
-
-Operator approval flow — ключова UX частина для demo. Оператор бачить повний decision package від AI і приймає рішення.
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** finals demo
+**Depends on:** T-032 (core frontend), T-029 (decision API), T-030 (SignalR)
 
 ---
 
-## Компоненти
+## Goal
+
+Operator approval flow is a key UX part for the demo. The operator sees the complete decision package from AI and makes a decision.
+
+---
+
+## Components
 
 ```
 src/components/
   ApprovalPanel/
-    ApprovalPanel.tsx          # Головний компонент — показується якщо status=pending_approval + assigned_to=currentUser
+ApprovalPanel.tsx # Main component — shown if status=pending_approval + assigned_to=currentUser
     DecisionPackage.tsx        # AI analysis summary (risk, confidence, recommendation)
     ConfidenceMeter.tsx        # Visual confidence bar (red if < 0.7 → LOW_CONFIDENCE banner)
     WorkOrderPreview.tsx       # Pre-filled WO draft
@@ -100,19 +100,19 @@ const submitDecision = async (action: 'approved' | 'rejected' | 'more_info', rea
 };
 ```
 
-## Progress (18 квітня 2026)
+## Progress (April 18, 2026)
 
 - [x] Approval panel no longer uses sticky positioning or its own internal scroll; the whole incident page scrolls as one document
 - [x] `Ask question` is now an inline multiline textarea instead of a single-line field
 - [x] Latest recommendation card stays separate from the transcript, while operator questions and agent replies remain visible as chronological dialog bubbles
 - [x] `npm run lint` and `npm run build` pass in `frontend/`
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] Approval UX now preserves unread attention when a new update arrives on an already open incident; the operator must explicitly acknowledge it from the bell or the left incident rail
 - [x] Bell/dropdown click path still clears the unread marker for that incident, and re-clicking the same incident in the left rail now works as an explicit acknowledge action too
 
-## Progress (21 квітня 2026)
+## Progress (April 21, 2026)
 
 - [x] Approval actions are now gated by the active decision owner from `incident.workflow_state`: operators only see buttons on operator-owned reviews, QA managers only on QA-owned escalations/follow-ups, and non-owning roles stay read-only
 - [x] Read-only users still retain the decision summary / transcript surface when it exists, but the composer and approve/reject/more-info buttons are hidden unless the caller owns the active review step

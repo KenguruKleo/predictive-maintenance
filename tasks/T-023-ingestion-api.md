@@ -1,19 +1,19 @@
 # T-023 · Ingestion API (POST /api/alerts + Context Enrichment)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** T-024 (Service Bus → Durable trigger)  
-**Залежить від:** T-020 (Cosmos DB), T-022 (Service Bus)
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** T-024 (Service Bus → Durable trigger)
+**Depends on:** T-020 (Cosmos DB), T-022 (Service Bus)
 
-> **Завершено 17 квітня 2026:** `POST /api/alerts` реалізовано. Структура: `shared/` (cosmos_client, servicebus_client), `utils/` (validation, severity, id_generator), `triggers/http_ingest_alert.py`. `scripts/simulate_alerts.py` з 6 demo сценаріями.
+> **Finished 17 Apr 2026:** `POST /api/alerts` implemented. Structure: `shared/` (cosmos_client, servicebus_client), `utils/` (validation, severity, id_generator), `triggers/http_ingest_alert.py`. `scripts/simulate_alerts.py` with 6 demo scenarios.
 
 ---
 
-## Мета
+## Goal
 
-HTTP Azure Function `POST /api/alerts` — точка входу для SCADA/MES alerts. Валідує, збагачує базовим контекстом (equipment lookup), генерує `incident_id`, публікує в Service Bus.
+HTTP Azure Function `POST /api/alerts` is the entry point for SCADA/MES alerts. Validates, enriches the basic context (equipment lookup), generates `incident_id`, publishes to Service Bus.
 
 ---
 
@@ -136,10 +136,10 @@ backend/
 
 ## Definition of Done
 
-- [x] `POST /api/alerts` з валідним payload → 202, message in Service Bus queue
-- [x] `POST /api/alerts` з невалідним payload → 400 з описом помилки
-- [x] Невідомий `equipment_id` → 404
-- [x] Повторний `POST /api/alerts` з тим самим `alert_id` → 200 + existing `incident_id` (ідемпотентність)
-- [x] Prompt injection у string fields → 400 з описом
-- [x] Severity classification: minor/major/critical кейси (у `utils/severity.py`)
-- [x] `scripts/simulate_alerts.py` — 6 demo сценаріїв (local + Azure mode)
+- [x] `POST /api/alerts` with valid payload → 202, message in Service Bus queue
+- [x] `POST /api/alerts` with invalid payload → 400 with error description
+- [x] Unknown `equipment_id` → 404
+- [x] Repeated `POST /api/alerts` with the same `alert_id` → 200 + existing `incident_id` (idempotency)
+- [x] Prompt injection in string fields → 400 with description
+- [x] Severity classification: minor/major/critical cases (in `utils/severity.py`)
+- [x] `scripts/simulate_alerts.py` — 6 demo scenarios (local + Azure mode)

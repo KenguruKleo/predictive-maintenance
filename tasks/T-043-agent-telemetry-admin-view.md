@@ -1,50 +1,50 @@
 # T-043 · Agent Telemetry by Incident (Agent + Sub-agent Logs + Admin View)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** ✅ DONE  
-**Gap / Вимога:** Gap #4 (AI Observability), Gap #5 (Admin UX), Architecture scoring: Reliability / Performance / Cost
+**Priority:** 🟠 HIGH
+**Status:** ✅ DONE
+**Gap / Requirement:** Gap #4 (AI Observability), Gap #5 (Admin UX), Architecture scoring: Reliability / Performance / Cost
 
 ---
 
-## Мета
+## Goal
 
-Зробити повний audit/telemetry trail по кожному інциденту для агентів і субагентів (Foundry Connected Agents), щоб IT Admin / QA Manager могли зручно аналізувати поведінку системи, дебажити проблеми і налаштовувати prompts/tools.
+Create a full audit/telemetry trail for each incident for agents and sub-agents (Foundry Connected Agents) so that IT Admin / QA Manager can conveniently analyze system behavior, debug problems and configure prompts/tools.
 
-## Поточний перевірений стан (19 квітня 2026)
+## Current verified status (April 19, 2026)
 
-В repo вже є важлива частина foundation, але вона поки не доходить до admin frontend як окремий продуктований feature.
+There is already an important part of the foundation in the repo, but it has not yet reached the admin frontend as a separate production feature.
 
-### Що вже є
+### What is already there
 
-- `backend/activities/run_foundry_agents.py` вже пише incident-scoped `FOUNDRY_PROMPT_TRACE` записи в **App Insights**
-- доступні trace kinds:
+- `backend/activities/run_foundry_agents.py` already writes incident-scoped `FOUNDRY_PROMPT_TRACE` entries in **App Insights**
+- available trace kinds:
   - `prompt_context`
   - `orchestrator_user_prompt`
   - `thread_messages`
   - `raw_response`
   - `parsed_response`
   - `normalized_result`
-- усі ці записи вже можна шукати по `incident_id` і `round` у App Insights / Log Analytics
+- all these records can already be searched by `incident_id` and `round` in App Insights / Log Analytics
 
-### Що frontend already sees today
+### What the frontend already sees today
 
 - React incident detail already calls `GET /api/incidents/{id}/events`
-- цей endpoint читає **Cosmos `incident_events`**
-- там зберігається business timeline / transcript:
+- this endpoint reads **Cosmos `incident_events`**
+- business timeline / transcript is stored there:
   - `analysis_started`
   - `agent_response`
   - `more_info`
   - approval / rejection / escalation events
 
-### Що вже реалізовано в MVP slice
+### What is already implemented in the MVP slice
 
-- `backend/shared/agent_telemetry.py` нормалізує incident-scoped `FOUNDRY_PROMPT_TRACE` rows з App Insights через `azure-monitor-query`
-- `backend/triggers/http_agent_telemetry.py` додає `GET /api/incidents/{id}/agent-telemetry`
-- endpoint підтримує filters: `agent_name`, `status`, `round`
-- role gating на backend: `QAManager`, `ITAdmin`, `Auditor`
-- `frontend/src/pages/IncidentTelemetryPage.tsx` додає admin incident-centric telemetry page на `/telemetry`
+- `backend/shared/agent_telemetry.py` normalizes incident-scoped `FOUNDRY_PROMPT_TRACE` rows from App Insights via `azure-monitor-query`
+- `backend/triggers/http_agent_telemetry.py` adds `GET /api/incidents/{id}/agent-telemetry`
+- endpoint supports filters: `agent_name`, `status`, `round`
+- role gating on the backend: `QAManager`, `ITAdmin`, `Auditor`
+- `frontend/src/pages/IncidentTelemetryPage.tsx` adds admin incident-centric telemetry page to `/telemetry`
 - frontend already has:
   - KPI summary cards
   - timeline of normalized trace items
@@ -52,17 +52,17 @@
   - incident detail deep-link `View Telemetry`
   - sidebar + command palette navigation
 
-### Чого ще немає
+### What else is missing
 
-- структурованої `agent_telemetry` projection в `incident_events`
-- token / cost / retry metrics достатньої точності для фінального demo claim
-- guaranteed exact sub-agent run-step visibility через Foundry SDK
+- structured `agent_telemetry` projection in `incident_events`
+- token / cost / retry metrics of sufficient accuracy for the final demo claim
+- guaranteed exact sub-agent run-step visibility via Foundry SDK
 
-### Важливе обмеження
+### An important limitation
 
-Поточний `azure-ai-agents` SDK у цьому repo не дає повного connected-agents run-step API для внутрішніх Research / Document sub-agent invocations.
+The current `azure-ai-agents` SDK in this repo does not provide a full connected-agents run-step API for internal Research / Document sub-agent invocations.
 
-Отже first-pass admin view має чесно показувати **backend-visible Foundry trace**, а не обіцяти ідеально повний внутрішній call graph субагентів.
+So the first-pass admin view should honestly show **backend-visible Foundry trace**, and not promise a perfectly complete internal call graph of subagents.
 
 ---
 
@@ -70,9 +70,9 @@
 
 ### 1) Backend telemetry logging (by incident)
 
-> **Уточнення до MVP:** detailed trace source of truth already lives in App Insights. У поточному slice ми не дублюємо ці trace rows в нову store, а будуємо normalized admin delivery path до frontend.
+> **Clarification to MVP:** detailed trace source of truth already lives in App Insights. In the current slice, we do not duplicate these trace rows in a new store, but build a normalized admin delivery path to the frontend.
 
-Логувати кожен крок у `incident_events` (і паралельно в App Insights) зі спільним `incidentId` та `correlationId`:
+Log each step in `incident_events` (and in parallel in App Insights) with shared `incidentId` and `correlationId`:
 
 - `agent_run_started`
 - `subagent_run_started`
@@ -84,22 +84,22 @@
 - `tool_call_completed`
 - `tool_call_failed`
 
-Обов'язкові поля для кожного event:
+Mandatory fields for each event:
 - `incidentId`
 - `correlationId`
 - `round`
 - `agent_name` (`orchestrator`, `research`, `document`, `execution`)
-- `run_id`, `thread_id` (якщо доступні)
-- `tool_name` (якщо це tool event)
+- `run_id`, `thread_id` (if available)
+- `tool_name` (if this is a tool event)
 - `duration_ms`
 - `status`
-- `token_input`, `token_output`, `token_total` (якщо доступні)
-- `error_type`, `error_message` (для failed events)
+- `token_input`, `token_output`, `token_total` (if available)
+- `error_type`, `error_message` (for failed events)
 - `timestamp`
 
 ### Technical minimum: Cosmos event schema
 
-> Для hackathon/demo не робимо окрему telemetry collection. Пишемо в існуючий `incident_events`, але з окремим `type = "agent_telemetry"` і стабільним payload schema.
+> We do not make a separate telemetry collection for the hackathon/demo. We write to the existing `incident_events`, but with a separate `type = "agent_telemetry"` and a stable payload schema.
 
 ```json
 {
@@ -129,10 +129,10 @@
 }
 ```
 
-**Нормалізація для існуючого коду:**
-- Пишемо і `incidentId`, і `incident_id`, бо в repo вже є змішані naming patterns
-- `action` залишається головним event discriminator, щоб reuse-нути існуючий timeline UI
-- `type = "agent_telemetry"` дозволяє відфільтрувати ці події від `more_info`, `approved`, `agent_response`
+**Normalization for existing code:**
+- We write both `incidentId` and `incident_id`, because the repo already has mixed naming patterns
+- `action` remains the main event discriminator to reuse the existing timeline UI
+- `type = "agent_telemetry"` allows you to filter these events from `more_info`, `approved`, `agent_response`
 
 ### Technical minimum: helper API in backend
 
@@ -162,18 +162,18 @@ def log_agent_telemetry(
     ...
 ```
 
-Поточний MVP already covers:
-- `backend/activities/run_foundry_agents.py` як source trace emitter
-- `backend/shared/agent_telemetry.py` як App Insights query + normalization layer
+Current MVP already covers:
+- `backend/activities/run_foundry_agents.py` as a source trace emitter
+- `backend/shared/agent_telemetry.py` as App Insights query + normalization layer
 
 Second pass:
 - `backend/activities/run_execution_agent.py`
-- wrapper навколо MCP/tool invocations (тільки completed/failed на first pass)
+- wrapper around MCP/tool ​​invocations (only completed/failed on first pass)
 - optional compact projection into `incident_events`
 
 ### 2) Admin API for incident telemetry timeline
 
-Додати endpoint для зручного перегляду логів по інциденту:
+Add an endpoint for convenient viewing of incident logs:
 
 ```
 GET /api/incidents/{incident_id}/agent-telemetry
@@ -257,7 +257,7 @@ Implemented MVP response shape:
 
 ### 3) Admin UI (incident-centric)
 
-Додати сторінку/панель для адмінів:
+Add a page/panel for admins:
 
 ```
 src/pages/IncidentTelemetryPage.tsx
@@ -266,15 +266,15 @@ src/components/Admin/AgentRunSummary.tsx
 ```
 
 Features:
-- Фільтри: `incidentId`, `agent_name`, `status`, `time range`
-- Timeline в стилі "event stream" (з кольорами success/warn/error)
-- Групування по round
-- Швидкі метрики зверху: latency, failed calls, retries, tokens, cost
+- Filters: `incidentId`, `agent_name`, `status`, `time range`
+- Timeline in "event stream" style (with success/warn/error colors)
+- Grouping by round
+- Quick metrics from above: latency, failed calls, retries, tokens, cost
 - Copy diagnostics button (incident snapshot for support)
 
 ### Technical minimum: frontend contract
 
-> Для demo не потрібен повноцінний observability portal. Достатньо однієї incident-centric сторінки в IT Admin area.
+> A full observability portal is not required for the demo. One incident-centric page in the IT Admin area is enough.
 
 ```tsx
 IncidentTelemetryPage
@@ -283,14 +283,14 @@ IncidentTelemetryPage
   IncidentTelemetryTimeline
 ```
 
-Мінімум для demo:
-- ✅ KPI strip зверху: `Trace Items`, `Completed`, `Started`, `Failed`, `Rounds`, `Duration`
-- ✅ Timeline список по timestamp
+Minimum for demo:
+- ✅ KPI strip from above: `Trace Items`, `Completed`, `Started`, `Failed`, `Rounds`, `Duration`
+- ✅ Timeline list by timestamp
 - ✅ Badges: status + content type + chunk metadata
-- ✅ Button `Copy diagnostics` копіює JSON summary + last 20 events
-- ⏳ `Retries`, `Tokens`, `Cost` лишаються second pass, коли ці метрики стабільно доступні в traces
+- ✅ Button `Copy diagnostics` copies JSON summary + last 20 events
+- ⏳ `Retries`, `Tokens`, `Cost` remain second pass when these metrics are stably available in traces
 
-Не робимо в first pass:
+We do not do in the first pass:
 - global cross-incident observability
 - charts by day/week
 - live streaming telemetry
@@ -298,11 +298,11 @@ IncidentTelemetryPage
 
 ### Demo script (30 seconds)
 
-- Відкрити incident detail або admin page
-- Перейти на telemetry tab/page
-- Показати: orchestrator стартував -> research sub-agent -> document sub-agent -> tool calls -> completed
-- Якщо був збій: показати failed row + retry + final outcome
-- Завершити меседжем: "ми бачимо не тільки результат AI, а і весь процес його формування"
+- Open incident detail or admin page
+- Go to the telemetry tab/page
+- Show: orchestrator started -> research sub-agent -> document sub-agent -> tool calls -> completed
+- If there was a failure: show failed row + retry + final outcome
+- End with the message: "we see not only the result of AI, but also the entire process of its formation"
 
 ---
 
@@ -311,14 +311,14 @@ IncidentTelemetryPage
 1. ✅ `GET /api/incidents/{id}/agent-telemetry` over App Insights traces
 2. ✅ Simple IT Admin page with summary cards + timeline
 3. ✅ Incident detail deep-link + admin navigation entry points
-4. ⏳ Persist compact projection в `incident_events` for fast UI / offline correlation
+4. ⏳ Persist compact projection in `incident_events` for fast UI / offline correlation
 5. ⏳ Add tokens/cost and tool-level events as second pass
 
 ---
 
-## Залежності
+## Dependencies
 
-- T-029 (події decision/more_info вже пишуться в incident_events)
+- T-029 (decision/more_info events are already written in incident_events)
 - T-031 (backend API surface)
 - T-034 (IT Admin views)
 - T-040 (agent observability metrics)
@@ -328,10 +328,10 @@ IncidentTelemetryPage
 ## Definition of Done
 
 - [x] App Insights traces are normalized into an incident-centric admin telemetry response
-- [x] `incident_events` містить structured telemetry projection for agent/sub-agent/tool calls (or an explicitly accepted fallback scope is documented)
-- [x] Для одного incident видно backend-visible ланцюг: start -> trace items / tool rows (коли доступні) -> completion/failure
-- [x] `GET /api/incidents/{id}/agent-telemetry` повертає timeline + aggregates
-- [x] IT Admin page показує telemetry timeline у розрізі incident
-- [x] Role gating працює (operator не бачить telemetry admin view)
-- [ ] App Insights і Cosmos events корелюються через `incidentId` + `correlationId`
-- [ ] Demo-ready: для одного incident можна за 30 секунд пояснити "що зробив агент, чому, скільки це коштувало і де збій"
+- [x] `incident_events` contains structured telemetry projection for agent/sub-agent/tool ​​calls (or an explicitly accepted fallback scope is documented)
+- [x] For one incident, the backend-visible chain is visible: start -> trace items / tool rows (when available) -> completion/failure
+- [x] `GET /api/incidents/{id}/agent-telemetry` returns timeline + aggregates
+- [x] IT Admin page shows telemetry timeline in incident section
+- [x] Role gating works (operator does not see telemetry admin view)
+- [ ] App Insights and Cosmos events are correlated via `incidentId` + `correlationId`
+- [ ] Demo-ready: for one incident, you can explain in 30 seconds "what the agent did, why, how much it cost and where the failure occurred"

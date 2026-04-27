@@ -1,21 +1,21 @@
 # T-032 · React Frontend — Core (Incident List + Detail + Status Timeline)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** T-033 (approval UX)  
-**Залежить від:** T-031 (backend API), T-035 (RBAC)
-
----
-
-## Мета
-
-React + Vite + TypeScript web app. Мінімальний working UI для demo: список інцидентів, notification bell, unread sidebar cues, toast stack, детальний вигляд, статус timeline. Deploy на Azure Static Web Apps.
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** T-033 (approval UX)
+**Depends on:** T-031 (backend API), T-035 (RBAC)
 
 ---
 
-## Структура frontend/
+## Goal
+
+React + Vite + TypeScript web app. Minimal working UI for demo: incident list, notification bell, unread sidebar cues, toast stack, detailed view, timeline status. Deploy to Azure Static Web Apps.
+
+---
+
+## Structure frontend/
 
 ```
 frontend/
@@ -29,7 +29,7 @@ frontend/
     App.tsx
     
     api/
-      client.ts              # axios instance з base URL + auth headers
+client.ts # axios instance with base URL + auth headers
       incidents.ts           # getIncidents(), getIncident(id), getIncidentEvents(id)
       equipment.ts           # getEquipment(id)
       
@@ -114,13 +114,13 @@ frontend/
 // Shows toast: "New deviation: GR-204 — Pending your approval"
 ```
 
-## Progress (18 квітня 2026)
+## Progress (April 18, 2026)
 
 - [x] Incident detail right rail now scrolls with the page instead of using a sticky/self-scrolling approval panel
 - [x] Event-driven conversation metadata (`round`, `message_kind`) is available to the incident detail transcript UI
 - [x] `npm run lint` and `npm run build` pass in `frontend/`
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] `AppShell` now owns a single shared SignalR connection and renders a visible toast stack for live updates
 - [x] Header notification bell implemented with unread badge and unread dropdown feed
@@ -134,14 +134,14 @@ frontend/
 
 ## Definition of Done
 
-- [ ] `npm run dev` запускається без помилок
-- [ ] Incident list показує 5 mock incidents з правильними бейджами
-- [ ] Clicking incident → detail view з AI analysis, parameter excursion, evidence citations
-- [ ] Event timeline показує chronological audit log
-- [ ] SignalR connection встановлюється, real-time оновлення працюють
-- [x] Header bell показує unread count і unread dropdown без full refresh
-- [x] Toast notifications видимі в UI, а не тільки в hook state
-- [x] Left sidebar виділяє incidents з unread notifications
-- [ ] Azure Static Web App provisioned via `infra/modules/static-web-app.bicep` (додати до `infra/main.bicep`)
-- [x] `npm run build` успішно
-- [ ] Deploy на Azure Static Web Apps
+- [ ] `npm run dev` starts without errors
+- [ ] Incident list shows 5 mock incidents with correct badges
+- [ ] Clicking incident → detail view with AI analysis, parameter excursion, evidence citations
+- [ ] Event timeline shows chronological audit log
+- [ ] SignalR connection is established, real-time updates work
+- [x] Header bell shows unread count and unread dropdown without full refresh
+- [x] Toast notifications are visible in UI, not only in hook state
+- [x] Left sidebar highlights incidents from unread notifications
+- [ ] Azure Static Web App provisioned via `infra/modules/static-web-app.bicep` (add to `infra/main.bicep`)
+- [x] `npm run build` successful
+- [ ] Deploy to Azure Static Web Apps

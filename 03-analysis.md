@@ -1,143 +1,143 @@
-# 03 · Аналіз архітектури
+# 03 · Architecture analysis
 
-← [README](./README.md) · [01 Вимоги](./01-requirements.md) · [02 Архітектура](./02-architecture.md) · [04 План дій](./04-action-plan.md)
+← [README](./README.md) · [01 Requirements](./01-requirements.md) · [02 Architecture](./02-architecture.md) · [04 Action Plan](./04-action-plan.md)
 
-> **Призначення:** Аналіз поданого рішення — що добре, що потрібно виправити. Базується на офіційному Triage Report від 30 березня 2026. Оновлюємо при кожній ітерації архітектури.
+> **Purpose:** Analysis of the submitted solution - what is good, what needs to be fixed. Based on the official Triage Report dated March 30, 2026. Updated with each iteration of the architecture.
 
 ---
 
-## Зміст
-1. [Тріаж-звіт (30 березня 2026)](#1-тріаж-звіт-30-березня-2026)
+## Contents
+1. [Triage Report (March 30, 2026)](#1-triage-report-March-30-2026)
 2. [Architecture Dimensions](#2-architecture-dimensions)
 3. [Use Case Dimensions](#3-use-case-dimensions)
-4. [Сильні сторони](#4-сильні-сторони)
-5. [Топ-6 Gaps для виправлення](#5-топ-6-gaps-для-виправлення)
+4. [Strengths] (#4-Strengths)
+5. [Top-6 Gaps to Fix](#5-top-6-gaps-to-fix)
 6. [Azure WAF Gaps](#6-azure-waf-gaps)
 7. [Azure AI Pillar Gaps](#7-azure-ai-pillar-gaps)
-8. [Cross-cutting перевірки](#8-cross-cutting-перевірки)
-9. [Прогрес виправлення gaps](#9-прогрес-виправлення-gaps)
+8. [Cross-cutting checks](#8-cross-cutting-checks)
+9. [Progress of patching gaps](#9-progress-patching-gaps)
 
 ---
 
-## 1. Тріаж-звіт (30 березня 2026)
+## 1. Triage report (March 30, 2026)
 
-> Джерело: `docs/triage-report-sentinel-intelligence-20260330_175839.pdf`  
-> Система оцінювання: AI-powered triage system (Capgemini + Microsoft)
+> Source: `docs/triage-report-sentinel-intelligence-20260330_175839.pdf`
+> Evaluation system: AI-powered triage system (Capgemini + Microsoft)
 
-### Загальний результат
+### Total result
 
-| Категорія | Бали | Максимум |
+| Category | Points | Maximum |
 |---|---|---|
 | Architecture | 33 | 50 |
 | Use Case | 38 | 50 |
 | **TOTAL** | **71** | **100** |
 
-**Вердикт: Good — 71/100**
+**Verdict: Good — 71/100**
 
-### Короткий summary від тріажу
+### Brief summary of triage
 > Sentinel Intelligence proposes an AI Foundry-based Operations Assistant for GMP manufacturing that detects anomaly/deviation events from SCADA/MES/IoT signals, enriches them with batch/equipment context, grounds decisions in SOP/BPR/CAPA history via RAG, generates CAPA recommendations and audit-ready reports, and keeps a human approval step before work-order execution.
 
 ---
 
 ## 2. Architecture Dimensions
 
-| Dimension | Оцінка | Обґрунтування | Gaps |
+| Dimension | Evaluation | Justification | Gaps |
 |---|---|---|---|
-| **Clarity & Flow** | 8/10 | Потік detect → context → compliance → CAPA → approval → record чіткий. Agent ролі та data sources видимі. Exception paths і runtime decision logic залишаються high-level. | Exception paths не described, model decision logic не деталізований |
-| **Platform Fit** | 7/10 | Azure Functions, Azure AI Search, Foundry Agent Service — правильний вибір для event ingestion, RAG, multi-agent. Але: **track не задекларований**, full developer/platform setup не показаний. | Track A не вказаний, GitHub + CI/CD відсутні |
-| **Data / Governance / Security** | 6/10 | Data sources та governed retrieval добре ідентифіковані. Human approval та audit logging. Але: identity, access control, encryption, retention, classification, private connectivity, content safety — **не описані**. | Весь security шар відсутній |
-| **Reliability / Performance / Cost** | 5/10 | KPI < 5 хв показує performance intent. Але: retries, queues, failure recovery, fallback, model timeout, cost controls, token optimization — **не визначені**. | Весь reliability шар відсутній |
-| **Scalability / Integration / Provisioning** | 7/10 | Enterprise integrations чітко ідентифіковані. Azure сервіси названі. Але: **немає IaC**, API contract детей, environment topology, repeatable provisioning. | IaC/deployment відсутній |
+| **Clarity & Flow** | 8/10 | The flow of detect → context → compliance → CAPA → approval → record is clear. Agent roles and data sources are visible. Exception paths and runtime decision logic remain high-level. | Exception paths are not described, model decision logic is not detailed
+| **Platform Fit** | 7/10 | Azure Functions, Azure AI Search, Foundry Agent Service are the right choice for event ingestion, RAG, multi-agent. But: **track not declared**, full developer/platform setup not shown. | Track A not specified, GitHub + CI/CD missing |
+| **Data / Governance / Security** | 6/10 | Data sources and governed retrieval are well identified. Human approval and audit logging. But: identity, access control, encryption, retention, classification, private connectivity, content safety — **not described**. | The entire security layer is missing
+| **Reliability / Performance / Cost** | 5/10 | KPI < 5 min shows performance intent. But: retries, queues, failure recovery, fallback, model timeout, cost controls, token optimization — **not defined**. | The entire reliability layer is missing
+| **Scalability / Integration / Provisioning** | 7/10 | Enterprise integrations are clearly identified. Azure services are named. But: **no IaC**, API contract children, environment topology, repeatable provisioning. | IaC/deployment missing |
 
 ---
 
 ## 3. Use Case Dimensions
 
-| Dimension | Оцінка | Обґрунтування | Gaps |
+| Dimension | Evaluation | Justification | Gaps |
 |---|---|---|---|
-| **Value & KPI Impact** | 9/10 | High-value regulated process. Чіткі business pain points, explicit KPI impact (decision time, QA effort, errors, inspection readiness). Value quantification може бути більш evidence-based. | KPI evidence-base можна посилити |
-| **Innovation** | 8/10 | Комбінація: predictive signal interpretation + GMP compliance validation + CAPA recommendation + audit trail — більш диференційована ніж basic chatbot/anomaly detector. Thoughtful multi-agent design tied to regulated workflow. | — |
-| **AI Fit** | 8/10 | AI добре підходить для contextual retrieval, historical pattern interpretation, recommendation drafting, evidence packaging. Human approval важливий для GxP. Але: **Responsible AI controls не explicit**. | RAI не деталізований |
-| **UX Simplicity** | 6/10 | Process-level description є, але **actual user interface/channel не описаний**. Ease of use, explainability, approval ergonomics — не можна оцінити. | Operator UI не визначений |
-| **Build–Scale–Reuse** | 7/10 | MVP feasible при звуженні до 1 asset type, 1 deviation class, small SOP/CAPA set. Retrieval та agent patterns reusable. Але: **reusable MCP assets/connectors та production-scale constraints не конкретизовані**. | MVP scope не звужений |
+| **Value & KPI Impact** | 9/10 | High-value regulated process. Clear business pain points, explicit KPI impact (decision time, QA effort, errors, inspection readiness). Value quantification can be more evidence-based. | KPI evidence-base can be strengthened |
+| **Innovation** | 8/10 | The combination: predictive signal interpretation + GMP compliance validation + CAPA recommendation + audit trail is more differentiated than basic chatbot/anomaly detector. Thoughtful multi-agent design tied to regulated workflow. | — |
+| **AI Fit** | 8/10 | AI is well suited for contextual retrieval, historical pattern interpretation, recommendation drafting, evidence packaging. Human approval is important for GxP. But: **Responsible AI controls are not explicit**. | RAI is not detailed |
+| **UX Simplicity** | 6/10 | Process-level description is there, but **actual user interface/channel is not described**. Ease of use, explainability, approval ergonomics - cannot be estimated. | Operator UI is not defined |
+| **Build–Scale–Reuse** | 7/10 | MVP feasible when narrowed down to 1 asset type, 1 deviation class, small SOP/CAPA set. Retrieval and agent patterns reusable. But: **reusable MCP assets/connectors and production-scale constraints are not specified**. | MVP scope is not narrowed |
 
 ---
 
-## 4. Сильні сторони
+## 4. Strengths
 
-> Зберігаємо та підтримуємо в наступних ітераціях:
+> We maintain and support in the following iterations:
 
 ### Architecture
-- ✅ **Clarity & Flow** — detect → context → compliance → CAPA → human approval → record: чітко і легко зрозуміло
-- ✅ **Platform Fit** — Azure Functions (event-driven ingest), Azure AI Search (RAG), Foundry Agent Service (orchestration): правильний вибір для GMP сценарію
-- ✅ **Governance-aware design** — SOP/BPR/CAPA grounding, mandatory human review, audit logging відповідають regulated manufacturing
-- ✅ **Enterprise integrations** — MES, SCADA, CMMS, QMS, asset history: операційно релевантно, не isolated demo
+- ✅ **Clarity & Flow** — detect → context → compliance → CAPA → human approval → record: clear and easy to understand
+- ✅ **Platform Fit** — Azure Functions (event-driven ingest), Azure AI Search (RAG), Foundry Agent Service (orchestration): the right choice for a GMP scenario
+- ✅ **Governance-aware design** — SOP/BPR/CAPA grounding, mandatory human review, audit logging correspond to regulated manufacturing
+- ✅ **Enterprise integrations** — MES, SCADA, CMMS, QMS, asset history: operationally relevant, not an isolated demo
 
 ### Use Case
 - ✅ **Strong GMP problem statement** — explicit stakeholder set, regulated industry context
-- ✅ **KPI business-facing** — decision latency, manual QA effort, inspection preparation: зрозуміло бізнесу
-- ✅ **Innovation** — multi-agent design tied to real regulated workflow (не просто chatbot)
-- ✅ **AI Fit для задачі** — contextual retrieval, historical pattern interpretation, recommendation drafting
+- ✅ **KPI business-facing** — decision latency, manual QA effort, inspection preparation: understood by business
+- ✅ **Innovation** — multi-agent design tied to real regulated workflow (not just a chatbot)
+- ✅ **AI Fit for the task** — contextual retrieval, historical pattern interpretation, recommendation drafting
 
 ---
 
-## 5. Топ-6 Gaps для виправлення
+## 5. Top 6 Gaps to fix
 
-### Gap #1: Track не задекларований
+### Gap #1: Track not declared
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
-| **Severity** | 🔴 CRITICAL — це compliance failure |
+| **Severity** | 🔴 CRITICAL is a compliance failure
 | **Evaluation check** | Environment Track declared → FAIL |
-| **Affects** | Platform Fit (−2), провалив cross-cutting check |
+| **Affects** | Platform Fit (−2), failed cross-cutting check |
 
-**Проблема:** Track A (GitHub + Azure + Foundry) явно не вказаний. Submission не show-ує де GitHub, CI/CD, deployment workflows входять у lifecycle.
+**Problem:** Track A (GitHub + Azure + Foundry) is not explicitly specified. Submission does not show where GitHub, CI/CD, deployment workflows are included in the lifecycle.
 
-**Що потрібно:**
-- Явно вказати "Track A — GitHub + Azure + Azure AI Foundry"
-- Додати GitHub repo до архітектурної схеми
-- Показати CI/CD pipeline (GitHub Actions)
-- Показати deployment workflow: dev → staging → prod
-- Evaluation pipeline через AI Foundry
+**What you need:**
+- Explicitly indicate "Track A — GitHub + Azure + Azure AI Foundry"
+- Add GitHub repo to architecture diagram
+- Show CI/CD pipeline (GitHub Actions)
+- Show deployment workflow: dev → staging → prod
+- Evaluation pipeline through AI Foundry
 
-**Де виправити:** → [02 · Архітектура — GitHub + CI/CD section](./02-architecture.md#github--cicd-gap-1)  
-**Задача:** → [04 · План дій](./04-action-plan.md)
+**Where to fix:** → [02 · Architecture — GitHub + CI/CD section](./02-architecture.md#github--cicd-gap-1)
+**Task:** → [04 · Action Plan](./04-action-plan.md)
 
 ---
 
 ### Gap #2: Security
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
 | **Severity** | 🔴 HIGH |
 | **Evaluation check** | Data/Governance/Security → 6/10, Microsoft Security & Monitoring → WARN |
 | **Affects** | Architecture score −4, WAF Security pillar |
 
-**Проблема:** Audit logging є, але весь security шар відсутній:
-- Немає identity architecture
-- Немає RBAC (хто може що робити)
-- Немає secrets handling
-- Немає network isolation
-- Немає encryption specification
-- Немає SIEM/monitoring
+**Problem:** Audit logging is available, but the entire security layer is missing:
+- There is no identity architecture
+- No RBAC (who can do what)
+- No secrets handling
+- No network isolation
+- There is no encryption specification
+- No SIEM/monitoring
 
-**Що потрібно:**
+**What you need:**
 ```
 Identity:
-  - Azure Entra ID (Managed Identities для Azure Functions, Foundry, AI Search)
-  - No hardcoded credentials — all via Managed Identity або Key Vault references
+- Azure Entra ID (Managed Identities for Azure Functions, Foundry, AI Search)
+- No hardcoded credentials — all via Managed Identity or Key Vault references
 
 Secrets:
-  - Azure Key Vault для всіх API keys, connection strings, certificates
+- Azure Key Vault for all API keys, connection strings, certificates
 
 Network:
-  - Private Endpoints для AI Search, Foundry, Storage
-  - VNet Integration для Azure Functions
+- Private Endpoints for AI Search, Foundry, Storage
+- VNet Integration for Azure Functions
   - NSG rules
 
-RBAC (мінімальний набір ролей):
-  - Operator: може переглядати alerts, approving/declining recommendations
-  - QA Engineer: може переглядати + редагувати CAPA, escalate
+RBAC (minimum role set):
+- Operator: can view alerts, approving/declining recommendations
+- QA Engineer: can review + edit CAPA, escalate
   - Compliance Officer: read-only audit trail, reporting
   - Admin/IT: full access, deployment
   - Agent Service Principal: read-only SOP/CAPA (least privilege)
@@ -149,157 +149,157 @@ Data:
 
 Monitoring:
   - Azure Monitor + Log Analytics workspace
-  - Alerts на failed events, security incidents
-  - (Опц.) Microsoft Sentinel SIEM
+- Alerts on failed events, security incidents
+- (Optional) Microsoft Sentinel SIEM
 ```
 
-**Де виправити:** → [02 · Архітектура — Security section](./02-architecture.md#шар-security-gap-2)  
-**Вимоги:** → [01 · Вимоги — Security](./01-requirements.md#8-security--monitoring-вимоги)
+**Where to fix:** → [02 · Architecture — Security section](./02-architecture.md#16-security-architecture)
+**Requirements:** → [01 · Requirements — Security](./01-requirements.md#8-security--monitoring-requirements)
 
 ---
 
 ### Gap #3: Reliability
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
 | **Severity** | 🔴 HIGH |
-| **Evaluation check** | Reliability/Performance/Cost → 5/10 (найнижча оцінка), Azure WAF Reliability → WARN |
+| **Evaluation check** | Reliability/Performance/Cost → 5/10 (lowest score), Azure WAF Reliability → WARN |
 | **Affects** | Architecture score −5 |
 
-**Проблема:** GMP-critical workflow без visibility:
-- Немає event queuing (якщо Functions впав — подія втрачена)
-- Немає retry strategy
-- Немає dead-letter handling
-- Немає fallback mode
-- Немає model timeout handling
-- Немає cost controls
+**Problem:** GMP-critical workflow without visibility:
+- No event queuing (if Functions crashed, the event is lost)
+- There is no retry strategy
+- No dead-letter handling
+- There is no fallback mode
+- No model timeout handling
+- There are no cost controls
 
-**Що потрібно:**
+**What you need:**
 ```
 Event Queuing:
-  - Azure Service Bus (preferred для reliable messaging) або Event Hubs (streaming)
+- Azure Service Bus (preferred for reliable messaging) or Event Hubs (streaming)
   - SCADA/MES → Service Bus Topic → Azure Functions
-  - Dead Letter Queue для failed/unprocessable events
+- Dead Letter Queue for failed/unprocessable events
 
 Retry:
   - Azure Functions: retry policy (exponential backoff, max 3 attempts)
-  - Agent calls: retry на transient failures (timeouts, throttling)
+- Agent calls: retry on transient failures (timeouts, throttling)
   - Per-service retry budgets
 
 Circuit Breaker:
-  - При > N failures за window → circuit open → manual fallback mode
+- At > N failures by window → circuit open → manual fallback mode
 
 Fallback Mode:
-  - Якщо AI недоступний → alert operator без AI recommendation
-  - Manual-only operating mode для GMP continuity
+- If AI is not available → alert operator without AI recommendation
+- Manual-only operating mode for GMP continuity
 
 Latency Budgets:
-  - Context enrichment: < 30 сек
-  - Compliance Agent: < 90 сек
-  - CAPA Agent: < 90 сек
-  - Total to decision package: < 5 хв (наш KPI)
+- Context enrichment: < 30 sec
+- Compliance Agent: < 90 sec
+- CAPA Agent: < 90 sec
+- Total to decision package: < 5 min (our KPI)
   - Human approval: async (no timeout)
 
 Cost Controls:
   - Token budgets per agent call
-  - Caching для frequently retrieved SOPs
-  - Model routing: cheapest model для simple classification, GPT-4 для complex reasoning
+- Caching for frequently retrieved SOPs
+- Model routing: cheapest model for simple classification, GPT-4 for complex reasoning
 ```
 
-**Де виправити:** → [02 · Архітектура — Reliability section](./02-architecture.md#шар-reliability-gap-3)  
-**Вимоги:** → [01 · Вимоги — WAF](./01-requirements.md#6-azure-waf-вимоги)
+**Where to fix:** → [02 · Architecture — Reliability section](./02-architecture.md#17-reliability-architecture)
+**Requirements:** → [01 · Requirements — WAF](./01-requirements.md#6-azure-waf-requirements)
 
 ---
 
 ### Gap #4: Responsible AI (RAI)
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
 | **Severity** | 🟠 HIGH |
-| **Evaluation check** | AI Fit → 8/10 із застереженням, Azure WAF AI Pillar → WARN |
+| **Evaluation check** | AI Fit → 8/10 with caveat, Azure WAF AI Pillar → WARN |
 | **Affects** | Use Case score −2, AI Pillar compliance |
 
-**Проблема:** Partial RAI coverage:
-- Немає confidence thresholds
-- Немає evidence gating (рекомендація без джерела → не допускається)
-- Немає hallucination controls
-- Немає окремо описаного verification-pass для document identity та citation section claims
-- Немає prompt-injection defenses
-- Немає agent observability
-- Немає model versioning/rollback
+**Problem:** Partial RAI coverage:
+- There are no confidence thresholds
+- No evidence gating (recommendation without a source → not allowed)
+- No hallucination controls
+- There is no separately described verification-pass for document identity and citation section claims
+- No prompt-injection defenses
+- There is no agent observability
+- No model versioning/rollback
 
-**Що потрібно:**
+**What you need:**
 ```
 Confidence & Evidence:
-  - Кожна рекомендація Compliance Agent ПОВИННА мати: SOP reference + page + GMP clause
-  - Кожна CAPA рекомендація ПОВИННА мати: CAPA history case reference + similarity score
-  - Confidence threshold: < 0.7 → escalate to human (не показувати як рекомендацію)
-  - Evidence mandatory gate: без evidence → рекомендація заблокована
+- Each Compliance Agent recommendation MUST have: SOP reference + page + GMP clause
+- Each CAPA recommendation MUST have: CAPA history case reference + similarity score
+- Confidence threshold: < 0.7 → escalate to human (do not show as a recommendation)
+- Evidence mandatory gate: without evidence → the recommendation is blocked
 
 Hallucination Controls:
-  - Grounded generation тільки (RAG, не free generation)
-  - Source verification: agent повинен підтвердити що джерело існує в Azure AI Search
-  - Separate document/citation verification layer: після agent output backend незалежно перевіряє `document_id`, title, link, section claim, excerpt anchor
-  - Якщо document match є, але section claim не підтверджується authoritative chunk, система показує citation як `unresolved`, але не піднімає неперевірену section у summary fields
-  - Structured output schema (JSON з обов'язковими полями evidence)
+- Grounded generation only (RAG, not free generation)
+- Source verification: the agent must confirm that the source exists in Azure AI Search
+- Separate document/citation verification layer: after the agent output, the backend independently checks `document_id`, title, link, section claim, excerpt anchor
+- If there is a document match, but the section claim is not confirmed by the authoritative chunk, the system shows the citation as `unresolved`, but does not raise the unverified section in the summary fields
+- Structured output schema (JSON with mandatory evidence fields)
 
 Prompt Injection:
-  - Input validation на SCADA/MES даних (sanitize перед передачею агенту)
-  - System prompt hardening (boundaries між data і instructions)
-  - Azure AI Content Safety перед виходом
+- Input validation on SCADA/MES data (sanitize before transfer to the agent)
+- System prompt hardening (boundaries between data and instructions)
+- Azure AI Content Safety before egress
 
 Observability:
-  - Azure Monitor + Application Insights трасування кожного agent call
+- Azure Monitor + Application Insights tracing of each agent call
   - Log: prompt → retrieved docs → output → confidence score → human decision
-  - Alerting на аномальну поведінку агентів
+- Alerting on abnormal behavior of agents
 
 Model Lifecycle:
-  - Версіонування deployed моделей (model name + version explicit)
-  - Rollback plan при regression
-  - Evaluation runs перед deployments (AI Foundry evaluation)
+- Versioning of deployed models (model name + version explicit)
+- Rollback plan during regression
+- Evaluation runs before deployments (AI Foundry evaluation)
 ```
 
-**Де виправити:** → [02 · Архітектура — RAI section](./02-architecture.md#шар-responsible-ai-gap-4)  
-**Вимоги:** → [01 · Вимоги — AI Pillar](./01-requirements.md#7-azure-ai-pillar-вимоги)
+**Where to fix:** → [02 · Architecture — RAI section](./02-architecture.md#layer-responsible-ai-gap-4)
+**Requirements:** → [01 · Requirements — AI Pillar](./01-requirements.md#7-azure-ai-pillar-requirements)
 
 ---
 
 ### Gap #5: UX
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
 | **Severity** | 🟠 MEDIUM |
 | **Evaluation check** | UX Simplicity → 6/10 |
 | **Affects** | Use Case score −4 |
 
-**Проблема:** Process-level description без interface:
-- Не показано, де оператор бачить decision package
-- Не показано, як він approves/denies
-- Explainability та trustworthiness cannot be assessed
+**Problem:** Process-level description without interface:
+- It is not shown where the operator sees the decision package
+- It is not shown how he approves/denies
+- Explainability and trustworthiness cannot be assessed
 
-**Що потрібно:**
+**What you need:**
 ```
-Operator interface (вибрати один варіант):
-  Варіант A: Microsoft Teams Adaptive Card
-    - Alert card у Teams channel
-    - Показує: summary + risk level + CAPA recommendation + evidence source
-    - Вбудовані кнопки: [Approve] [Deny] [Ask Question]
-    - Teams bot для Q&A з агентом
-    ✅ Pros: no new app, familiar UX, integrates з Teams
-    ⚠️ Cons: обмежений layout
+Operator interface (choose one option):
+Option A: Microsoft Teams Adaptive Card
+- Alert card in Teams channel
+- Shows: summary + risk level + CAPA recommendation + evidence source
+- Built-in buttons: [Approve] [Deny] [Ask Question]
+- Teams bot for Q&A with an agent
+✅ Pros: no new app, familiar UX, integrates with Teams
+⚠️ Cons: limited layout
 
-  Варіант B: Power Apps portal (low-code)
+Option B: Power Apps portal (low-code)
     - Dedicated operator dashboard
     - Queue of pending approvals
-    - Detail view з full evidence
-    ✅ Pros: rich UX, можна брендувати
-    ⚠️ Cons: потребує Power Apps license
+- Detail view with full evidence
+✅ Pros: rich UX, can be branded
+⚠️ Cons: requires a Power Apps license
 
-  Варіант C: Custom Web App (Azure Static Web Apps)
+Option C: Custom Web App (Azure Static Web Apps)
     - React/minimal web app
-    - Hosted на Azure Static Web Apps
-    ✅ Pros: повний контроль, Track A aligned
-    ⚠️ Cons: більше роботи
+- Hosted on Azure Static Web Apps
+✅ Pros: full control, Track A aligned
+⚠️ Cons: more work
 
 Sample Decision Package (must-have):
   ┌─────────────────────────────────────────────────────────┐
@@ -324,105 +324,105 @@ Sample Decision Package (must-have):
   └─────────────────────────────────────────────────────────┘
 ```
 
-**Де виправити:** → [02 · Архітектура — UX section](./02-architecture.md#operator-ux-gap-5)
+**Where to fix:** → [02 · Architecture — UX section](./02-architecture.md#operator-ux-gap-5)
 
 ---
 
 ### Gap #6: IaC / Provisioning
 
-| Параметр | Значення |
+| Parameter | Value |
 |---|---|
 | **Severity** | 🟡 MEDIUM |
 | **Evaluation check** | Scalability/Integration/Provisioning → 7/10 |
 | **Affects** | Architecture score −3 |
 
-**Проблема:** Architecture lists services but not deployment mechanisms.
+**Problem:** Architecture lists services but not deployment mechanisms.
 
-**Що потрібно:**
+**What you need:**
 ```
 IaC:
-  - Bicep або Terraform templates для всіх Azure ресурсів
+- Bicep or Terraform templates for all Azure resources
   - Resource groups: rg-sentinel-dev / rg-sentinel-staging / rg-sentinel-prod
-  - Parameters для environment-specific values
+- Parameters for environment-specific values
 
 Environments:
-  - dev: для розробки та тестування
-  - staging: для validation перед production
-  - prod: для demo/finals
+- dev: for development and testing
+- staging: for validation before production
+- prod: for demo/finals
 
 GitHub Actions:
-  - CI: lint + unit tests на PR
-  - CD: deploy до staging на merge до main
+- CI: lint + unit tests on PR
+- CD: deploy to staging on merge to main
   - Manual gate: promote staging → prod
 
 Monitoring setup:
   - Log Analytics Workspace provisioned via IaC
-  - Application Insights для кожного Azure Function
-  - Dashboards в Azure Monitor
+- Application Insights for each Azure Function
+- Dashboards in Azure Monitor
 ```
 
-**Де виправити:** → [02 · Архітектура — IaC section](./02-architecture.md#github--cicd-gap-1)
+**Where to fix:** → [02 · Architecture — IaC section](./02-architecture.md#github--cicd-gap-1)
 
 ---
 
 ## 6. Azure WAF Gaps
 
-| WAF Pillar | Статус | Що відсутнє | Пріоритет |
+| WAF Pillar | Status | What is missing | Priority |
 |---|---|---|---|
 | **Reliability** | ❌ WARN | Queuing, retry, DLQ, fallback, degraded mode | 🔴 HIGH |
 | **Security** | ❌ WARN | Identity, RBAC, Key Vault, network isolation, SIEM | 🔴 HIGH |
 | **Cost Optimisation** | ❌ WARN | Token controls, caching, model routing, per-event cost | 🟠 MEDIUM |
 | **Operational Excellence** | ❌ WARN | Monitoring, alerting, CI/CD, observability | 🟠 MEDIUM |
-| **Performance Efficiency** | ⚠️ PARTIAL | KPI < 5 хв є, latency SLOs не деталізовані | 🟡 LOW |
+| **Performance Efficiency** | ⚠️ PARTIAL | KPI < 5 min is available, latency SLOs are not detailed | 🟡 LOW |
 
 ---
 
 ## 7. Azure AI Pillar Gaps
 
-| AI Pillar Requirement | Статус | Деталі |
+| AI Pillar Requirement | Status | Details |
 |---|---|---|
 | Agent Design | ✅ GOOD | Multi-agent orchestration, clear roles |
 | Grounding / RAG | ✅ GOOD | Validated SOP/BPR, CAPA history retrieval |
-| Model Lifecycle | ⚠️ PARTIAL | Evaluation та governed deployment згадано але не деталізовано |
+| Model Lifecycle | ⚠️ PARTIAL | Evaluation and governed deployment are mentioned but not detailed
 | Responsible AI | ❌ MISSING | Confidence thresholds, evidence gating, hallucination controls |
 | AI Observability | ⚠️ PARTIAL | Incident-scoped App Insights traces now cover the backend-visible Foundry path; Cosmos `incident_events` covers business audit / transcript only; dashboards, alerts, and admin retrieval UX are still pending |
 | Prompt Injection Defense | ❌ MISSING | Content safety, input validation |
 
 ---
 
-## 8. Cross-cutting перевірки
+## 8. Cross-cutting checks
 
-Офіційні checks з тріаж-репорту:
+Official checks from the triage report:
 
-| Check | Статус (v1.0) | Статус (поточний) | Action |
+| Check | Status (v1.0) | Status (current) | Action |
 |---|---|---|---|
-| Environment Track declared | ❌ FAIL | ❌ Не виправлений | → [Gap #1](#gap-1-track-не-задекларований) |
-| Industry Use Case aligned | ✅ PASS | ✅ | Зберегти |
+| Environment Track declared | ❌ FAIL | ❌ Not fixed | → [Gap #1](#gap-1-track-undeclared) |
+| Industry Use Case aligned | ✅ PASS | ✅ | Save |
 | Azure WAF aligned | ⚠️ WARN | ⚠️ | → [Gap #2](#gap-2-security), [#3](#gap-3-reliability) |
 | Azure WAF AI Pillar aligned | ⚠️ WARN | ⚠️ | → [Gap #4](#gap-4-responsible-ai-rai) |
 | Microsoft Security & Monitoring | ⚠️ WARN | ⚠️ | → [Gap #2](#gap-2-security) |
 
 ---
 
-## 9. Прогрес виправлення gaps
+## 9. Gaps correction progress
 
-> Останнє оновлення: 17 квітня 2026 — Architecture v2.0 DESIGNED
+> Last updated: April 17, 2026 — Architecture v2.0 DESIGNED
 
-| Gap | Пріоритет | Статус | Рішення в v2.0 | Задача |
+| Gap | Priority | Status | Solution in v2.0 | Task |
 |---|---|---|---|---|
-| #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🎨 DESIGNED | GitHub Actions CI/CD (T-042) + Bicep IaC (T-041) + Track A явно в архітектурі | [T-041](./tasks/T-041-bicep-iac.md), [T-042](./tasks/T-042-cicd.md) |
+| #1 Track + GitHub/CI/CD | 🔴 CRITICAL | 🎨 DESIGNED | GitHub Actions CI/CD (T-042) + Bicep IaC (T-041) + Track A clearly in architecture | [T-041](./tasks/T-041-bicep-iac.md), [T-042](./tasks/T-042-cicd.md) |
 | #2 Security | 🔴 HIGH | 🎨 DESIGNED | Entra ID + Key Vault + Managed Identities + VNet + 5 RBAC roles | [T-035](./tasks/T-035-rbac.md), [T-038](./tasks/T-038-security.md) |
 | #3 Reliability | 🔴 HIGH | 🎨 DESIGNED | Azure Service Bus DLQ + Durable Functions retry + fallback mode + timeout escalation | [T-022](./tasks/T-022-service-bus.md), [T-039](./tasks/T-039-reliability.md) |
 | #4 RAI | 🟠 HIGH | 🔧 IN PROGRESS | Confidence gate path already exists; separate document/citation verification and unresolved-evidence downgrade are now explicit architecture controls for anti-hallucination behavior; App Insights prompt and response traces are implemented for the backend-visible Foundry flow, while Content Safety, prompt-injection guard, admin retrieval UX, and dashboards remain pending | [T-040](./tasks/T-040-rai.md), [T-043](./tasks/T-043-agent-telemetry-admin-view.md) |
 | #5 UX | 🟠 MEDIUM | 🎨 DESIGNED | React + Vite operator dashboard + approval UX + SignalR real-time + 5 role views | [T-032](./tasks/T-032-frontend-core.md), [T-033](./tasks/T-033-frontend-approval.md) |
-| #6 IaC | 🟡 MEDIUM | 🎨 DESIGNED | Bicep `infra/main.bicep` + modules для всіх 12 ресурсів | [T-041](./tasks/T-041-bicep-iac.md) |
+| #6 IaC | 🟡 MEDIUM | 🎨 DESIGNED | Bicep `infra/main.bicep` + modules for all 12 resources | [T-041](./tasks/T-041-bicep-iac.md) |
 
-**Легенда статусів:**  
-🔜 TODO — не розпочато  
-🎨 DESIGNED — архітектура v2.0 описана, задачі створені, реалізація починається  
-🔧 IN PROGRESS — implentation розпочато  
-✅ DONE — реалізовано і перевірено
+**Status legend:**
+🔜 TODO - not started
+🎨 DESIGNED - v2.0 architecture is described, tasks are created, implementation begins
+🔧 IN PROGRESS — implementation has started
+✅ DONE - implemented and tested
 
 ---
 
-← [02 Архітектура](./02-architecture.md) · [04 План дій →](./04-action-plan.md)
+← [02 Architecture](./02-architecture.md) · [04 Action Plan →](./04-action-plan.md)

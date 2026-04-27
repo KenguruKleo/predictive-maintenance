@@ -1,17 +1,17 @@
 # T-029 · Human Approval Mechanism (waitForExternalEvent + Decision API)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🔴 CRITICAL  
-**Статус:** ✅ DONE  
-**Блокує:** —  
-**Залежить від:** T-024 (Durable orchestrator), T-031 (backend API)
+**Priority:** 🔴 CRITICAL
+**Status:** ✅ DONE
+**Blocks:** —
+**Depends on:** T-024 (Durable orchestrator), T-031 (backend API)
 
 ---
 
-## Мета
+## Goal
 
-Реалізувати human-in-the-loop механізм: operator натискає кнопку в UI → POST /api/incidents/{id}/decision → Durable orchestrator відновлюється.
+Implement a human-in-the-loop mechanism: the operator presses a button in the UI → POST /api/incidents/{id}/decision → Durable orchestrator is restored.
 
 ---
 
@@ -19,7 +19,7 @@
 
 ```
 POST /api/incidents/{incident_id}/decision
-Authorization: Bearer {token}  (operator або qa-manager role required)
+Authorization: Bearer {token} (operator or qa-manager role required)
 
 Body:
 {
@@ -35,7 +35,7 @@ Response 202:
 }
 ```
 
-> Примітка: caller identity і app role беруться з JWT claims або local mock headers (`USE_LOCAL_MOCK_AUTH=true`). Legacy/e2e payload fields `user_id` / `role` можуть бути присутні, але backend не довіряє їм як authoritative source.
+> Note: caller identity and app role are taken from JWT claims or local mock headers (`USE_LOCAL_MOCK_AUTH=true`). Legacy/e2e payload fields `user_id` / `role` may be present, but the backend does not trust them as an authoritative source.
 
 ---
 
@@ -80,10 +80,10 @@ async def record_decision(req: func.HttpRequest, client: df.DurableOrchestration
 
 ## Timeout + Escalation
 
-Реалізовано в Durable orchestrator (T-024):
-- 24-годинний timer → якщо не було рішення → SignalR push до qa-manager role
-- QA Manager бачить escalation badge на incident
-- Той самий `/decision` endpoint (qa-manager роль)
+Implemented in Durable orchestrator (T-024):
+- 24-hour timer → if there was no solution → SignalR push to qa-manager role
+- QA Manager sees the escalation badge on the incident
+- The same `/decision` endpoint (qa-manager role)
 
 ---
 
@@ -97,13 +97,13 @@ backend/
     auth.py          # get_caller_roles(), get_caller_id(), require_any_role()
 ```
 
-## Progress (18 квітня 2026)
+## Progress (April 18, 2026)
 
 - [x] Visible AI replies are now persisted into `incident_events` for both the initial recommendation and `more_info` follow-ups via `backend/activities/notify_operator.py`
 - [x] `/api/incidents/{id}/events` now preserves transcript metadata (`round`, `message_kind`) needed by the approval chat UI
 - [x] Backend slice passes `python -m py_compile` for the touched files and `python -m pytest tests/test_smoke.py`
 
-## Progress (20 квітня 2026)
+## Progress (April 20, 2026)
 
 - [x] `backend/triggers/http_decision.py` now enforces RBAC via `get_caller_roles()` / `require_any_role()` and derives caller identity from auth instead of trusting body-supplied `user_id`
 - [x] The decision endpoint now also checks the incident’s active workflow owner before accepting a choice, so QA cannot act on operator-owned pending incidents and operators cannot act on QA-owned escalations
@@ -116,10 +116,10 @@ backend/
 
 ## Definition of Done
 
-- [x] `POST /decision` з valid operator token → 202 Accepted, Durable instance resumes
-- [x] `POST /decision` з невалідною роллю → 403 Forbidden
+- [x] `POST /decision` with valid operator token → 202 Accepted, Durable instance resumes
+- [x] `POST /decision` with invalid role → 403 Forbidden
 - [x] `action: "more_info"` → incident status → `awaiting_agents`, orchestrator loops
 - [x] `action: "rejected"` → incident status → `rejected`, orchestrator closes
-- [x] Decision записується в `incident_events` collection
+- [x] Decision is recorded in `incident_events` collection
 
 > SignalR notification scope and bell UX were finalized in [T-030](./T-030-signalr.md); T-029 remains limited to the protected decision API + Durable resume path.

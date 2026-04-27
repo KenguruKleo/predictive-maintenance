@@ -2,22 +2,22 @@
 
 ← [Backlog](../04-action-plan.md)
 
-> **Мета:** Коли оператор відхиляє incident (Reject), система надсилає async feedback-подію до alerting-системи (SCADA/MES). Це дозволяє джерелу сигналів навчатись на false positive кейсах і краще фільтрувати шум.
+> **Purpose:** When the operator rejects the incident (Reject), the system sends an async feedback event to the alerting system (SCADA/MES). This allows the signal source to learn from false positive cases and better filter noise.
 
 ---
 
-## Контекст
+## Context
 
-Кожен `rejected` decision — потенційний false positive від SCADA/MES. Якщо таких кейсів накопичується, система-джерело може адаптуватись (threshold adjustment, model retraining тощо). Зворотній зв'язок не блокує основний flow — fire-and-forget із базовим retry.
+Every `rejected` decision is a potential false positive from SCADA/MES. If such cases accumulate, the source system can adapt (threshold adjustment, model retraining, etc.). Feedback does not block the main flow — fire-and-forget with a basic retry.
 
 ---
 
 ## Affected components
 
-- `backend/activities/` — нова activity `send_alert_feedback.py`
+- `backend/activities/` — new activity `send_alert_feedback.py`
 - `backend/` — `local.settings.json` + Bicep: `ALERT_FEEDBACK_URL` env var (optional)
-- `backend/orchestrators/deviation_orchestrator.py` — виклик `send_alert_feedback` після `close_incident` при rejected
-- `backend/shared/cosmos_service.py` або `incident_events` — запис feedback event
+- `backend/orchestrators/deviation_orchestrator.py` — call `send_alert_feedback` after `close_incident` when rejected
+- `backend/shared/cosmos_service.py` or `incident_events` — feedback event record
 
 ---
 
@@ -32,7 +32,7 @@ close_incident  →  Cosmos: status = "rejected"
      ▼
 send_alert_feedback (Durable Activity, non-blocking)
      │
-     ├─ якщо ALERT_FEEDBACK_URL задано:
+├─ if ALERT_FEEDBACK_URL is set:
      │    POST {ALERT_FEEDBACK_URL}
      │    {
      │      "source_alert_id": "...",
@@ -45,7 +45,7 @@ send_alert_feedback (Durable Activity, non-blocking)
      │    }
      │    retry: 3 attempts, exponential backoff
      │
-     └─ незалежно від результату:
+└─ regardless of the result:
           incident_events ← { event_type: "feedback_sent", status: "ok"|"skipped"|"failed" }
 ```
 
@@ -53,10 +53,10 @@ send_alert_feedback (Durable Activity, non-blocking)
 
 ## Configuration
 
-| Env var | Default | Опис |
+| Env var | Default | Description |
 |---|---|---|
-| `ALERT_FEEDBACK_URL` | `""` (empty) | URL для POST feedback. Якщо порожній — feedback skipped, лише local event записується |
-| `ALERT_FEEDBACK_TIMEOUT_S` | `5` | HTTP timeout для feedback call |
+| `ALERT_FEEDBACK_URL` | `""` (empty) | URL for POST feedback. If empty - feedback skipped, only local event is recorded |
+| `ALERT_FEEDBACK_TIMEOUT_S` | `5` | HTTP timeout for feedback call |
 
 ---
 
@@ -78,38 +78,38 @@ send_alert_feedback (Durable Activity, non-blocking)
 ```
 
 `operator_agrees_with_agent`:
-- `true` — оператор відхилив і агент теж рекомендував REJECT (підтвердження false positive)
-- `false` — оператор відхилив, але агент рекомендував APPROVE (оператор overrode)
+- `true` — the operator rejected and the agent also recommended REJECT (false positive confirmation)
+- `false` — the operator rejected, but the agent recommended APPROVE (overrode operator)
 
 ---
 
 ## UI
 
-- В incident timeline (`incident_events`) показується подія: `Feedback sent to monitoring system` / `Feedback skipped (no URL configured)` / `Feedback failed (retries exhausted)`.
-- Auditor бачить у agent telemetry view.
+- The incident timeline (`incident_events`) shows the event: `Feedback sent to monitoring system` / `Feedback skipped (no URL configured)` / `Feedback failed (retries exhausted)`.
+- Auditor sees in the agent telemetry view.
 
 ---
 
-## Безпека
+## Security
 
-- `ALERT_FEEDBACK_URL` зберігається в Azure Key Vault (не в `local.settings.json` у production).
-- Payload не містить PII, тільки технічні ідентифікатори та метрики.
-- Non-blocking: помилка відправки feedback не впливає на стан incident.
+- `ALERT_FEEDBACK_URL` is stored in Azure Key Vault (not `local.settings.json` in production).
+- Payload contains no PII, only technical identifiers and metrics.
+- Non-blocking: the error of sending feedback does not affect the status of the incident.
 
 ---
 
 ## Definition of Done
 
-- [ ] Activity `send_alert_feedback` реалізована в `backend/activities/`
-- [ ] Викликається з `deviation_orchestrator` після `close_incident` при `rejected`
-- [ ] Якщо `ALERT_FEEDBACK_URL` порожній — feedback skipped, event записується як `"status": "skipped"`
-- [ ] Retry: 3 спроби з exponential backoff
-- [ ] `incident_events` отримує feedback event незалежно від результату
-- [ ] Bicep: `ALERT_FEEDBACK_URL` як Key Vault secret reference (optional, default empty)
-- [ ] Frontend: feedback status відображається в incident timeline
+- [ ] Activity `send_alert_feedback` is implemented in `backend/activities/`
+- [ ] Called from `deviation_orchestrator` after `close_incident` at `rejected`
+- [ ] If `ALERT_FEEDBACK_URL` is empty — feedback skipped, event is recorded as `"status": "skipped"`
+- [ ] Retry: 3 attempts with exponential backoff
+- [ ] `incident_events` receives a feedback event regardless of the result
+- [ ] Bicep: `ALERT_FEEDBACK_URL` as Key Vault secret reference (optional, default empty)
+- [ ] Frontend: feedback status is displayed in the incident timeline
 
 ---
 
-## Пріоритет
+## Priority
 
-🟡 MEDIUM — не блокує demo, але важливий для production learning loop.
+🟡 MEDIUM — does not block the demo, but is important for the production learning loop.

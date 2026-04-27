@@ -1,69 +1,69 @@
 # T-044 · Local Playwright E2E Mode (Dev Auth + Local Backend Proxy)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** 🟡 IN PROGRESS  
-**Блокує:** стабільні frontend regression / smoke tests для T-032, T-033, T-034, T-043  
-**Залежить від:** T-032 (frontend shell), T-035 (RBAC), завершення auth-check у T-029 для `POST /api/incidents/{incident_id}/decision`
-
----
-
-## Мета
-
-Дати можливість запускати frontend локально в `Playwright` без інтерактивного Entra login, але при цьому:
-
-- не відкривати production/dev backend для анонімного browser access
-- не зашивати `function key` або `master key` у браузер
-- не підміняти реальні дані моками, якщо локальний backend може читати ті самі Azure ресурси
+**Priority:** 🟠 HIGH
+**Status:** 🟡 IN PROGRESS
+**Blocks:** stable frontend regression / smoke tests for T-032, T-033, T-034, T-043
+**Depends on:** T-032 (frontend shell), T-035 (RBAC), completion of auth-check in T-029 for `POST /api/incidents/{incident_id}/decision`
 
 ---
 
-## Поточний стан і висновок
+## Goal
 
-### Що є зараз
+Make it possible to run the frontend locally in `Playwright` without interactive Entra login, but at the same time:
 
-- frontend жорстко залежить від `MSAL`:
-  - `frontend/src/App.tsx` рендерить `LoginPage`, якщо `useIsAuthenticated() === false`
-  - `frontend/src/pages/LoginPage.tsx` викликає `loginRedirect()`
-  - `frontend/src/api/client.ts` додає `Authorization: Bearer <token>` через `acquireTokenSilent()`
-- backend UI endpoints в основному мають `auth_level=ANONYMOUS`, але самі перевіряють JWT/ролі через `backend/utils/auth.py`
-- у `backend/utils/auth.py` вже є локальний hook:
+- do not open the production/dev backend for anonymous browser access
+- do not sew `function key` or `master key` to the browser
+- do not replace real data with mocks if the local backend can read the same Azure resources
+
+---
+
+## Current status and conclusion
+
+### What is available now
+
+- frontend strongly depends on `MSAL`:
+- `frontend/src/App.tsx` renders `LoginPage` if `useIsAuthenticated() === false`
+- `frontend/src/pages/LoginPage.tsx` calls `loginRedirect()`
+- `frontend/src/api/client.ts` adds `Authorization: Bearer <token>` via `acquireTokenSilent()`
+- backend UI endpoints mostly have `auth_level=ANONYMOUS`, but check JWT/roles themselves via `backend/utils/auth.py`
+- `backend/utils/auth.py` already has a local hook:
 
 ```python
 USE_LOCAL_MOCK_AUTH=true
 X-Mock-Role: Operator
 ```
 
-тобто локальний backend вже вміє обходитися без Entra token, але frontend цього режиму не має.
+that is, the local backend already knows how to do without Entra token, but the frontend does not have this mode.
 
-### Що не підходить
+### What doesn't fit
 
 #### 1. `function key` / `master key`
 
-Це не рішення для frontend E2E:
+This is not a frontend E2E solution:
 
-- вони потрібні для Azure Functions host/admin або для endpoint-ів з `AuthLevel.FUNCTION`
-- більшість UI endpoint-ів у нас не покладаються на function-level auth, а роблять app-level auth у Python code
-- передавати такі ключі у браузер або Playwright client-side state небезпечно
+- they are required for Azure Functions host/admin or for endpoints with `AuthLevel.FUNCTION`
+- most of our UI endpoints do not rely on function-level auth, but do app-level auth in Python code
+- it is dangerous to transfer such keys to the browser or Playwright client-side state
 
-#### 2. Локально згенерований JWT
+#### 2. Locally generated JWT
 
-Також не спрацює як є, бо backend зараз довіряє тільки токенам, підписаним Entra ID JWKS. Якщо ми хочемо локально підписувати свої токени, доведеться змінювати trust model бекенду. Це зайвий і ризикований шлях для першої ітерації.
+It also won't work as is, because the backend now only trusts tokens signed by Entra ID JWKS. If we want to sign our tokens locally, we will have to change the trust model of the backend. This is a redundant and risky path for the first iteration.
 
-### Головний висновок
+### The main conclusion
 
-Для `Playwright` потрібен не “секрет у браузері”, а **dev-only auth mode**:
+`Playwright` does not require a “secret in the browser”, but **dev-only auth mode**:
 
-- frontend переходить у `e2e` режим і не вимагає MSAL login
-- backend приймає mock-role тільки локально
-- реальні дані продовжують приходити через локально запущений backend, який ходить у ті ж Azure ресурси
+- frontend switches to `e2e` mode and does not require MSAL login
+- backend accepts mock-role only locally
+- real data continues to come through a locally running backend that goes to the same Azure resources
 
 ---
 
-## Рекомендований варіант (Phase 1)
+## Recommended option (Phase 1)
 
-### Архітектура
+### Architecture
 
 ```text
 Playwright
@@ -74,60 +74,60 @@ Playwright
   -> real Azure data/services (Cosmos, SignalR, Search, etc.)
 ```
 
-### Чому це найкращий шлях
+### Why this is the best way
 
-- не потрібен інтерактивний login в E2E
-- не потрібен production bypass на deployed backend
-- можна тестувати UI на реальних даних з Azure
-- використовується вже наявний локальний auth-hook у backend
-- `Playwright` легко піднімає і frontend, і backend через `webServer`
+- interactive login in E2E is not required
+- no production bypass is required on the deployed backend
+- you can test the UI on real data from Azure
+- an already existing local auth-hook in the backend is used
+- `Playwright` easily raises both frontend and backend through `webServer`
 
 ---
 
 ## Scope
 
-### 1. Frontend: додати auth mode `msal | e2e`
+### 1. Frontend: add auth mode `msal | e2e`
 
-Ввести явний runtime mode, наприклад:
+Enter an explicit runtime mode, for example:
 
 ```env
 VITE_AUTH_MODE=msal
 VITE_API_BASE_URL=https://func-sentinel-intel-dev-erzrpo.azurewebsites.net/api
 ```
 
-і для локального E2E:
+and for local E2E:
 
 ```env
 VITE_AUTH_MODE=e2e
 VITE_API_BASE_URL=/api
 ```
 
-У `e2e` режимі frontend має:
+In `e2e` mode, the frontend has:
 
-- не показувати `LoginPage`
-- не викликати `loginRedirect()`
-- підставляти mock principal (`user`, `name`, `roles`) з test state
-- дозволяти просте перемикання ролей: `operator`, `qa-manager`, `auditor`, `it-admin`
+- do not show `LoginPage`
+- do not call `loginRedirect()`
+- substitute mock principal (`user`, `name`, `roles`) with test state
+- allow simple role switching: `operator`, `qa-manager`, `auditor`, `it-admin`
 
-### 2. Frontend API client: передавати mock identity тільки в `e2e` режимі
+### 2. Frontend API client: transfer mock identity only in `e2e` mode
 
-`frontend/src/api/client.ts` у `e2e` режимі повинен:
+`frontend/src/api/client.ts` in `e2e` mode should:
 
-- не викликати `acquireTokenSilent()`
-- додавати заголовки на кшталт:
+- do not call `acquireTokenSilent()`
+- add headers like:
 
 ```http
 X-Mock-Role: Operator
 X-Mock-User: ivan.petrenko
 ```
 
-- працювати тільки з відносним `/api` base URL у local E2E
+- work only with relative `/api` base URL in local E2E
 
-Це дозволить задавати роль на рівні конкретного browser context/test, а не на рівні всього dev server process.
+This will allow setting the role at the level of a specific browser context/test, and not at the level of the entire dev server process.
 
-### 3. Vite dev proxy: перевести local E2E на same-origin `/api`
+### 3. Vite dev proxy: transfer local E2E to same-origin `/api`
 
-У `frontend/vite.config.ts` додати proxy:
+Add a proxy to `frontend/vite.config.ts`:
 
 ```ts
 server: {
@@ -142,75 +142,75 @@ server: {
 }
 ```
 
-Це прибирає CORS-проблеми і робить тести стабільнішими.
+This removes CORS problems and makes the tests more stable.
 
-### 4. Backend: зафіксувати local-only mock auth contract
+### 4. Backend: fix local-only mock auth contract
 
-`backend/utils/auth.py` треба допрацювати так, щоб mock auth:
+`backend/utils/auth.py` should be modified so that mock auth:
 
-- працював лише в локальному режимі / development host
-- не міг бути випадково увімкнений у deployed Function App
-- підтримував не тільки `X-Mock-Role`, а й `X-Mock-User` для audit-friendly flows
+- worked only in local mode / development host
+- could not be accidentally enabled in a deployed Function App
+- supported not only `X-Mock-Role` but also `X-Mock-User` for audit-friendly flows
 
-Бажаний guardrail:
+Preferred guardrail:
 
-- `USE_LOCAL_MOCK_AUTH=true` недостатньо саме по собі
-- додатково перевіряти, що процес реально запущений локально (`AZURE_FUNCTIONS_ENVIRONMENT=Development`, localhost origin/host, або інший явний local-only сигнал)
+- `USE_LOCAL_MOCK_AUTH=true` is not enough by itself
+- additionally check that the process is really started locally (`AZURE_FUNCTIONS_ENVIRONMENT=Development`, localhost origin/host, or other explicit local-only signal)
 
-### 5. Playwright: додати локальний boot + role-aware fixtures
+### 5. Playwright: add local boot + role-aware fixtures
 
-Додати `Playwright` у frontend workspace:
+Add `Playwright` to the frontend workspace:
 
 - `playwright.config.ts`
-- `webServer` для frontend і backend
+- `webServer` for frontend and backend
 - `use.baseURL`
-- helper/fixture для встановлення mock auth state до відкриття сторінки
+- helper/fixture to set mock auth state before opening the page
 
-Базовий контракт:
+Basic contract:
 
-- роль задається на рівні test/project
-- smoke test відкриває dashboard без Entra login
-- incident detail відкривається на реальних даних
-- role-based visibility перевіряється окремо для `operator` і `auditor`/`it-admin`
+- the role is set at the test/project level
+- smoke test opens dashboard without Entra login
+- incident detail opens on real data
+- role-based visibility is checked separately for `operator` and `auditor`/`it-admin`
 
 ---
 
-## Важлива примітка по security
+## An important note on security
 
-### Не використовувати як перший варіант
+### Do not use as a first option
 
 - `function key`
 - `master key`
-- будь-який secret, який треба віддати в браузер
+- any secret that must be given to the browser
 
-### Чому
+### Why
 
-Browser-based E2E неминуче робить такі значення доступними test runtime і developer tools. Для локального тестового режиму це зайва і небезпечна модель, особливо коли є чистіший шлях через local-only auth bypass.
+Browser-based E2E inevitably makes such values ​​available to the test runtime and developer tools. For local test mode, this is a redundant and dangerous model, especially when there is a cleaner path through local-only auth bypass.
 
 ---
 
-## Альтернатива (Phase 2, лише якщо справді треба тестувати не локальний backend, а deployed slot)
+## Alternative (Phase 2, only if you really need to test not the local backend, but the deployed slot)
 
-Якщо буде жорстка вимога тестувати саме віддалений backend, окремим етапом можна розглянути:
+If there is a strict requirement to test exactly the remote backend, a separate stage can be considered:
 
-- окремий `e2e` deployment slot або окремий test backend
-- окремий short-lived secret / signed header, який приймається тільки там
+- separate `e2e` deployment slot or separate test backend
+- a separate short-lived secret / signed header, which is accepted only there
 - IP/slot/environment restriction
 
-Але це **не** варто робити у першому проході. На поточному етапі це більший security surface, ніж користь.
+But this is **not** worth doing in the first pass. At the current stage, this is more of a security surface than a benefit.
 
 ---
 
 ## Implementation slice (smallest viable)
 
-1. Додати `VITE_AUTH_MODE=e2e` + mock auth provider на frontend
-2. Перевести local API calls на `/api` + Vite proxy
-3. Розширити local backend auth до `X-Mock-Role` + `X-Mock-User` з local-only guard
-4. Додати `Playwright` config з `webServer` для frontend/backend
-5. Написати 2 smoke tests:
+1. Add `VITE_AUTH_MODE=e2e` + mock auth provider to the frontend
+2. Transfer local API calls to `/api` + Vite proxy
+3. Extend local backend auth to `X-Mock-Role` + `X-Mock-User` with local-only guard
+4. Add `Playwright` config with `webServer` for frontend/backend
+5. Write 2 smoke tests:
    - dashboard loads as operator
    - incident detail / role gating works
-6. Задокументувати команди запуску
+6. Document the startup commands
 
 ---
 
@@ -230,7 +230,7 @@ backend/utils/auth.py
 README.md
 ```
 
-## Progress (19 квітня 2026)
+## Progress (April 19, 2026)
 
 - [x] Frontend now supports `VITE_AUTH_MODE=e2e`
 - [x] Browser requests in `e2e` mode use local `/api` instead of MSAL bearer tokens
@@ -256,18 +256,18 @@ README.md
 
 ## Risks / related gaps
 
-- `backend/triggers/http_decision.py` зараз не використовує `utils/auth.py` і приймає `user_id` / `role` з body. Для повноцінного auth-aware E2E це треба довести до контракту T-029/T-035.
-- `backend/triggers/http_signalr.py` зараз повертає negotiate payload без role check. Це не блокує local E2E start, але є окремим security debt.
-- Якщо local backend має ходити в Azure ресурси, треба перевірити локальні credentials / `local.settings.json` / `az login`.
+- `backend/triggers/http_decision.py` now does not use `utils/auth.py` and accepts `user_id` / `role` from body. For full-fledged auth-aware E2E, this should be brought to the T-029/T-035 contract.
+- `backend/triggers/http_signalr.py` now returns negotiate payload without role check. This does not block local E2E start, but is a separate security debt.
+- If the local backend should go to Azure resources, you need to check the local credentials / `local.settings.json` / `az login`.
 
 ---
 
 ## Definition of Done
 
-- [x] `Playwright` запускає frontend локально через `webServer` без ручного login
-- [x] `Playwright` може підняти локальний backend або перевикористати вже запущений local Functions host
-- [x] frontend у `e2e` режимі не залежить від `MSAL` для базового smoke flow
-- [x] API requests у `e2e` режимі йдуть через `/api` і працюють на реальних backend даних
-- [ ] mock auth приймається тільки локально, не в deployed environment
-- [x] є щонайменше 2 проходящі smoke tests для ролей
-- [x] README містить інструкцію запуску `frontend + backend + playwright`
+- [x] `Playwright` starts frontend locally via `webServer` without manual login
+- [x] `Playwright` can bring up a local backend or reuse an already running local Functions host
+- [x] frontend in `e2e` mode does not depend on `MSAL` for basic smoke flow
+- [x] API requests in `e2e` mode go through `/api` and work on real backend data
+- [ ] mock auth is accepted only locally, not in the deployed environment
+- [x] there are at least 2 passing smoke tests for roles
+- [x] README contains instructions for starting `frontend + backend + playwright`

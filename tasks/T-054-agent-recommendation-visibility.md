@@ -1,44 +1,44 @@
 # T-054 · Agent Recommendation Visibility (HITL + Lists + Analytics)
 
-← [Tasks](./README.md) · [04 · План дій](../04-action-plan.md)
+← [Tasks](./README.md) · [04 · Action Plan](../04-action-plan.md)
 
-**Пріоритет:** 🟠 HIGH  
-**Статус:** 🔜 TODO  
-**Залежить від:** T-033 (frontend-approval, DONE), T-034 (manager/auditor views, DONE), T-029 (decision API, DONE)
-
----
-
-## Мета
-
-Показувати `agent_recommendation` (APPROVE / REJECT) скрізь, де оператор або аналітик бачить інцидент — в approval UI, у списках, в audit trail, в аналітиці QA Manager. Це дозволяє:
-
-1. **Оператору** одразу бачити що рекомендує AI ще до натискання кнопки;
-2. **QA Manager / Auditor** аналізувати паттерни розбіжності між AI і людиною;
-3. **IT Admin** відстежувати якість моделі і дрейф рекомендацій у часі.
+**Priority:** 🟠 HIGH
+**Status:** 🔜 TODO
+**Depends on:** T-033 (frontend-approval, DONE), T-034 (manager/auditor views, DONE), T-029 (decision API, DONE)
 
 ---
 
-## Зміни
+## Goal
+
+Show `agent_recommendation` (APPROVE / REJECT) wherever the operator or analyst sees the incident — in the approval UI, in lists, in the audit trail, in QA Manager analytics. This allows:
+
+1. The **operator** can immediately see what the AI ​​recommends even before pressing the button;
+2. **QA Manager / Auditor** to analyze patterns of disagreement between AI and human;
+3. **IT Admin** monitor the quality of the model and the drift of recommendations over time.
+
+---
+
+## Changes
 
 ### Backend
 
 #### 1. `backend/triggers/http_decision.py`
 
-Прийняти нові поля в request body:
+Accept new fields in request body:
 
 ```python
-# Нові optional поля
+# New optional fields
 body = {
     "action": "approved",          # existing
     "reason": "...",               # existing
-    "agent_recommendation": "APPROVE",   # NEW — з DocumentAgentOutput
-    "operator_agrees_with_agent": True,  # NEW — обчислити: action=="approved" == (agent_rec=="APPROVE")
+"agent_recommendation": "APPROVE", # NEW — from DocumentAgentOutput
+"operator_agrees_with_agent": True, # NEW — calculate: action=="approved" == (agent_rec=="APPROVE")
     "work_order_draft": {...},     # NEW (T-052)
     "audit_entry_draft": {...},    # NEW (T-052)
 }
 ```
 
-Обчислення `operator_agrees_with_agent` (якщо не передано явно):
+Calculation of `operator_agrees_with_agent` (if not explicitly passed):
 ```python
 agent_rec = body.get("agent_recommendation")
 if agent_rec:
@@ -49,7 +49,7 @@ else:
     operator_agrees = None  # agent recommendation not available (BLOCKED state)
 ```
 
-Зберегти в event при `raise_event`:
+Save in event at `raise_event`:
 ```python
 event_data = {
     "action": action,
@@ -64,7 +64,7 @@ event_data = {
 
 #### 2. `backend/activities/finalize_audit.py`
 
-Додати до `patch_incident_by_id` і до audit doc:
+Add to `patch_incident_by_id` and to the audit doc:
 
 ```python
 # In patch_operations:
@@ -78,7 +78,7 @@ event_data = {
 
 #### 3. `backend/triggers/http_stats.py`
 
-Додати до `recent_decisions` items:
+Add to `recent_decisions` items:
 
 ```python
 {
@@ -90,10 +90,10 @@ event_data = {
 
 #### 4. `backend/activities/run_foundry_agents.py` / normalized result
 
-Переконатись, що `agent_recommendation` із `DocumentAgentOutput` зберігається в `ai_analysis` в Cosmos:
+Make sure `agent_recommendation` of `DocumentAgentOutput` is stored in `ai_analysis` in Cosmos:
 
 ```python
-# У normalized result:
+# In the normalized result:
 normalized["agent_recommendation"] = raw_output.get("agent_recommendation")  # "APPROVE" | "REJECT"
 ```
 
@@ -126,9 +126,9 @@ export interface RecentDecision {
 }
 ```
 
-#### 7. `frontend/src/components/Approval/ApprovalPanel.tsx` (або DecisionPackage.tsx)
+#### 7. `frontend/src/components/Approval/ApprovalPanel.tsx` (or DecisionPackage.tsx)
 
-Додати виразний **AI Verdict** badge в decision package — над кнопками Approve/Reject:
+Add an expressive **AI Verdict** badge to the decision package — above the Approve/Reject buttons:
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
@@ -137,15 +137,15 @@ export interface RecentDecision {
 │                                                              │
 │  AI RECOMMENDATION                                           │
 │  ┌────────────────────────────────────────────────────┐     │
-│  │  ✅  APPROVE — дія рекомендована                   │     │   ← зелений якщо APPROVE
-│  │  ⛔  REJECT  — ложно-позитивний / не потрібна дія  │     │   ← помаранчевий якщо REJECT
+│ │ ✅ APPROVE — the action is recommended │ │ ← green if APPROVE
+│ │ ⛔ REJECT — false positive / no action required │ │ ← orange if REJECT
 │  └────────────────────────────────────────────────────┘     │
 │                                                              │
 │  [Approve]  [Reject]  [More info]                           │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Новий компонент: `AgentRecommendationBadge.tsx`
+New component: `AgentRecommendationBadge.tsx`
 
 ```tsx
 interface Props {
@@ -156,28 +156,28 @@ interface Props {
 // Shows rationale snippet from recommendation field
 ```
 
-При Approve/Reject — передати `agent_recommendation` у тілі `POST /api/incidents/{id}/decision`.
+When Approve/Reject — pass `agent_recommendation` in the body `POST /api/incidents/{id}/decision`.
 
 #### 8. `frontend/src/components/IncidentList/IncidentTable.tsx`
 
-Додати колонку **AI** після Severity для закритих інцидентів (closed / rejected):
+Add column **AI** after Severity for closed incidents (closed / rejected):
 
 ```
 ID | Equipment | Title | Severity | AI | Outcome | Batch | Date
 ```
 
-Колонка AI показує:
-- `✅ APPROVE` / `⛔ REJECT` — що рекомендував агент
-- Якщо `operator_agrees_with_agent === false` — додатковий індикатор `⚡ Override`
-- Якщо `agent_recommendation` недоступний — `—`
+The AI ​​column shows:
+- `✅ APPROVE` / `⛔ REJECT` — what the agent recommended
+- If `operator_agrees_with_agent === false` is an additional indicator `⚡ Override`
+- If `agent_recommendation` is not available — `—`
 
-Колонка **Outcome** замість Status для history view (closed incidents):
-- `Approved ✓` / `Rejected ✗` — рішення оператора
-- Якщо `operator_agrees_with_agent === false` → tooltip "Operator overrode AI recommendation"
+**Outcome** column instead of Status for history view (closed incidents):
+- `Approved ✓` / `Rejected ✗` — operator decision
+- If `operator_agrees_with_agent === false` → tooltip "Operator override AI recommendation"
 
 #### 9. `frontend/src/pages/IncidentHistoryPage.tsx`
 
-CSV export — додати два нові стовпці:
+CSV export — add two new columns:
 
 ```typescript
 { header: "AI Recommendation", value: (i) => i.ai_analysis?.agent_recommendation ?? i.agent_recommendation ?? "" },
@@ -186,7 +186,7 @@ CSV export — додати два нові стовпці:
 
 #### 10. `frontend/src/pages/AuditTrailPage.tsx`
 
-Кожен рядок аудит-трейлу для закритого інциденту показує:
+Each line of the audit trail for a closed incident shows:
 
 ```
 INC-2026-0049 | 22 Apr 2026 | jane.smith (Operator) | Approved
@@ -196,7 +196,7 @@ INC-2026-0051 | 22 Apr 2026 | john.doe (QA Manager) | Rejected
               AI said: ✅ APPROVE → Operator: ✗ Rejected   [Override ⚡]
 ```
 
-Новий компонент: `AiVsHumanBadge.tsx`
+New component: `AiVsHumanBadge.tsx`
 
 ```tsx
 interface Props {
@@ -210,25 +210,25 @@ interface Props {
 
 #### 11. `frontend/src/components/Manager/RecentDecisions.tsx`
 
-Розширити `RecentDecision` widget:
+Expand the `RecentDecision` widget:
 
-До кожного рядка додати:
+Add to each line:
 ```
 INC-0049  jane.smith (Operator)  84%  ✅→✅ Agreed      2 min ago
 INC-0051  john.doe (QA Mgr)      62%  ✅→✗ Override     8 min ago
 INC-0048  alice.m  (Operator)    —    BLOCKED→✅ Approved  1h ago
 ```
 
-Легенда: `✅→✅` = AI APPROVE, оператор Approved. `✅→✗` = AI APPROVE, оператор Rejected (override).
+Legend: `✅→✅` = AI APPROVE, operator Approved. `✅→✗` = AI APPROVE, operator Rejected (override).
 
-Додати маленький summary KPI під таблицею:
+Add a small summary KPI under the table:
 ```
 AI–Human agreement rate (last 30 decisions): 78%
 ```
 
 ---
 
-## Wireframe — IncidentTable з AI-колонкою
+## Wireframe — IncidentTable with AI column
 
 ```
 ┌──────────┬───────────┬────────────────────────────┬──────────┬─────────┬──────────────┐
@@ -244,9 +244,9 @@ AI–Human agreement rate (last 30 decisions): 78%
 
 ---
 
-## Нові компоненти
+## New components
 
-| Компонент | Де використовується |
+| Component | Where is used |
 |---|---|
 | `AgentRecommendationBadge.tsx` | ApprovalPanel (HITL) |
 | `AiVsHumanBadge.tsx` | AuditTrailPage, IncidentTable |
@@ -256,22 +256,22 @@ AI–Human agreement rate (last 30 decisions): 78%
 ## Definition of Done
 
 **Backend:**
-- [ ] `http_decision.py` приймає `agent_recommendation` + обчислює `operator_agrees_with_agent`
-- [ ] `finalize_audit.py` зберігає обидва поля в Cosmos incident + audit event
-- [ ] `run_foundry_agents.py` / normalized result зберігає `agent_recommendation` в `ai_analysis`
-- [ ] `http_stats.py` включає `agent_recommendation` + `operator_agrees_with_agent` у `recent_decisions`
+- [ ] `http_decision.py` accepts `agent_recommendation` + calculates `operator_agrees_with_agent`
+- [ ] `finalize_audit.py` stores both fields in Cosmos incident + audit event
+- [ ] `run_foundry_agents.py` / normalized result stores `agent_recommendation` in `ai_analysis`
+- [ ] `http_stats.py` includes `agent_recommendation` + `operator_agrees_with_agent` in `recent_decisions`
 
 **Frontend:**
-- [ ] `AgentRecommendationBadge` показується в ApprovalPanel — виразно, над кнопками
-- [ ] `agent_recommendation` передається у тілі `POST /decision`
-- [ ] `IncidentTable` показує AI-колонку + Override індикатор
-- [ ] `IncidentHistoryPage` CSV export включає нові поля
-- [ ] `AuditTrailPage` показує `AiVsHumanBadge` per row
-- [ ] `RecentDecisions` widget показує AI→Human pattern + agreement rate KPI
-- [ ] `types/incident.ts` та `types/stats.ts` оновлено
+- [ ] `AgentRecommendationBadge` is shown in the ApprovalPanel — clearly, above the buttons
+- [ ] `agent_recommendation` is passed in the body of `POST /decision`
+- [ ] `IncidentTable` shows AI column + Override indicator
+- [ ] `IncidentHistoryPage` CSV export includes new fields
+- [ ] `AuditTrailPage` shows `AiVsHumanBadge` per row
+- [ ] `RecentDecisions` widget shows AI→Human pattern + agreement rate KPI
+- [ ] `types/incident.ts` and `types/stats.ts` updated
 
 ---
 
-## Пріоритет і scope
+## Priority and scope
 
-🟠 HIGH — ця фіча пряма демонстрація цінності AI: "ось що порадила система, ось що вирішив оператор". Критично для hackathon demo story та для post-demo аналітики якості рекомендацій.
+🟠 HIGH — this feature is a direct demonstration of the value of AI: "this is what the system advised, this is what the operator decided." Critical for the hackathon demo story and for post-demo analytics of recommendation quality.
