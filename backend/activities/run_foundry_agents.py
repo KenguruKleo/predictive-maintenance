@@ -216,6 +216,7 @@ def run_foundry_agents(input_data: dict) -> dict:
         more_info_round,
         previous_ai_result=previous_ai_result,
         operator_questions=context_data.get("operator_questions", []),
+        authoritative_research_package=research_package,
     )
 
     # Confidence gate (RAI Gap #4): log warning but still return result
@@ -1469,14 +1470,22 @@ def _normalize_agent_result(
     more_info_round: int,
     previous_ai_result: dict | None = None,
     operator_questions: list[dict] | None = None,
+    authoritative_research_package: dict | None = None,
 ) -> dict:
     """Make citation output stable for the operator UI."""
     result["title"] = _normalize_incident_title(result)
+    citation_source = result
+    package_citations = (authoritative_research_package or {}).get("evidence_citations")
+    if isinstance(package_citations, list):
+        citation_source = {"evidence_citations": package_citations}
     result["evidence_citations"] = _normalize_evidence_citations(
-        result,
+        citation_source,
         rag_context or {},
         current_incident_id=str(result.get("incident_id") or ""),
     )
+    package_tool_calls = (authoritative_research_package or {}).get("tool_calls_log")
+    if isinstance(package_tool_calls, list):
+        result["tool_calls_log"] = package_tool_calls
     result["sop_refs"] = _normalize_reference_collection(
         result["evidence_citations"],
         citation_type="sop",

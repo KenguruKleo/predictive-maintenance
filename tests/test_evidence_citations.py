@@ -227,6 +227,69 @@ def test_normalize_evidence_citations_uses_canonical_agent_metadata_without_rag_
     assert citations[0]["resolution_status"] == "resolved"
 
 
+def test_normalize_agent_result_uses_authoritative_research_package_citations() -> None:
+    result = {
+        "incident_id": "INC-2026-0084",
+        "title": "Impeller Speed Low",
+        "risk_level": "medium",
+        "confidence": 0.85,
+        "recommendation": "Reject transient event.",
+        "operator_dialogue": "Reject transient event.",
+        "agent_recommendation": "REJECT",
+        "evidence_citations": [
+            {
+                "type": "bpr",
+                "document_id": "BPR-MET-500-v3_2-Process-Specification",
+                "document_title": "BPR Metformin 500mg Process Specification",
+                "section_heading": "5.4 Process Parameter Deviation Matrix",
+                "text_excerpt": "Short transient excursions may be assessed against historical process impact.",
+                "source_blob": "BPR-MET-500-v3.2-Process-Specification.md",
+                "index_name": "idx-bpr-documents",
+                "chunk_index": 8,
+                "score": 0.92,
+            }
+        ],
+        "tool_calls_log": [],
+    }
+    research_package = {
+        "tool_calls_log": [
+            {"tool": "sentinel_search_search_bpr_documents", "args": {"query": "bpr"}, "status": "success"},
+            {"tool": "sentinel_search_search_incident_history", "args": {"query": "history"}, "status": "success"},
+        ],
+        "evidence_citations": [
+            result["evidence_citations"][0],
+            {
+                "type": "historical",
+                "document_id": "INC-2026-0015",
+                "document_title": "Historical incident INC-2026-0015",
+                "section_heading": "Human decision",
+                "text_excerpt": "Human decision: rejected. Similar transient impeller speed deviation on GR-204.",
+                "source_blob": "INC-2026-0015.txt",
+                "index_name": "idx-incident-history",
+                "chunk_index": 0,
+                "score": 0.87,
+            },
+        ],
+    }
+
+    normalized = _normalize_agent_result(
+        result,
+        {},
+        more_info_round=0,
+        authoritative_research_package=research_package,
+    )
+
+    assert [citation["document_id"] for citation in normalized["evidence_citations"]] == [
+        "BPR-MET-500-v3_2-Process-Specification",
+        "INC-2026-0015",
+    ]
+    assert normalized["evidence_citations"][1]["url"] == "/incidents/INC-2026-0015"
+    assert [entry["tool"] for entry in normalized["tool_calls_log"]] == [
+        "sentinel_search_search_bpr_documents",
+        "sentinel_search_search_incident_history",
+    ]
+
+
 def test_normalize_evidence_citations_builds_historical_incident_link() -> None:
     citations = _normalize_evidence_citations(
         {
