@@ -207,9 +207,11 @@ export default function IncidentDetailPage() {
               <p className="muted-text">
                 {incident.status === "closed"
                   ? "This incident has been closed."
-                  : incident.status === "analyzing"
-                    ? "AI agents are currently analyzing this incident..."
-                    : `Current status: ${incident.status.replace(/_/g, " ")}`}
+                  : incident.status === "queued_for_analysis"
+                    ? "Incident queued for AI analysis. Waiting for an available analyzer slot..."
+                    : incident.status === "analyzing"
+                      ? "AI agents are currently analyzing this incident..."
+                      : `Current status: ${incident.status.replace(/_/g, " ")}`}
               </p>
             </div>
           )}

@@ -38,6 +38,7 @@ _STUCK_STATUSES = frozenset({
     "open",
     "queued",
     "ingested",
+    "queued_for_analysis",
     "analyzing",
     "analyzing_agents",
 })

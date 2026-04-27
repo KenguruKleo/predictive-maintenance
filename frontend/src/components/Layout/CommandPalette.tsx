@@ -32,7 +32,7 @@ export default function CommandPalette({ open, onClose }: Props) {
   const { roles } = useAuth();
 
   const { data: activeData } = useIncidents({
-    status: ["pending_approval", "escalated", "analyzing", "ingested"],
+    status: ["pending_approval", "escalated", "analyzing", "queued_for_analysis", "ingested"],
     page_size: 20,
   });
 

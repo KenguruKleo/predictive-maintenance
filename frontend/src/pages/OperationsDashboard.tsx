@@ -18,9 +18,10 @@ const STATUS_ORDER: Record<string, number> = {
   pending_approval: 0,
   escalated: 1,
   analyzing: 2,
-  ingested: 3,
-  open: 4,
-  approved: 5,
+  queued_for_analysis: 3,
+  ingested: 4,
+  open: 5,
+  approved: 6,
 };
 
 function sortIncidents(items: Incident[]) {
@@ -48,7 +49,7 @@ const PIPELINE_STAGES: Array<{
     key: "analyzing",
     label: "Analyzing",
     className: "pipeline-stage--analyzing",
-    statuses: ["analyzing", "awaiting_agents"],
+    statuses: ["queued_for_analysis", "analyzing", "awaiting_agents"],
   },
   {
     key: "execution",

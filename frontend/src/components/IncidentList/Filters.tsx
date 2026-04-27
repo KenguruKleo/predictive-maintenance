@@ -16,6 +16,7 @@ interface Props {
 const STATUSES: IncidentStatus[] = [
   "open",
   "ingested",
+  "queued_for_analysis",
   "analyzing",
   "awaiting_agents",
   "pending_approval",

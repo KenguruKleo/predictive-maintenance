@@ -103,7 +103,10 @@ def run_foundry_agents(input_data: dict) -> dict:
         "run_foundry_agents: incident=%s round=%d", incident_id, more_info_round
     )
 
-    _mark_incident_analyzing(incident_id, more_info_round)
+    # Mark as queued first — we may have to wait for the Foundry concurrency slot.
+    # The transition to "analyzing" happens AFTER the slot is acquired so the UI
+    # can distinguish "queued behind another incident" from "actively in Foundry".
+    _mark_incident_queued_for_analysis(incident_id, more_info_round)
 
     # Write analysis_started event on the first (non-more_info) run
     if more_info_round == 0:
@@ -157,6 +160,10 @@ def run_foundry_agents(input_data: dict) -> dict:
     _wait_for_foundry_slot(
         incident_id, _equipment_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30
     )
+
+    # Slot acquired — flip status to "analyzing" so the UI knows we are now actively
+    # in Foundry (vs. just queued).
+    _mark_incident_analyzing(incident_id, more_info_round)
 
     prompt = _build_prompt(
         incident_id,
@@ -2401,6 +2408,59 @@ def _write_analysis_started_event(incident_id: str) -> None:
         pass  # idempotent on orchestrator replay
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not write analysis_started event for %s: %s", incident_id, exc)
+
+
+def _mark_incident_queued_for_analysis(incident_id: str, more_info_round: int) -> None:
+    """Persist the transition to 'queued_for_analysis' before entering the Foundry gate.
+
+    This lets the UI distinguish between incidents waiting for a Foundry concurrency
+    slot ('queued_for_analysis') and those actively running in Foundry ('analyzing').
+    """
+    db = get_cosmos_client().get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    previous_status = str(incident.get("status") or "").strip() or None
+    workflow_state = incident.get("workflow_state") or {}
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    patch_incident_by_id(
+        db,
+        incident_id,
+        [
+            {"op": "set", "path": "/status", "value": "queued_for_analysis"},
+            {
+                "op": "set",
+                "path": "/workflow_state",
+                "value": {
+                    **workflow_state,
+                    "durable_instance_id": f"durable-{incident_id}",
+                    "current_step": (
+                        "queued_for_analysis_followup"
+                        if more_info_round > 0
+                        else "queued_for_analysis"
+                    ),
+                },
+            },
+            {"op": "set", "path": "/updatedAt", "value": now_iso},
+            {"op": "set", "path": "/updated_at", "value": now_iso},
+        ],
+    )
+
+    if previous_status != "queued_for_analysis":
+        try:
+            notify_incident_status_changed_sync(
+                incident_id=incident_id,
+                new_status="queued_for_analysis",
+                previous_status=previous_status,
+                equipment_id=str(
+                    incident.get("equipment_id") or incident.get("equipmentId") or ""
+                ),
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "Could not push queued_for_analysis status change for %s: %s",
+                incident_id,
+                exc,
+            )
 
 
 def _mark_incident_analyzing(incident_id: str, more_info_round: int) -> None:

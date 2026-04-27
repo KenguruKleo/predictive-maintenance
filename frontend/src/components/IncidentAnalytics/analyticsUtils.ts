@@ -7,6 +7,7 @@ import type { Incident } from "../../types/incident";
 export const ANALYTICS_STATUSES = [
   "open",
   "ingested",
+  "queued_for_analysis",
   "analyzing",
   "awaiting_agents",
   "pending_approval",
@@ -59,6 +60,7 @@ export function getStatusLabel(status: string) {
   switch (status) {
     case "open": return "Open";
     case "ingested": return "Ingested";
+    case "queued_for_analysis": return "Queued for AI";
     case "analyzing": return "Analyzing";
     case "awaiting_agents": return "Awaiting Agents";
     case "pending_approval": return "Pending Approval";

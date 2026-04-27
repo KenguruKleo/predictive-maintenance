@@ -3,6 +3,7 @@ export type Severity = "critical" | "major" | "moderate" | "minor";
 export type IncidentStatus =
   | "open"
   | "ingested"
+  | "queued_for_analysis"
   | "analyzing"
   | "pending_approval"
   | "escalated"
@@ -280,6 +281,7 @@ export interface IncidentFilters {
 export const ACTIVE_INCIDENT_STATUSES = [
   "open",
   "ingested",
+  "queued_for_analysis",
   "analyzing",
   "awaiting_agents",
   "pending_approval",

@@ -10,6 +10,8 @@ function cardLabel(incident: Incident) {
       text: "LOW CONFIDENCE · QA MANAGER NOTIFIED",
       className: "card-label card-label--escalated",
     };
+  if (incident.status === "queued_for_analysis")
+    return { text: "QUEUED FOR AI", className: "card-label card-label--processing" };
   if (incident.status === "analyzing" || incident.status === "ingested")
     return { text: "AI PROCESSING", className: "card-label card-label--processing" };
   if (incident.status === "approved")

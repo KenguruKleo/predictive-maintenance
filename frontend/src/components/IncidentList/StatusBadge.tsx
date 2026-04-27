@@ -3,6 +3,7 @@ import type { IncidentStatus } from "../../types/incident";
 const STATUS_MAP: Record<IncidentStatus, { label: string; className: string }> = {
   open: { label: "Open", className: "badge badge--analyzing" },
   ingested: { label: "Ingested", className: "badge badge--analyzing" },
+  queued_for_analysis: { label: "Queued for AI", className: "badge badge--analyzing" },
   analyzing: { label: "AI Analyzing", className: "badge badge--analyzing" },
   awaiting_agents: { label: "Awaiting Agents", className: "badge badge--analyzing" },
   pending_approval: { label: "Pending Approval", className: "badge badge--pending" },

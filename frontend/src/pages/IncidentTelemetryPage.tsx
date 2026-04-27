@@ -54,7 +54,7 @@ function buildEmptyTelemetryHints(options: {
     hints.push("Current filters can hide rows. Reset filters to confirm the incident truly has no prompt traces.");
   }
 
-  if (["open", "ingested", "analyzing", "awaiting_agents"].includes(options.incidentStatus ?? "")) {
+  if (["open", "ingested", "queued_for_analysis", "analyzing", "awaiting_agents"].includes(options.incidentStatus ?? "")) {
     hints.push("The incident may not have reached the Foundry agent step yet, so no prompt traces exist to display.");
   } else {
     hints.push("Older incidents created before prompt trace capture was enabled will also appear empty here.");

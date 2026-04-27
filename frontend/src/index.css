@@ -263,6 +263,7 @@ ul, ol { list-style: none; padding: 0; }
 .badge--pending   { color: var(--status-pending-fg);   background: var(--status-pending-bg);   }
 .badge--analyzing,
 .badge--ai_processing,
+.badge--queued_for_analysis,
 .badge--ingested  { color: var(--status-analyzing-fg); background: var(--status-analyzing-bg); }
 .badge--escalated { color: var(--status-escalated-fg); background: var(--status-escalated-bg); }
 .badge--approved  { color: var(--status-approved-fg);  background: var(--status-approved-bg);  }

@@ -24,7 +24,7 @@ function resolveTileStatus(incidents: Incident[]): TileStatus {
   if (incidents.some((i) => i.severity === "critical" || i.severity === "major")) return "warning";
   if (
     incidents.some((i) =>
-      ["analyzing", "awaiting_agents", "ingested", "open"].includes(i.status)
+      ["queued_for_analysis", "analyzing", "awaiting_agents", "ingested", "open"].includes(i.status)
     )
   )
     return "processing";
