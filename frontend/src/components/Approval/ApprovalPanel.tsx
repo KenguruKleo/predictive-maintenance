@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { Incident, IncidentEvent } from "../../types/incident";
-import type { AuditEntryDraft, WorkOrderDraft } from "../../types/approval";
+import type { AuditEntryDraft, DecisionPayload, WorkOrderDraft } from "../../types/approval";
 import { useSubmitDecision } from "../../hooks/useIncidents";
 import ConfidenceBanner from "./ConfidenceBanner";
 import AgentRecommendationBadge from "./AgentRecommendationBadge";
@@ -21,6 +21,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
+  const decisionLockRef = useRef(false);
   const decisionSummary = getDecisionSummary(incident);
   const hasChatTranscript = events.some(
     (event) =>
@@ -54,7 +55,8 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   const draftsFilledEnough =
     !isBlocked ||
     !!(draftState?.workOrder.description && draftState?.auditEntry.description);
-  const approveDisabled = decision.isPending || (isPending && isBlocked && !draftsFilledEnough);
+  const isDecisionPending = decision.isPending;
+  const approveDisabled = isDecisionPending || (isPending && isBlocked && !draftsFilledEnough);
 
   useEffect(() => {
     if (showQuestionComposer) {
@@ -64,9 +66,40 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
     }
   }, [showQuestionComposer]);
 
+  useEffect(() => {
+    if (!isPending) {
+      decisionLockRef.current = false;
+    }
+  }, [isPending]);
+
+  const lockDecision = () => {
+    if (decisionLockRef.current || decision.isPending) return false;
+    decisionLockRef.current = true;
+    return true;
+  };
+
+  const releaseDecisionLock = () => {
+    decisionLockRef.current = false;
+  };
+
+  const submitDecisionOnce = (
+    payload: DecisionPayload,
+    options?: { onSuccess?: () => void },
+  ) => {
+    if (!lockDecision()) return;
+    decision.mutate(payload, {
+      onSuccess: () => {
+        options?.onSuccess?.();
+      },
+      onError: () => {
+        releaseDecisionLock();
+      },
+    });
+  };
+
 
   const handleApprove = () => {
-    decision.mutate({
+    submitDecisionOnce({
       action: "approved",
       agent_recommendation: incident.ai_analysis?.agent_recommendation,
       work_order_draft: draftState?.workOrder,
@@ -75,7 +108,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   };
 
   const handleReject = (reason: string) => {
-    decision.mutate({
+    submitDecisionOnce({
       action: "rejected",
       reason,
       agent_recommendation: incident.ai_analysis?.agent_recommendation,
@@ -84,7 +117,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   };
 
   const handleAskAgent = (question: string) => {
-    decision.mutate(
+    submitDecisionOnce(
       { action: "more_info", question },
       {
         onSuccess: () => {
@@ -111,7 +144,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
 
 
   return (
-    <div className="approval-panel approval-panel--sticky">
+    <div className="approval-panel approval-panel--sticky" aria-busy={isDecisionPending}>
       <div className="approval-cockpit-header">
         <div>
           <p className="approval-eyebrow">{panelEyebrow}</p>
@@ -184,22 +217,22 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
               onClick={handleApprove}
               disabled={approveDisabled}
             >
-              Approve
+              {isDecisionPending ? "Submitting..." : "Approve"}
             </button>
             <button
               className="btn btn--reject"
               onClick={() => setShowRejectModal(true)}
-              disabled={decision.isPending}
+              disabled={isDecisionPending}
             >
-              Decline
+              {isDecisionPending ? "Submitting..." : "Decline"}
             </button>
             <button
               className="btn btn--secondary"
               onClick={handleNeedMoreInfo}
-              disabled={decision.isPending}
+              disabled={isDecisionPending}
               aria-controls={chatInputId}
             >
-              Need More Info
+              {isDecisionPending ? "Submitting..." : "Need More Info"}
             </button>
           </div>
 
@@ -210,9 +243,9 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
       {shouldShowChat && (
         <AgentChat
           events={events}
-          onSend={canMakeDecision && isPending ? handleAskAgent : undefined}
-          readOnly={!canMakeDecision || !isPending}
-          showComposer={canMakeDecision && isPending && showQuestionComposer}
+          onSend={canMakeDecision && isPending && !isDecisionPending ? handleAskAgent : undefined}
+          readOnly={!canMakeDecision || !isPending || isDecisionPending}
+          showComposer={canMakeDecision && isPending && showQuestionComposer && !isDecisionPending}
           title="Conversation transcript"
           emptyState={
             isPending

@@ -102,6 +102,10 @@ FINAL_ANALYSIS_SCHEMA = {
         "root_cause": {"type": "string"},
         "analysis": {"type": "string"},
         "recommendation": {"type": "string"},
+        "agent_recommendation": {
+            "type": "string",
+            "enum": ["APPROVE", "REJECT"],
+        },
         "operator_dialogue": {"type": "string"},
         "capa_suggestion": {"type": "string"},
         "regulatory_reference": {"type": "string"},
@@ -222,6 +226,7 @@ FINAL_ANALYSIS_SCHEMA = {
         "root_cause",
         "analysis",
         "recommendation",
+        "agent_recommendation",
         "operator_dialogue",
         "capa_suggestion",
         "regulatory_reference",
@@ -301,7 +306,7 @@ DOCUMENT_OUTPUT_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
 # ── OpenAPI spec builders ─────────────────────────────────────────────────
 
 def _build_sentinel_db_spec(base_url: str) -> dict:
-    """OpenAPI 3.0 spec for Sentinel DB REST endpoints (5 operations)."""
+    """OpenAPI 3.0 spec for Sentinel DB REST endpoints (4 read operations)."""
     return {
         "openapi": "3.0.0",
         "info": {"title": "Sentinel DB API", "version": "1.0.0"},
@@ -346,16 +351,6 @@ def _build_sentinel_db_spec(base_url: str) -> dict:
                         {"name": "limit", "in": "query", "required": False, "schema": {"type": "integer", "default": 5}, "description": "Max results"},
                     ],
                     "responses": {"200": {"description": "List of incidents"}},
-                }
-            },
-            "/api/templates/{template_type}": {
-                "get": {
-                    "operationId": "get_template",
-                    "summary": "Get document template by type. Valid types: work_order, audit_entry. Returns template fields for pre-filling work orders and audit entries.",
-                    "parameters": [
-                        {"name": "template_type", "in": "path", "required": True, "schema": {"type": "string", "enum": ["work_order", "audit_entry"]}, "description": "Template type"}
-                    ],
-                    "responses": {"200": {"description": "Template document"}, "404": {"description": "Not found"}},
                 }
             },
         },
@@ -582,14 +577,14 @@ def main(update: bool = False) -> dict:
 
     research_tools: list[ToolDefinition] = []
 
-    # OpenApiTool: sentinel-db (equipment / batch / incident / template context)
+    # OpenApiTool: sentinel-db (equipment / batch / incident context)
     if mcp_db_url:
         db_spec = _build_sentinel_db_spec(mcp_db_url)
         db_tool = OpenApiTool(
             name="sentinel_db",
             description=(
                 "Read-only access to Sentinel Cosmos DB: equipment master data, "
-                "batch context, incident documents, historical incidents, and templates."
+                "batch context, incident documents, and historical incidents."
             ),
             spec=db_spec,
             auth=anon_auth,

@@ -56,7 +56,7 @@ from shared.foundry_run import (
     create_thread_and_process_run_with_approval,
 )
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
-from shared.search_utils import search_all_indexes, search_index
+from shared.search_utils import search_index
 from shared.signalr_client import notify_incident_status_changed_sync
 
 logger = logging.getLogger(__name__)
@@ -144,30 +144,10 @@ def run_foundry_agents(input_data: dict) -> dict:
             "Run agents/create_agents.py first to provision Foundry agents."
         )
 
-    # ── Pre-fetch RAG context from all 5 AI Search indexes ─────────────────
+    # Keep the activity prompt compact. The Research Agent is the single evidence
+    # collector; citation normalization can still resolve explicit document IDs
+    # via targeted lookup after the Orchestrator returns the final JSON.
     rag_context: dict = {}
-    if SEARCH_ENABLED:
-        equipment_id = context_data.get("equipment_id") or (
-            context_data.get("equipment", {}).get("id")
-        )
-        alert = context_data.get("alert_payload", {})
-        search_query = (
-            f"{alert.get('alert_type', '')} {alert.get('deviation_description', '')} "
-            f"{alert.get('parameter', '')} {alert.get('equipment_id', '')}"
-        ).strip() or f"GMP deviation incident {incident_id}"
-        try:
-            rag_context = search_all_indexes(
-                query=search_query,
-                equipment_id=equipment_id,
-                top_k=3,
-            )
-            logger.info(
-                "RAG pre-fetch: %d total chunks for incident %s",
-                sum(len(v) for v in rag_context.values()),
-                incident_id,
-            )
-        except Exception as exc:
-            logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
 
     # Foundry concurrency gate: wait until a slot is free, then mark self as active.
     # Cleared in the finally block below so the next queued incident can proceed.
@@ -195,7 +175,6 @@ def run_foundry_agents(input_data: dict) -> dict:
         incident_id,
         context_data,
         more_info_round,
-        rag_context,
         previous_ai_result,
     )
     _log_orchestrator_prompt_trace(
@@ -721,13 +700,12 @@ def _build_prompt(
     incident_id: str,
     context_data: dict,
     more_info_round: int,
-    rag_context: dict | None = None,
     previous_ai_result: dict | None = None,
 ) -> str:
     """Build the user message that drives the Orchestrator Agent."""
-    equipment = context_data.get("equipment", {})
-    batch = context_data.get("batch", {})
-    recent_incidents = context_data.get("recent_incidents", [])
+    equipment = _compact_equipment_context(context_data.get("equipment") or {})
+    batch = _compact_batch_context(context_data.get("batch") or {})
+    recent_incidents = _compact_recent_incidents(context_data.get("recent_incidents") or [])
     alert_payload = context_data.get("alert_payload", {})
     operator_questions = context_data.get("operator_questions", [])
 
@@ -740,48 +718,21 @@ def _build_prompt(
         json.dumps(alert_payload, indent=2, default=str),
         "```",
         "",
-        "### Equipment Context",
+        "### Known Equipment Summary (routing context only)",
         "```json",
         json.dumps(equipment, indent=2, default=str),
         "```",
         "",
-        "### Active Batch",
+        "### Known Batch Summary (routing context only)",
         "```json",
         json.dumps(batch, indent=2, default=str),
         "```",
         "",
-        f"### Recent Incidents (last {len(recent_incidents)} on this equipment)",
+        f"### Known Recent Incident Decisions (last {len(recent_incidents)} on this equipment)",
         "```json",
         json.dumps(recent_incidents, indent=2, default=str),
         "```",
     ]
-
-    # ── RAG pre-fetched context (from all 5 AI Search indexes) ────────────
-    if rag_context:
-        _INDEX_LABELS = {
-            "idx-sop-documents": "Relevant SOP Sections",
-            "idx-equipment-manuals": "Equipment Manual Sections",
-            "idx-bpr-documents": "BPR / Product Process Specs (NOR/PAR)",
-            "idx-gmp-policies": "Applicable GMP Regulations & Policies",
-            "idx-incident-history": "Similar Historical Incidents",
-        }
-        lines.append("")
-        lines.append("### Pre-fetched RAG Context (AI Search — all 5 indexes)")
-        lines.append(
-            "> Use these excerpts as primary evidence. Cite document_title and section in your analysis."
-        )
-        for idx_name, hits in rag_context.items():
-            if not hits:
-                continue
-            label = _INDEX_LABELS.get(idx_name, idx_name)
-            lines.append(f"\n#### {label}")
-            for hit in hits:
-                lines.append(
-                    f"**[{hit['document_title']}]** "
-                    f"(index={idx_name}; source_blob={hit.get('source', '')}; "
-                    f"chunk={hit.get('chunk_index', '')}; score={hit['score']:.3f}):\n"
-                    f"{hit['text'][:600]}"
-                )
 
     if operator_questions:
         lines += [
@@ -817,118 +768,98 @@ def _build_prompt(
         "---",
         "### Instructions",
         (
-            "The Pre-fetched RAG Context above contains relevant excerpts from SOPs, "
-            "equipment manuals, BPR product specs, GMP regulations, and similar historical incidents "
-            "retrieved via semantic search. Use these as your primary evidence base — cite them explicitly. "
-            "Use your Research sub-agent to retrieve any additional context not covered above. "
+            "The summaries above are only routing context to help you call the right tools. "
+            "Use your Research sub-agent as the single source of evidence for SOPs, "
+            "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
             "You, the Orchestrator, must produce the final structured analysis and decision. "
-            "Use your Document sub-agent only to prepare/persist documentation that matches your final decision."
+            "Use your Document sub-agent only after you decide, and pass it only the compact "
+            "documentation package it needs: incident identifiers, your final decision fields, "
+            "audit/work-order drafting inputs, and citations used."
         ),
         "",
-        "Return your response as a **single JSON block** using this exact schema:",
-        "```json",
-        json.dumps(
-            {
-                "incident_id": incident_id,
-                "title": "Short operator-facing incident title in under 8 words",
-                "classification": "process_parameter_excursion | equipment_malfunction | ...",
-                "risk_level": "low | medium | high | critical",
-                "confidence": 0.85,
-                "confidence_flag": None,
-                "root_cause": "Primary root cause in one sentence",
-                "analysis": "Detailed root cause analysis with evidence.",
-                "recommendation": "Recommended immediate action.",
-                "operator_dialogue": (
-                    "Round 0: concise summary for operator. "
-                    "Round >0: start by saying what follow-up question you reviewed, "
-                    "then state clearly whether recommendation/root cause changed or stayed the same, and why. "
-                    "If the follow-up asks whether a BPR, SOP, or other document directly requires an action, "
-                    "answer that explicitly in plain language instead of implying it. "
-                    "Do not simply repeat the recommendation text."
-                ),
-                "capa_suggestion": "1. ...\n2. ...",
-                "regulatory_reference": "SOP-DEV-001 §4.2; GMP Annex 15 §6.3",
-                "batch_disposition": "conditional_release_pending_testing | rejected | release",
-                "recommendations": [
-                    {
-                        "action": "...",
-                        "priority": "critical|high|medium|low",
-                        "owner": "...",
-                        "deadline_days": 0,
-                    }
-                ],
-                "regulatory_refs": [
-                    {
-                        "regulation": "EU GMP Annex 15",
-                        "section": "§6.3",
-                        "text_excerpt": "...",
-                    }
-                ],
-                "sop_refs": [
-                    {
-                        "id": "SOP-DEV-001",
-                        "title": "Deviation Management",
-                        "relevant_section": "§4.2",
-                        "text_excerpt": "...",
-                    }
-                ],
-                "evidence_citations": [
-                    {
-                        "source": "SOP-DEV-001",
-                        "section": "§4.2",
-                        "text_excerpt": "...",
-                    }
-                ],
-                "agent_recommendation": "APPROVE | REJECT",
-                "work_order_draft": {
-                    "title": "...",
-                    "description": "...",
-                    "priority": "high",
-                    "estimated_hours": 4,
-                },
-                "audit_entry_draft": {
-                    "deviation_type": "...",
-                    "description": "...",
-                    "root_cause": "...",
-                    "capa_actions": "...",
-                },
-                "tool_calls_log": [
-                    {
-                        "tool": "get_equipment",
-                        "args": {"equipment_id": "GR-204"},
-                        "status": "ok",
-                    }
-                ],
-                "work_order_id": None,
-                "audit_entry_id": None,
-                "execution_error": None,
-            },
-            indent=2,
+        "Return one JSON object that matches the configured response schema. Required top-level fields: ",
+        (
+            "incident_id, title, classification, risk_level, confidence, confidence_flag, "
+            "root_cause, analysis, recommendation, agent_recommendation, operator_dialogue, "
+            "capa_suggestion, regulatory_reference, "
+            "batch_disposition, recommendations, regulatory_refs, sop_refs, evidence_citations, "
+            "audit_entry_draft, work_order_draft, tool_calls_log, "
+            "audit_entry_id, work_order_id. Include execution_error only when a tool/documentation "
+            "step fails or returns an error."
         ),
-        "```",
-        "",
-        "Every field above is required except execution_error, which may be null when tool execution succeeds.",
-        "Carry forward tool_calls_log from the Research Agent. The Document Agent may only fill work_order_draft, audit_entry_draft, work_order_id, audit_entry_id, and execution_error — it must not decide the outcome.",
-        "Set agent_recommendation to APPROVE if the deviation requires CAPA action (risk high/critical/medium). "
-        "Set to REJECT if the deviation is a transient/startup spike, sensor noise, or false positive with NO physical deviation confirmed AND NO open/unresolved history of recurrence. "
-        "CRITICAL for historical incidents: if recent_incidents shows similar events on the same equipment where lastDecision or finalDecision has action='rejected' (human dismissed as false positive), "
-        "that human rejection is STRONG evidence to REJECT the current incident too — do NOT treat it as 'recurring issue requiring CAPA'. Weight these human-rejected similar incidents more heavily than generic SOP/GMP language that only says deviations must be reviewed/documented. "
-        "Only treat historical incidents as evidence of a recurring problem if they were approved/escalated (action='approved') or remain unresolved. "
-        "Also: if duration_seconds < 30 AND notes explicitly state startup transient or maintenance confirmed no fault, "
-        "set agent_recommendation to REJECT unless there is confirmed product quality impact or sustained equipment damage. "
-        "If you decide REJECT, Document Agent should create only the audit entry and must leave work_order_draft/work_order_id null. "
-        "Examples of REJECT: single 8-second motor current spike during startup with no fault found; identical transient spikes previously rejected by human operators. "
-        "Examples of APPROVE: sustained excursion >1 min, confirmed equipment fault, batch quality impact, repeat pattern with prior human-approved investigations. "
-        "Never fabricate data. Cite all sources. If confidence is below 0.75, "
-        "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
-        "would raise confidence.",
-        "Always include operator_dialogue: plain language, under 120 words. "
-        "For follow-up rounds, explicitly say what question you checked, what changed or why no change was needed. "
-        "If the question asks whether a BPR, SOP, or other document directly requires an action, answer that explicitly with the evidence you found. "
-        "and never just repeat the recommendation or analysis verbatim.",
+        "Carry forward tool_calls_log from the Research Agent. Merge only documentation fields from Document Agent.",
+        "For REJECT decisions, work_order_draft and work_order_id must be null.",
+        "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer follow-up questions directly.",
     ]
 
     return "\n".join(lines)
+
+
+def _compact_equipment_context(equipment: dict) -> dict:
+    return _pick_present(
+        equipment,
+        [
+            "id",
+            "equipment_id",
+            "name",
+            "equipment_name",
+            "type",
+            "equipment_type",
+            "criticality",
+            "equipment_criticality",
+            "location",
+            "validated_parameters",
+            "calibration_status",
+            "last_calibration",
+            "next_calibration",
+        ],
+    )
+
+
+def _compact_batch_context(batch: dict) -> dict:
+    return _pick_present(
+        batch,
+        [
+            "id",
+            "batch_id",
+            "batch_number",
+            "product",
+            "product_name",
+            "stage",
+            "stage_step",
+            "production_stage",
+            "status",
+            "bpr_reference",
+            "process_parameters",
+        ],
+    )
+
+
+def _compact_recent_incidents(recent_incidents: list[dict]) -> list[dict]:
+    keys = [
+        "id",
+        "incident_id",
+        "title",
+        "parameter",
+        "deviation_type",
+        "severity",
+        "status",
+        "createdAt",
+        "created_at",
+        "lastDecision",
+        "finalDecision",
+        "agentRecommendation",
+        "operatorAgreesWithAgent",
+    ]
+    return [
+        _pick_present(item, keys)
+        for item in recent_incidents[:5]
+        if isinstance(item, dict)
+    ]
+
+
+def _pick_present(source: dict, keys: list[str]) -> dict:
+    return {key: source[key] for key in keys if key in source and source[key] not in (None, "")}
 
 
 def _log_orchestrator_prompt_trace(

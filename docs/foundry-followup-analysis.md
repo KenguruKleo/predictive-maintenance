@@ -37,12 +37,15 @@ The immediate trigger for this analysis was the poor follow-up quality on BPR-fo
 The backend sends one large user message to the Foundry Orchestrator Agent. That prompt includes:
 
 - raw alert payload JSON
-- equipment context JSON
-- active batch JSON
-- recent incident history JSON
-- pre-fetched RAG snippets from local Azure AI Search lookups
+- compact equipment summary JSON
+- compact active batch summary JSON
+- compact recent incident decision JSON
 - operator follow-up questions
 - previous recommendation snapshot for follow-up rounds
+
+The backend no longer pre-fetches RAG snippets from all AI Search indexes before calling Foundry.
+The Research Agent is the single evidence collector, which avoids duplicate retrieval and reduces
+tokens in the Orchestrator prompt.
 
 ### 3. Foundry Orchestrator Agent receives that outer prompt
 
@@ -52,8 +55,8 @@ The system prompt explicitly says the Orchestrator must:
 
 - call `research_agent`
 - then call `document_agent`
-- return the Document Agent JSON package
-- avoid inventing its own analysis
+- make the final analysis and decision itself from grounded Research Agent evidence
+- call Document Agent only to prepare/persist documentation that matches the decision
 
 ### 4. Research Agent gathers evidence
 
@@ -67,11 +70,11 @@ The Research prompt requires evidence collection from SOP, GMP, manuals, BPR, an
 - equipment and manual findings
 - historical matches
 
-### 5. Document Agent produces the final package
+### 5. Orchestrator produces the final package; Document Agent prepares records
 
 `agents/prompts/document_system.md`
 
-The Document prompt is responsible for the final structured decision package, including:
+The Orchestrator is responsible for the final structured decision package, including:
 
 - recommendation
 - root cause
@@ -79,7 +82,14 @@ The Document prompt is responsible for the final structured decision package, in
 - evidence citations
 - `operator_dialogue`
 
-This is the key point: **the operator-facing answer is supposed to be written here**.
+The Document Agent must not decide or override these fields. It receives only a compact
+documentation package from the Orchestrator and returns QMS/CMMS outputs:
+
+- `audit_entry_draft`
+- `work_order_draft` when corrective work is required
+- `audit_entry_id`
+- `work_order_id`
+- `execution_error`
 
 ### 6. Backend normalizes the final dialogue
 

@@ -7,18 +7,148 @@ import {
   submitDecision,
 } from "../api/incidents";
 import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
-import type { IncidentFilters, IncidentTelemetryFilters } from "../types/incident";
+import type {
+  Incident,
+  IncidentFilters,
+  IncidentListResponse,
+  IncidentStatus,
+  IncidentTelemetryFilters,
+} from "../types/incident";
 import type { DecisionPayload } from "../types/approval";
 
-export function useIncidents(filters: IncidentFilters = {}) {
-  return useQuery({
-    queryKey: ["incidents", filters],
-    queryFn: () => getIncidents(filters),
+const OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY = ["incident-optimistic-decisions"] as const;
+
+interface OptimisticIncidentDecision {
+  incidentId: string;
+  status: IncidentStatus;
+  lastDecision: Incident["lastDecision"];
+  updated_at: string;
+  rejectionReason?: string;
+  operatorWorkOrderDraft?: Incident["operatorWorkOrderDraft"];
+  operatorAuditEntryDraft?: Incident["operatorAuditEntryDraft"];
+}
+
+function useOptimisticIncidentDecisions() {
+  return useQuery<Record<string, OptimisticIncidentDecision>>({
+    queryKey: OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
+    queryFn: () => ({}),
+    initialData: {},
+    staleTime: Number.POSITIVE_INFINITY,
+    gcTime: Number.POSITIVE_INFINITY,
   });
 }
 
+function buildOptimisticIncidentDecision(
+  incidentId: string,
+  payload: DecisionPayload,
+): OptimisticIncidentDecision {
+  const agentRecommendation = payload.agent_recommendation;
+  const operatorAgreesWithAgent =
+    agentRecommendation && (payload.action === "approved" || payload.action === "rejected")
+      ? (payload.action === "approved") === (agentRecommendation === "APPROVE")
+      : null;
+
+  return {
+    incidentId,
+    status: getOptimisticIncidentStatus(payload.action),
+    lastDecision: {
+      action: payload.action,
+      user_id: payload.user_id,
+      role: payload.role,
+      reason: payload.reason,
+      question: payload.question,
+      agent_recommendation: agentRecommendation,
+      operator_agrees_with_agent: operatorAgreesWithAgent,
+    },
+    updated_at: new Date().toISOString(),
+    rejectionReason: payload.action === "rejected" ? payload.reason : undefined,
+    operatorWorkOrderDraft: payload.work_order_draft as Incident["operatorWorkOrderDraft"],
+    operatorAuditEntryDraft: payload.audit_entry_draft as Incident["operatorAuditEntryDraft"],
+  };
+}
+
+function getOptimisticIncidentStatus(action: DecisionPayload["action"]): IncidentStatus {
+  switch (action) {
+    case "approved":
+      return "approved";
+    case "rejected":
+      return "rejected";
+    case "more_info":
+      return "awaiting_agents";
+  }
+}
+
+function applyOptimisticDecisionToIncident<T extends Incident | undefined>(
+  incident: T,
+  optimisticDecision?: OptimisticIncidentDecision,
+): T {
+  if (!incident || !optimisticDecision) return incident;
+
+  return {
+    ...incident,
+    status: optimisticDecision.status,
+    lastDecision: optimisticDecision.lastDecision,
+    updated_at: optimisticDecision.updated_at,
+    rejectionReason: optimisticDecision.rejectionReason ?? incident.rejectionReason,
+    operatorWorkOrderDraft:
+      optimisticDecision.operatorWorkOrderDraft ?? incident.operatorWorkOrderDraft,
+    operatorAuditEntryDraft:
+      optimisticDecision.operatorAuditEntryDraft ?? incident.operatorAuditEntryDraft,
+  } as T;
+}
+
+function applyOptimisticDecisionsToIncidentList(
+  data: IncidentListResponse | undefined,
+  optimisticDecisions: Record<string, OptimisticIncidentDecision>,
+): IncidentListResponse | undefined {
+  if (!data) return data;
+
+  return {
+    ...data,
+    items: data.items.map((incident) =>
+      applyOptimisticDecisionToIncident(incident, optimisticDecisions[incident.id]),
+    ),
+  };
+}
+
+function setOptimisticIncidentDecision(
+  queryClient: ReturnType<typeof useQueryClient>,
+  incidentId: string,
+  optimisticDecision?: OptimisticIncidentDecision,
+) {
+  queryClient.setQueryData<Record<string, OptimisticIncidentDecision>>(
+    OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
+    (current) => {
+      const next = { ...(current ?? {}) };
+      if (optimisticDecision) {
+        next[incidentId] = optimisticDecision;
+      } else {
+        delete next[incidentId];
+      }
+      return next;
+    },
+  );
+}
+
+export function useIncidents(filters: IncidentFilters = {}) {
+  const optimisticDecisions = useOptimisticIncidentDecisions();
+  const incidentsQuery = useQuery({
+    queryKey: ["incidents", filters],
+    queryFn: () => getIncidents(filters),
+  });
+
+  return {
+    ...incidentsQuery,
+    data: applyOptimisticDecisionsToIncidentList(
+      incidentsQuery.data,
+      optimisticDecisions.data,
+    ),
+  };
+}
+
 export function useInfiniteActiveIncidents(pageSize = 20) {
-  return useInfiniteQuery({
+  const optimisticDecisions = useOptimisticIncidentDecisions();
+  const incidentsQuery = useInfiniteQuery({
     queryKey: ["incidents-active-infinite", pageSize],
     queryFn: ({ pageParam = 1 }) =>
       getIncidents({
@@ -34,14 +164,35 @@ export function useInfiniteActiveIncidents(pageSize = 20) {
       return fetched < lastPage.total ? lastPage.page + 1 : undefined;
     },
   });
+
+  return {
+    ...incidentsQuery,
+    data: incidentsQuery.data
+      ? {
+          ...incidentsQuery.data,
+          pages: incidentsQuery.data.pages.map((page) =>
+            applyOptimisticDecisionsToIncidentList(page, optimisticDecisions.data) ?? page,
+          ),
+        }
+      : incidentsQuery.data,
+  };
 }
 
 export function useIncident(id: string) {
-  return useQuery({
+  const optimisticDecisions = useOptimisticIncidentDecisions();
+  const incidentQuery = useQuery({
     queryKey: ["incident", id],
     queryFn: () => getIncident(id),
     enabled: !!id,
   });
+
+  return {
+    ...incidentQuery,
+    data: applyOptimisticDecisionToIncident(
+      incidentQuery.data,
+      id ? optimisticDecisions.data[id] : undefined,
+    ),
+  };
 }
 
 export function useIncidentEvents(id: string) {
@@ -68,11 +219,45 @@ export function useSubmitDecision(incidentId: string) {
   return useMutation({
     mutationFn: (payload: DecisionPayload) =>
       submitDecision(incidentId, payload),
-    onSuccess: () => {
+    onMutate: async (payload) => {
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["incident", incidentId] }),
+        queryClient.cancelQueries({ queryKey: ["incident-events", incidentId] }),
+        queryClient.cancelQueries({ queryKey: ["incidents"] }),
+        queryClient.cancelQueries({ queryKey: ["incidents-active-infinite"] }),
+      ]);
+
+      const previousOptimisticDecision = queryClient.getQueryData<Record<string, OptimisticIncidentDecision>>(
+        OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
+      )?.[incidentId];
+
+      setOptimisticIncidentDecision(
+        queryClient,
+        incidentId,
+        buildOptimisticIncidentDecision(incidentId, payload),
+      );
+
+      return { previousOptimisticDecision };
+    },
+    onError: (_error, _payload, context) => {
+      setOptimisticIncidentDecision(queryClient, incidentId, context?.previousOptimisticDecision);
+    },
+    onSuccess: async () => {
+      const syncResults = await Promise.allSettled([
+        queryClient.refetchQueries({ queryKey: ["incident", incidentId], exact: true, type: "all" }),
+        queryClient.refetchQueries({ queryKey: ["incident-events", incidentId], exact: true, type: "all" }),
+        queryClient.refetchQueries({ queryKey: ["incidents"], type: "all" }),
+        queryClient.refetchQueries({ queryKey: ["incidents-active-infinite"], type: "all" }),
+      ]);
+
+      const failedToSync = syncResults.some((result) => result.status === "rejected");
+      if (!failedToSync) {
+        setOptimisticIncidentDecision(queryClient, incidentId);
+        return;
+      }
+
       queryClient.invalidateQueries({ queryKey: ["incident", incidentId] });
-      queryClient.invalidateQueries({
-        queryKey: ["incident-events", incidentId],
-      });
+      queryClient.invalidateQueries({ queryKey: ["incident-events", incidentId] });
       queryClient.invalidateQueries({ queryKey: ["incidents"] });
       queryClient.invalidateQueries({ queryKey: ["incidents-active-infinite"] });
     },
