@@ -176,7 +176,7 @@ def test_normalize_evidence_citations_backfills_contextful_excerpt_from_match() 
     assert "ungranulated fines" in citations[0]["text_excerpt"].lower()
 
 
-def test_normalize_evidence_citations_canonicalizes_id_only_sop_refs_without_rag_match() -> None:
+def test_normalize_evidence_citations_does_not_infer_id_only_sop_refs_without_rag_match() -> None:
     citations = _normalize_evidence_citations(
         {
             "sop_refs": [
@@ -193,9 +193,37 @@ def test_normalize_evidence_citations_canonicalizes_id_only_sop_refs_without_rag
 
     assert len(citations) == 1
     assert citations[0]["document_id"] == "SOP-DEV-001"
-    assert citations[0]["document_title"] == "Deviation Management (SOP-DEV-001)"
-    assert citations[0]["source_blob"] == "SOP-DEV-001-Deviation-Management.md"
-    assert citations[0]["url"] == "/api/documents/blob-sop/SOP-DEV-001-Deviation-Management.md"
+    assert citations[0]["document_title"] == "Deviation Management"
+    assert citations[0]["source_blob"] == ""
+    assert citations[0]["url"] == ""
+    assert citations[0]["resolution_status"] == "unresolved"
+
+
+def test_normalize_evidence_citations_uses_canonical_agent_metadata_without_rag_match() -> None:
+    citations = _normalize_evidence_citations(
+        {
+            "evidence_citations": [
+                {
+                    "type": "sop",
+                    "document_id": "SOP-MAN-GR-001-Granulator-Operation",
+                    "document_title": "Granulator Operation SOP",
+                    "section_heading": "4.2 Impeller Speed Monitoring",
+                    "text_excerpt": "Impeller speed below PAR must be documented and reviewed.",
+                    "source_blob": "SOP-MAN-GR-001-Granulator-Operation.md",
+                    "index_name": "idx-sop-documents",
+                    "chunk_index": 4,
+                    "score": 0.91,
+                }
+            ]
+        },
+        {},
+    )
+
+    assert len(citations) == 1
+    assert citations[0]["document_id"] == "SOP-MAN-GR-001-Granulator-Operation"
+    assert citations[0]["source_blob"] == "SOP-MAN-GR-001-Granulator-Operation.md"
+    assert citations[0]["url"] == "/api/documents/blob-sop/SOP-MAN-GR-001-Granulator-Operation.md"
+    assert citations[0]["section"] == "4.2 Impeller Speed Monitoring"
     assert citations[0]["resolution_status"] == "resolved"
 
 
@@ -235,7 +263,7 @@ def test_normalize_evidence_citations_builds_historical_incident_link() -> None:
     assert citations[0]["resolution_status"] == "resolved"
 
 
-def test_normalize_evidence_citations_appends_historical_fallback_from_rag_context() -> None:
+def test_normalize_evidence_citations_does_not_append_historical_fallback_from_rag_context() -> None:
     citations = _normalize_evidence_citations(
         {
             "evidence_citations": [
@@ -274,11 +302,7 @@ def test_normalize_evidence_citations_appends_historical_fallback_from_rag_conte
         current_incident_id="INC-2026-0022",
     )
 
-    assert [citation["type"] for citation in citations] == ["sop", "historical"]
-    assert citations[1]["document_id"] == "INC-2026-0006"
-    assert citations[1]["document_title"] == "Spray Rate Deviation on GR-204"
-    assert citations[1]["url"] == "/incidents/INC-2026-0006"
-    assert citations[1]["resolution_status"] == "resolved"
+    assert [citation["type"] for citation in citations] == ["sop"]
 
 
 def test_normalize_evidence_citations_prefers_authoritative_section_from_excerpt_anchor() -> None:

@@ -16,17 +16,19 @@ Usage:
 
 import argparse
 import os
-import sys
 import time
 
 os.environ.setdefault("AZURE_AI_AGENTS_TESTS_IS_TEST_RUN", "True")
 
 from azure.ai.agents import AgentsClient
-from azure.ai.agents.models import RunStatus, ToolApproval
+from azure.ai.agents import models as agents_models
+from azure.ai.agents.models import RunStatus
 from azure.identity import DefaultAzureCredential
 from dotenv import load_dotenv
 
 load_dotenv()
+
+ToolApproval = getattr(agents_models, "ToolApproval", None)
 
 
 def _build_client() -> AgentsClient:
@@ -65,19 +67,28 @@ def _describe(call) -> str:
     return f'{getattr(call, "server_label", "?")}/{getattr(call, "name", "?")}({getattr(call, "arguments", "{}")})'
 
 
+def _tool_approval_payload(call):
+    payload = {"tool_call_id": _call_id(call), "approve": True}
+    return ToolApproval(**payload) if ToolApproval is not None else payload
+
+
 def run_with_auto_approval(
     client: AgentsClient,
     agent_id: str,
     user_message: str,
     *,
+    tool_choice: str | None = None,
     max_iterations: int = 40,
     poll_interval: float = 2.0,
 ) -> str:
     """Create a thread+run and auto-approve MCP tool calls. Returns assistant text."""
-    run = client.create_thread_and_run(
-        agent_id=agent_id,
-        thread={"messages": [{"role": "user", "content": user_message}]},
-    )
+    run_kwargs = {
+        "agent_id": agent_id,
+        "thread": {"messages": [{"role": "user", "content": user_message}]},
+    }
+    if tool_choice:
+        run_kwargs["tool_choice"] = tool_choice
+    run = client.create_thread_and_run(**run_kwargs)
     thread_id = run.thread_id
     run_id = run.id
     print(f"  Run {run_id}  Thread {thread_id}  status={run.status}")
@@ -95,7 +106,7 @@ def run_with_auto_approval(
                 calls = _extract_tool_calls(ra, "submit_tool_approval")
                 descs = [_describe(c) for c in calls]
                 print(f"  [{i:2d}] requires_action — approving {len(calls)} tool(s): {', '.join(descs)}")
-                approvals = [ToolApproval(tool_call_id=_call_id(c), approve=True) for c in calls]
+                approvals = [_tool_approval_payload(c) for c in calls]
                 run = client.runs.submit_tool_outputs(
                     thread_id=thread_id, run_id=run_id, tool_approvals=approvals,
                 )
@@ -132,6 +143,7 @@ def main():
     parser = argparse.ArgumentParser(description="Test Sentinel agent with MCP auto-approval")
     parser.add_argument("message", nargs="?", default="Get equipment data for GR-204")
     parser.add_argument("--agent", choices=list(AGENT_IDS.keys()), default="research")
+    parser.add_argument("--tool-choice", choices=["auto", "required", "none"], default=None)
     args = parser.parse_args()
 
     agent_id = AGENT_IDS[args.agent]
@@ -139,7 +151,7 @@ def main():
     print(f"Prompt: {args.message}\n")
 
     client = _build_client()
-    result = run_with_auto_approval(client, agent_id, args.message)
+    result = run_with_auto_approval(client, agent_id, args.message, tool_choice=args.tool_choice)
     print(f"\n{'='*60}")
     print(result)
     print(f"{'='*60}")

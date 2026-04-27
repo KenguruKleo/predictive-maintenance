@@ -76,6 +76,104 @@ ORCHESTRATOR_MODEL = _resolve_agent_model(
 TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
 TOP_P = 0.9         # Slightly constrained nucleus sampling
 
+CANONICAL_EVIDENCE_CITATION_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "type": {
+            "type": "string",
+            "enum": ["sop", "gmp", "bpr", "manual", "historical"],
+        },
+        "document_id": {"type": "string", "minLength": 1},
+        "document_title": {"type": "string", "minLength": 1},
+        "section_heading": {"type": "string", "minLength": 1},
+        "text_excerpt": {"type": "string", "minLength": 20},
+        "source_blob": {"type": "string", "pattern": r"^.+\.(md|txt)$"},
+        "index_name": {
+            "type": "string",
+            "enum": [
+                "idx-sop-documents",
+                "idx-gmp-policies",
+                "idx-bpr-documents",
+                "idx-equipment-manuals",
+                "idx-incident-history",
+            ],
+        },
+        "chunk_index": {"type": "integer", "minimum": 0},
+        "score": {"type": "number"},
+        "source": {"type": "string"},
+        "section": {"type": "string"},
+        "section_key": {"type": "string"},
+        "section_path": {"type": "string"},
+        "url": {"type": "string"},
+        "similarity_reason": {"type": "string"},
+    },
+    "required": [
+        "type",
+        "document_id",
+        "document_title",
+        "section_heading",
+        "text_excerpt",
+        "source_blob",
+        "index_name",
+        "chunk_index",
+        "score",
+    ],
+    "additionalProperties": False,
+}
+
+TOOL_CALL_LOG_ENTRY_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "tool": {"type": "string"},
+        "args": {"type": "object"},
+        "status": {"type": "string"},
+        "error": {"type": ["string", "null"]},
+    },
+    "required": ["tool", "args", "status"],
+    "additionalProperties": False,
+}
+
+RESEARCH_OUTPUT_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "tool_calls_log": {
+            "type": "array",
+            "items": TOOL_CALL_LOG_ENTRY_SCHEMA,
+        },
+        "incident_facts": {"type": "object", "additionalProperties": True},
+        "equipment_facts": {"type": "object", "additionalProperties": True},
+        "batch_facts": {"type": "object", "additionalProperties": True},
+        "bpr_constraints": {"type": ["object", "null"], "additionalProperties": True},
+        "historical_incidents": {
+            "type": "array",
+            "items": {"type": "object", "additionalProperties": True},
+        },
+        "historical_pattern_summary": {"type": "string"},
+        "evidence_citations": {
+            "type": "array",
+            "items": CANONICAL_EVIDENCE_CITATION_SCHEMA,
+        },
+        "evidence_gaps": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "context_summary": {"type": "string"},
+    },
+    "required": [
+        "tool_calls_log",
+        "incident_facts",
+        "equipment_facts",
+        "batch_facts",
+        "bpr_constraints",
+        "historical_incidents",
+        "historical_pattern_summary",
+        "evidence_citations",
+        "evidence_gaps",
+        "context_summary",
+    ],
+    "additionalProperties": False,
+}
+
 # ── Strict JSON schema for final Orchestrator response_format ──────────
 # Enforces exact field names, types, and structure at API level.
 FINAL_ANALYSIS_SCHEMA = {
@@ -161,21 +259,7 @@ FINAL_ANALYSIS_SCHEMA = {
         },
         "evidence_citations": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "type": {
-                        "type": "string",
-                        "enum": ["sop", "gmp", "bpr", "manual", "historical"],
-                    },
-                    "document_id": {"type": "string"},
-                    "source": {"type": "string"},
-                    "section": {"type": "string"},
-                    "text_excerpt": {"type": "string"},
-                },
-                "required": ["type", "source", "section", "text_excerpt"],
-                "additionalProperties": False,
-            },
+            "items": CANONICAL_EVIDENCE_CITATION_SCHEMA,
         },
         "work_order_draft": {
             "type": ["object", "null"],
@@ -201,16 +285,7 @@ FINAL_ANALYSIS_SCHEMA = {
         },
         "tool_calls_log": {
             "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "tool": {"type": "string"},
-                    "args": {"type": "object"},
-                    "status": {"type": "string"},
-                },
-                "required": ["tool", "args", "status"],
-                "additionalProperties": False,
-            },
+            "items": TOOL_CALL_LOG_ENTRY_SCHEMA,
         },
         "work_order_id": {"type": ["string", "null"]},
         "audit_entry_id": {"type": ["string", "null"]},
@@ -359,6 +434,39 @@ def _build_sentinel_db_spec(base_url: str) -> dict:
 
 def _build_sentinel_search_spec(base_url: str) -> dict:
     """OpenAPI 3.0 spec for Sentinel Search REST endpoints (5 search operations)."""
+    search_result_schema = {
+        "type": "array",
+        "items": {
+            "type": "object",
+            "required": [
+                "document_id",
+                "document_title",
+                "document_type",
+                "chunk_index",
+                "text",
+                "source",
+                "score",
+            ],
+            "properties": {
+                "document_id": {"type": "string"},
+                "document_title": {"type": "string"},
+                "document_type": {"type": "string"},
+                "chunk_index": {"type": "integer"},
+                "section_heading": {"type": "string"},
+                "section_key": {"type": "string"},
+                "section_path": {"type": "string"},
+                "text": {"type": "string"},
+                "keywords": {},
+                "source": {
+                    "type": "string",
+                    "description": "Exact blob file name. Copy this value to citation source_blob.",
+                },
+                "score": {"type": "number"},
+            },
+            "additionalProperties": True,
+        },
+    }
+
     def _search_path(path: str, op_id: str, summary: str, has_equipment: bool = False) -> dict:
         params = [
             {"name": "query", "in": "query", "required": True, "schema": {"type": "string"}, "description": "Natural language search query"},
@@ -372,7 +480,12 @@ def _build_sentinel_search_spec(base_url: str) -> dict:
                     "operationId": op_id,
                     "summary": summary,
                     "parameters": params,
-                    "responses": {"200": {"description": "Search results"}},
+                    "responses": {
+                        "200": {
+                            "description": "Search results with canonical document metadata. The `source` field is the exact blob file name and must be copied to citation `source_blob`.",
+                            "content": {"application/json": {"schema": search_result_schema}},
+                        }
+                    },
                 }
             }
         }

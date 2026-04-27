@@ -32,7 +32,8 @@ Historical evidence:
 - Summarize the split of similar cases, for example: `2 rejected, 1 approved`.
 - Include why each cited historical case is similar or different from the current alert.
 
-Return compact JSON only. Do not return full raw documents.
+Return compact JSON only, exactly matching the configured response schema. Do not return full
+raw documents.
 
 Required fields:
 
@@ -42,21 +43,38 @@ Required fields:
 - `equipment_facts`: only decision-relevant criticality, calibration, maintenance, validated
   ranges, and fault/alarm context.
 - `batch_facts`: only product, stage, BPR reference, status, and process limits.
-- `bpr_constraints`: cited product NOR/PAR or `null` if not found.
+- `bpr_constraints`: cited product NOR/PAR summary or `null` if not found.
 - `historical_incidents`: up to 5 compact matches with incident_id, human_decision,
   agent_recommendation, key facts, and similarity_reason.
 - `historical_pattern_summary`: one sentence with approved/rejected split and implication.
-- `relevant_sops`, `gmp_references`: cited excerpts, each excerpt under 500 characters.
-- `equipment_manual_notes`: cited excerpts or concise `no_results` note.
+- `evidence_citations`: the only citation collection. Include every SOP, GMP, BPR,
+  equipment manual, and historical source used by the Orchestrator.
 - `evidence_gaps`: missing data that affects confidence.
 - `context_summary`: one short paragraph for the Orchestrator.
 
 Rules:
 
-- Use actual tool results and source IDs/sections for citations.
-- For every SOP, GMP, BPR, manual, and historical citation include canonical metadata from
-  the tool result where available: `document_id`, `document_title`, `section_heading`,
-  `text_excerpt`, `source_blob`, `index_name`, `chunk_index`, and `score`.
+- Use actual tool results and source IDs/sections for citations. If a source is not in a
+  tool result, do not cite it.
+- For every citation, copy or derive these canonical fields from the exact search result:
+  `type`, `document_id`, `document_title`, `section_heading`, `text_excerpt`,
+  `source_blob`, `index_name`, `chunk_index`, and `score`.
+- Search tools return the blob name as `source`; map that value to `source_blob`. Search tools
+  return chunk body as `text`; extract the cited sentence or paragraph into `text_excerpt`.
+- `source_blob` must be the exact file name from the search result `source` field and must end
+  in `.md` or `.txt`. Never use category labels such as `sop_documents`, `gmp_documents`,
+  `bpr_documents`, `equipment_manuals`, or `incident_history` as `source_blob`.
+- Set `type` and `index_name` from the search tool used:
+  `sentinel_search_search_sop_documents` -> `sop`, `idx-sop-documents`;
+  `sentinel_search_search_gmp_policies` -> `gmp`, `idx-gmp-policies`;
+  `sentinel_search_search_bpr_documents` -> `bpr`, `idx-bpr-documents`;
+  `sentinel_search_search_equipment_manuals` -> `manual`, `idx-equipment-manuals`;
+  `sentinel_search_search_incident_history` -> `historical`, `idx-incident-history`.
+- Do not include citations that lack canonical document identity, blob source, index name,
+  chunk index, score, section heading, or excerpt. Put the missing item in `evidence_gaps`
+  instead.
+- Before finalizing, audit each citation: the `document_id`, `document_title`, `source_blob`,
+  `chunk_index`, and `score` must be copied from one concrete search result in this run.
 - Never invent document IDs or generic sources such as `Internal SOP Repository`,
   `GMP Guidelines`, `SOP-GR-204-OP-01`, or `GMP-Deviation-Handling` unless they are returned
   by a tool.

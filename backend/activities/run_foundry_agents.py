@@ -144,10 +144,10 @@ def run_foundry_agents(input_data: dict) -> dict:
             "Run agents/create_agents.py first to provision Foundry agents."
         )
 
-    # Keep the activity prompt compact. The Research Agent is the single evidence
-    # collector; citation normalization can still resolve explicit document IDs
-    # via targeted lookup after the Orchestrator returns the final JSON.
-    rag_context: dict = {}
+    research_package, rag_context = _collect_research_evidence_package(
+        context_data,
+        current_incident_id=incident_id,
+    )
 
     # Foundry concurrency gate: wait until a slot is free, then mark self as active.
     # Cleared in the finally block below so the next queued incident can proceed.
@@ -176,6 +176,7 @@ def run_foundry_agents(input_data: dict) -> dict:
         context_data,
         more_info_round,
         previous_ai_result,
+        research_package=research_package,
     )
     _log_orchestrator_prompt_trace(
         incident_id=incident_id,
@@ -700,6 +701,7 @@ def _build_prompt(
     context_data: dict,
     more_info_round: int,
     previous_ai_result: dict | None = None,
+    research_package: dict | None = None,
 ) -> str:
     """Build the user message that drives the Orchestrator Agent."""
     equipment = _compact_equipment_context(context_data.get("equipment") or {})
@@ -732,6 +734,17 @@ def _build_prompt(
         json.dumps(recent_incidents, indent=2, default=str),
         "```",
     ]
+
+    if research_package:
+        lines += [
+            "",
+            "### Research Evidence Package (authoritative)",
+            "This package was retrieved directly from Sentinel DB/Search before this Orchestrator run.",
+            "Use its `evidence_citations` as the source of truth and preserve canonical citation fields.",
+            "```json",
+            json.dumps(research_package, indent=2, default=str),
+            "```",
+        ]
 
     if operator_questions:
         lines += [
@@ -770,8 +783,14 @@ def _build_prompt(
             "The summaries above are only routing context to help you call the right tools. "
             "Use your Research sub-agent as the single source of evidence for SOPs, "
             "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
-            "You must actually call the Research sub-agent; do not simulate tool_calls_log or "
-            "invent citations from model memory. "
+            "When the prompt contains a Research Evidence Package, that package is the Research "
+            "sub-agent output for this run; do not call Research again or replace its citations. "
+            "If the package is absent, call the Research sub-agent. Do not simulate tool_calls_log "
+            "or invent citations from model memory. "
+            "Copy the full Research Agent evidence_citations array into your final response and "
+            "preserve every canonical field: "
+            "document_id, document_title, section_heading, text_excerpt, source_blob, "
+            "index_name, chunk_index, and score. "
             "You, the Orchestrator, must produce the final structured analysis and decision. "
             "Use your Document sub-agent only after you decide, and pass it only the compact "
             "documentation package it needs: incident identifiers, your final decision fields, "
@@ -789,7 +808,7 @@ def _build_prompt(
             "step fails or returns an error."
         ),
         "Carry forward tool_calls_log from the Research Agent. Merge only documentation fields from Document Agent.",
-        "If Research Agent did not return real SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
+        "If Research Agent did not return real canonical SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
         "For REJECT decisions, work_order_draft and work_order_id must be null.",
         "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer follow-up questions directly.",
     ]
@@ -862,6 +881,368 @@ def _compact_recent_incidents(recent_incidents: list[dict]) -> list[dict]:
 
 def _pick_present(source: dict, keys: list[str]) -> dict:
     return {key: source[key] for key in keys if key in source and source[key] not in (None, "")}
+
+
+def _collect_research_evidence_package(
+    context_data: dict,
+    *,
+    current_incident_id: str,
+) -> tuple[dict, dict]:
+    alert_payload = context_data.get("alert_payload") or {}
+    equipment = context_data.get("equipment") or {}
+    batch = context_data.get("batch") or {}
+
+    equipment_id = str(
+        alert_payload.get("equipment_id")
+        or equipment.get("id")
+        or equipment.get("equipment_id")
+        or ""
+    ).strip()
+    parameter = str(alert_payload.get("parameter") or "").strip()
+    parameter_terms = parameter.replace("_", " ")
+    product = str(
+        batch.get("product")
+        or batch.get("product_name")
+        or alert_payload.get("product")
+        or ""
+    ).strip()
+    stage = str(
+        batch.get("stage")
+        or batch.get("stage_step")
+        or batch.get("production_stage")
+        or ""
+    ).strip()
+    bpr_reference = str(batch.get("bpr_reference") or "").strip()
+    lower_limit = alert_payload.get("lower_limit", "")
+    upper_limit = alert_payload.get("upper_limit", "")
+    measured_value = alert_payload.get("measured_value", "")
+    duration_seconds = alert_payload.get("duration_seconds", "")
+    deviation_type = str(alert_payload.get("deviation_type") or "").replace("_", " ")
+
+    eq_filter = None
+    if equipment_id:
+        safe_equipment_id = equipment_id.replace("'", "''")
+        eq_filter = f"equipment_ids/any(e: e eq '{safe_equipment_id}')"
+    search_plan = [
+        (
+            "sentinel_search_search_bpr_documents",
+            "idx-bpr-documents",
+            " ".join(
+                str(value)
+                for value in [
+                    product,
+                    bpr_reference,
+                    parameter_terms,
+                    stage,
+                    "Product NOR Product PAR validated range",
+                    lower_limit,
+                    upper_limit,
+                ]
+                if value not in (None, "")
+            ),
+            10,
+            eq_filter,
+        ),
+        (
+            "sentinel_search_search_sop_documents",
+            "idx-sop-documents",
+            " ".join(
+                str(value)
+                for value in [
+                    equipment_id,
+                    parameter_terms,
+                    deviation_type,
+                    "granulator operation GMP deviation investigation",
+                    lower_limit,
+                    upper_limit,
+                ]
+                if value not in (None, "")
+            ),
+            5,
+            None,
+        ),
+        (
+            "sentinel_search_search_gmp_policies",
+            "idx-gmp-policies",
+            " ".join(
+                str(value)
+                for value in [
+                    deviation_type,
+                    parameter_terms,
+                    "process parameter excursion documented investigated product quality impact CAPA",
+                    duration_seconds,
+                ]
+                if value not in (None, "")
+            ),
+            5,
+            None,
+        ),
+        (
+            "sentinel_search_search_equipment_manuals",
+            "idx-equipment-manuals",
+            " ".join(
+                str(value)
+                for value in [
+                    equipment_id,
+                    parameter_terms,
+                    "operational limits troubleshooting bearing VFD speed regulation",
+                    measured_value,
+                ]
+                if value not in (None, "")
+            ),
+            5,
+            eq_filter,
+        ),
+        (
+            "sentinel_search_search_incident_history",
+            "idx-incident-history",
+            " ".join(
+                str(value)
+                for value in [
+                    equipment_id,
+                    parameter_terms,
+                    deviation_type,
+                    measured_value,
+                    lower_limit,
+                    upper_limit,
+                    "human decision approved rejected",
+                ]
+                if value not in (None, "")
+            ),
+            5,
+            eq_filter,
+        ),
+    ]
+
+    rag_context: dict[str, list[dict]] = {}
+    tool_calls_log: list[dict] = []
+    evidence_gaps: list[str] = []
+
+    if not SEARCH_ENABLED:
+        evidence_gaps.append("Azure AI Search endpoint is not configured for backend retrieval.")
+
+    for tool_name, index_name, query, top_k, filter_expr in search_plan:
+        args = {"query": query, "top_k": top_k}
+        if filter_expr:
+            args["filter"] = filter_expr
+        try:
+            hits = search_index(index_name, query, top_k=top_k, filter_expr=filter_expr)
+            rag_context[index_name] = hits
+            status = "success" if hits else "no_results"
+            tool_calls_log.append({"tool": tool_name, "args": args, "status": status, "error": None})
+            if not hits:
+                evidence_gaps.append(f"No results from {index_name} for query: {query}")
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Research evidence search failed for %s: %s", index_name, exc)
+            rag_context[index_name] = []
+            tool_calls_log.append(
+                {"tool": tool_name, "args": args, "status": "error", "error": str(exc)[:300]}
+            )
+            evidence_gaps.append(f"Search failed for {index_name}: {str(exc)[:160]}")
+
+    per_index_limits = {
+        "idx-bpr-documents": 2,
+        "idx-sop-documents": 2,
+        "idx-gmp-policies": 2,
+        "idx-equipment-manuals": 2,
+        "idx-incident-history": 3,
+    }
+
+    citations: list[dict] = []
+    seen_citations: set[tuple[str, str, int]] = set()
+    for index_name, hits in rag_context.items():
+        scored_hits = [
+            (_research_hit_score(hit, alert_payload, batch, equipment), position, hit)
+            for position, hit in enumerate(hits)
+        ]
+        scored_hits.sort(key=lambda item: (-item[0], item[1]))
+
+        selected_count = 0
+        seen_hits: set[tuple[str, int]] = set()
+        for _score, _position, hit in scored_hits:
+            hit_key = (str(hit.get("document_id") or ""), int(hit.get("chunk_index") or 0))
+            if hit_key in seen_hits:
+                continue
+            seen_hits.add(hit_key)
+            citation = _canonical_citation_from_search_hit(index_name, hit)
+            if not citation:
+                continue
+            if _citation_points_to_incident(citation, current_incident_id):
+                continue
+            citation_key = (
+                str(citation.get("index_name") or ""),
+                str(citation.get("document_id") or ""),
+                int(citation.get("chunk_index") or 0),
+            )
+            if citation_key in seen_citations:
+                continue
+            seen_citations.add(citation_key)
+            citations.append(citation)
+            selected_count += 1
+            if selected_count >= per_index_limits.get(index_name, 2):
+                break
+
+    if not citations:
+        evidence_gaps.append("No canonical evidence citations were retrieved from Azure AI Search.")
+
+    historical_citations = [c for c in citations if c.get("type") == "historical"]
+    bpr_citation = next((c for c in citations if c.get("type") == "bpr"), None)
+    historical_summaries: list[dict] = []
+    approved_count = 0
+    rejected_count = 0
+    for citation in historical_citations:
+        normalized = _normalize_text(str(citation.get("text_excerpt") or ""))
+        decision = "unknown"
+        if "human decision: approved" in normalized:
+            decision = "approved"
+            approved_count += 1
+        elif "human decision: rejected" in normalized:
+            decision = "rejected"
+            rejected_count += 1
+        historical_summaries.append(
+            {
+                "incident_id": citation.get("document_id", ""),
+                "human_decision": decision,
+                "document_title": citation.get("document_title", ""),
+                "similarity_reason": "Retrieved from incident-history search for same equipment/deviation context.",
+            }
+        )
+
+    if historical_summaries:
+        historical_pattern_summary = (
+            f"Retrieved historical split: {approved_count} approved, "
+            f"{rejected_count} rejected among cited similar incidents."
+        )
+    else:
+        historical_pattern_summary = "No historical incident citations retrieved."
+
+    if citations:
+        by_type: dict[str, int] = {}
+        for citation in citations:
+            citation_type = str(citation.get("type") or "document")
+            by_type[citation_type] = by_type.get(citation_type, 0) + 1
+        type_summary = ", ".join(f"{count} {name}" for name, count in sorted(by_type.items()))
+        context_summary = f"Retrieved canonical evidence citations from Azure AI Search: {type_summary}."
+    elif evidence_gaps:
+        context_summary = "No canonical evidence retrieved; see evidence_gaps."
+    else:
+        context_summary = "No research evidence was requested."
+
+    package = {
+        "tool_calls_log": tool_calls_log,
+        "incident_facts": _pick_present(
+            {
+                "incident_id": current_incident_id,
+                "equipment_id": equipment_id,
+                "batch_id": alert_payload.get("batch_id"),
+                "parameter": parameter,
+                "measured_value": measured_value,
+                "lower_limit": lower_limit,
+                "upper_limit": upper_limit,
+                "duration_seconds": duration_seconds,
+                "deviation_type": alert_payload.get("deviation_type"),
+            },
+            [
+                "incident_id",
+                "equipment_id",
+                "batch_id",
+                "parameter",
+                "measured_value",
+                "lower_limit",
+                "upper_limit",
+                "duration_seconds",
+                "deviation_type",
+            ],
+        ),
+        "equipment_facts": _compact_equipment_context(equipment),
+        "batch_facts": _compact_batch_context(batch),
+        "bpr_constraints": bpr_citation,
+        "historical_incidents": historical_summaries,
+        "historical_pattern_summary": historical_pattern_summary,
+        "evidence_citations": citations,
+        "evidence_gaps": evidence_gaps,
+        "context_summary": context_summary,
+    }
+    return package, rag_context
+
+
+def _research_hit_score(hit: dict, alert_payload: dict, batch: dict, equipment: dict) -> int:
+    haystack = _normalize_text(
+        " ".join(
+            str(value or "")
+            for value in [
+                hit.get("document_id"),
+                hit.get("document_title"),
+                hit.get("source"),
+                hit.get("text"),
+            ]
+        )
+    )
+    score = 0
+    for value, weight in [
+        (alert_payload.get("equipment_id") or equipment.get("id") or equipment.get("equipment_id"), 4),
+        (alert_payload.get("parameter"), 4),
+        (batch.get("product") or batch.get("product_name"), 5),
+        (batch.get("bpr_reference"), 5),
+        (alert_payload.get("lower_limit"), 2),
+        (alert_payload.get("upper_limit"), 2),
+        (alert_payload.get("measured_value"), 2),
+    ]:
+        normalized = _normalize_text(str(value or "").replace("_", " "))
+        if normalized and normalized in haystack:
+            score += weight
+
+    parameter_words = [
+        word for word in _normalize_text(str(alert_payload.get("parameter") or "").replace("_", " ")).split()
+        if len(word) > 2
+    ]
+    score += sum(2 for word in parameter_words if word in haystack)
+    if "human decision" in haystack:
+        score += 3
+    return score
+
+
+def _canonical_citation_from_search_hit(index_name: str, hit: dict) -> dict | None:
+    meta = INDEX_EVIDENCE_META.get(index_name, {})
+    citation_type = str(meta.get("type") or hit.get("document_type") or "document")
+    source_blob = str(hit.get("source") or hit.get("source_blob") or "").strip()
+    if not source_blob:
+        return None
+    chunk_index = int(hit.get("chunk_index") or 0)
+    section_heading = str(hit.get("section_heading") or "").strip()
+    if not section_heading:
+        for line in str(hit.get("text") or "").splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                section_heading = stripped.lstrip("#").strip()
+                break
+    if not section_heading:
+        section_heading = f"Chunk {chunk_index}"
+
+    text_excerpt = _trim_excerpt(str(hit.get("text") or ""), max_chars=500, min_break=220)
+    document_id = str(hit.get("document_id") or "").strip()
+    document_title = str(hit.get("document_title") or document_id).strip()
+    container = str(meta.get("container") or "")
+    return {
+        "type": citation_type,
+        "document_id": document_id,
+        "document_title": document_title,
+        "section_heading": section_heading,
+        "section": section_heading,
+        "section_key": str(hit.get("section_key") or _normalize_section_key(section_heading)),
+        "section_path": str(hit.get("section_path") or section_heading),
+        "text_excerpt": text_excerpt,
+        "source_blob": source_blob,
+        "index_name": index_name,
+        "chunk_index": chunk_index,
+        "score": float(hit.get("score") or 0.0),
+        "url": _citation_url(
+            citation_type=citation_type,
+            document_id=document_id,
+            container=container,
+            source_blob=source_blob,
+        ),
+    }
 
 
 def _log_orchestrator_prompt_trace(
@@ -1822,13 +2203,6 @@ def _normalize_evidence_citations(
         seen.add(key)
         normalized.append(citation)
 
-    _append_historical_citation_fallback(
-        normalized,
-        flat_hits,
-        seen,
-        current_incident_id=current_incident_id,
-    )
-
     # Post-normalization: fix section-mismatch unresolved citations via targeted search
     _resolve_section_mismatch_citations(normalized)
 
@@ -1836,44 +2210,6 @@ def _normalize_evidence_citations(
     normalized = _deduplicate_ghost_citations(normalized)
 
     return normalized
-
-
-def _append_historical_citation_fallback(
-    normalized: list[dict],
-    flat_hits: list[dict],
-    seen: set[tuple],
-    *,
-    current_incident_id: str = "",
-) -> None:
-    if any(str(citation.get("type") or "") == "historical" for citation in normalized):
-        return
-
-    for hit in flat_hits:
-        if hit.get("index_name") != "idx-incident-history":
-            continue
-
-        citation = _normalize_single_citation(
-            {
-                "type": "historical",
-                "document_id": hit.get("document_id", ""),
-                "document_title": hit.get("document_title", ""),
-                "source_blob": hit.get("source", ""),
-                "chunk_index": hit.get("chunk_index"),
-                "score": hit.get("score"),
-                "text_excerpt": hit.get("text", ""),
-            },
-            flat_hits,
-        )
-        if _citation_points_to_incident(citation, current_incident_id):
-            continue
-
-        key = _citation_identity_key(citation)
-        if key in seen:
-            continue
-
-        seen.add(key)
-        normalized.append(citation)
-        return
 
 
 def _flatten_rag_hits(rag_context: dict) -> list[dict]:
@@ -1924,14 +2260,20 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
     else:
         match = _find_matching_hit(item, flat_hits)
     citation_type = item.get("type") or _infer_citation_type(item, match)
-    source = item.get("source") or (match or {}).get("document_id") or (match or {}).get("document_title") or ""
+    source = (
+        item.get("source")
+        or item.get("document_id")
+        or (match or {}).get("document_id")
+        or (match or {}).get("document_title")
+        or ""
+    )
     reference = item.get("reference") or item.get("regulation") or ""
     document_title = (
         item.get("document_title")
         or item.get("title")
         or item.get("regulation")
-        or item.get("reference")
         or (match or {}).get("document_title")
+        or item.get("reference")
         or item.get("source")
         or ""
     )
@@ -1943,28 +2285,14 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         or ""
     )
     source_blob = item.get("source_blob") or item.get("sourceBlob") or (match or {}).get("source", "")
+    index_name = str(item.get("index_name") or (match or {}).get("index_name", "")).strip()
     container = item.get("container") or (match or {}).get("container", "")
+    if not container and index_name:
+        container = INDEX_EVIDENCE_META.get(index_name, {}).get("container", "")
+    if not container and citation_type in _TYPE_TO_INDEX:
+        container = INDEX_EVIDENCE_META.get(_TYPE_TO_INDEX[citation_type], {}).get("container", "")
     if citation_type == "historical" and not document_id:
         document_id = _extract_historical_incident_id(source_blob or source or document_title)
-    known_doc = _infer_known_document(item)
-    if not document_id and known_doc:
-        document_id = known_doc.get("document_id", "")
-    if not source_blob and known_doc:
-        source_blob = known_doc["source_blob"]
-    if not container and known_doc:
-        container = known_doc["container"]
-    if known_doc and document_id == known_doc.get("document_id") and document_title != known_doc["document_title"]:
-        document_title = known_doc["document_title"]
-    elif known_doc and (
-        not document_title
-        or document_title in {"equipment_manual_notes", "incident", "details", "sop", "gmp", "manual", "batch record", "bpr_constraints"}
-        or document_title.lower() in {
-            known_doc.get("document_id", "").lower(),
-            str(source or "").lower(),
-            str(reference or "").lower(),
-        }
-    ):
-        document_title = known_doc["document_title"]
     if citation_type == "historical" and document_id and document_title.lower() in {"incident", "details", "historical"}:
         document_title = f"Similar incident {document_id}"
     if not document_title:
@@ -1972,7 +2300,9 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
             document_title = f"Similar incident {document_id}"
         else:
             document_title = source or reference
-    section_claim = str(item.get("section") or item.get("relevant_section") or "").strip()
+    section_claim = str(
+        item.get("section") or item.get("relevant_section") or item.get("section_heading") or ""
+    ).strip()
     raw_excerpt_matches_source = _raw_excerpt_matches_hit(item, match)
     # When the agent explicitly identified the document and we found a match in
     # that document, trust the document's authoritative section heading even if
@@ -2022,7 +2352,7 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         "text_excerpt": text_excerpt,
         "source_blob": source_blob,
         "container": container,
-        "index_name": item.get("index_name") or (match or {}).get("index_name", ""),
+        "index_name": index_name,
         "chunk_index": item.get("chunk_index", (match or {}).get("chunk_index")),
         "score": item.get("score", (match or {}).get("score")),
         "resolution_status": resolution_status,
@@ -2455,49 +2785,6 @@ def _document_url(container: str, source_blob: str) -> str:
     if not container or not source_blob:
         return ""
     return f"/api/documents/{container}/{quote(source_blob, safe='/')}"
-
-
-def _infer_known_document(item: dict) -> dict | None:
-    # HACKATHON ONLY — hardcoded fallback for mock documents whose metadata may not
-    # be fully populated in the search index during the demo.
-    # PRODUCTION NOTE: remove this function; the search index must be the sole source
-    # of document metadata. If a document isn't matched via _find_matching_hit, the
-    # root cause is missing/incomplete index data, not a missing code mapping.
-    if os.getenv("KNOWN_DOCUMENT_FALLBACK_DISABLED", "").strip().lower() in {"1", "true", "yes"}:
-        return None
-    text = " ".join(
-        str(item.get(k, ""))
-        for k in ("document_id", "document_title", "reference", "source", "text_excerpt", "id", "title", "regulation")
-    ).lower()
-    if "sop-dev-001" in text:
-        return {
-            "document_id": "SOP-DEV-001",
-            "container": "blob-sop",
-            "source_blob": "SOP-DEV-001-Deviation-Management.md",
-            "document_title": "Deviation Management (SOP-DEV-001)",
-        }
-    if "sop-man-gr-001" in text or "granulator operation" in text:
-        return {
-            "document_id": "SOP-MAN-GR-001",
-            "container": "blob-sop",
-            "source_blob": "SOP-MAN-GR-001-Granulator-Operation.md",
-            "document_title": "Granulator Operation (SOP-MAN-GR-001)",
-        }
-    if "annex 15" in text or "eu gmp" in text:
-        return {
-            "document_id": "GMP-Annex15-Excerpt",
-            "container": "blob-gmp",
-            "source_blob": "GMP-Annex15-Excerpt.md",
-            "document_title": "EU GMP Annex 15",
-        }
-    if "metformin" in text or "b26041701" in text:
-        return {
-            "document_id": "BPR-MET-500-v3.2",
-            "container": "blob-bpr",
-            "source_blob": "BPR-MET-500-v3.2-Process-Specification.md",
-            "document_title": "BPR Metformin 500mg Process Specification",
-        }
-    return None
 
 
 def _write_analysis_started_event(incident_id: str, more_info_round: int = 0) -> None:

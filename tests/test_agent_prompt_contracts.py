@@ -43,3 +43,23 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "must call `research_agent`" in prompt
     assert "Do not write or simulate `tool_calls_log`" in prompt
     assert "Do not invent citations" in prompt
+    assert "Copy the\n  full array intact" in prompt
+
+
+def test_foundry_agent_schemas_require_canonical_research_evidence() -> None:
+    source = (ROOT / "agents" / "create_agents.py").read_text(encoding="utf-8")
+
+    assert "RESEARCH_OUTPUT_SCHEMA" in source
+    assert "response_format=RESEARCH_OUTPUT_RESPONSE_FORMAT" not in source
+
+    for field in [
+        "document_id",
+        "document_title",
+        "section_heading",
+        "text_excerpt",
+        "source_blob",
+        "index_name",
+        "chunk_index",
+        "score",
+    ]:
+        assert f'"{field}"' in source
