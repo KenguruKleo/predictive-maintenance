@@ -1,0 +1,91 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="220" y1="96" x2="1700" y2="980" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1c2b3a"/>
+      <stop offset="1" stop-color="#172b4d"/>
+    </linearGradient>
+    <radialGradient id="glowBlue" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1490 220) rotate(145) scale(720 540)">
+      <stop stop-color="#0052cc" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#0052cc" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowMint" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(280 900) rotate(18) scale(520 320)">
+      <stop stop-color="#36b37e" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#36b37e" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#dfe1e6" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+    <filter id="softShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#09111b" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  <rect width="1920" height="1080" fill="url(#glowBlue)"/>
+  <rect width="1920" height="1080" fill="url(#glowMint)"/>
+
+  <g opacity="0.14">
+    <circle cx="1600" cy="204" r="6" fill="#ffffff"/>
+    <circle cx="1500" cy="294" r="6" fill="#ffffff"/>
+    <circle cx="1400" cy="384" r="6" fill="#ffffff"/>
+    <circle cx="1300" cy="474" r="6" fill="#ffffff"/>
+    <path d="M1300 474L1400 384L1500 294L1600 204" stroke="#ffffff" stroke-width="2"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="112" y="120" width="470" height="64" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.12"/>
+    <path d="M148 152L170 132H204L226 152L204 172H170L148 152Z" fill="#deebff"/>
+    <path d="M170 125L204 125L218 139V163L187 179L156 163V139L170 125Z" fill="#0052cc"/>
+    <path d="M187 138L199 144V158L187 164L175 158V144L187 138Z" fill="#ffffff" fill-opacity="0.96"/>
+    <text x="246" y="160" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Sentinel Intelligence</text>
+  </g>
+
+  <text x="112" y="422" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="800">Built for</text>
+  <text x="112" y="492" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="800">governed pharma</text>
+  <text x="112" y="562" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="74" font-weight="800">operations at scale.</text>
+  <text x="112" y="638" fill="#deebff" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="600">Decision packages in minutes. Human approval,</text>
+  <text x="112" y="676" fill="#deebff" font-family="Arial, Helvetica, sans-serif" font-size="31" font-weight="600">verified evidence, and traceable execution.</text>
+
+  <g>
+    <rect x="112" y="724" width="206" height="46" rx="23" fill="#e3fcef"/>
+    <text x="215" y="753" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">HUMAN-IN-THE-LOOP</text>
+
+    <rect x="336" y="724" width="182" height="46" rx="23" fill="#deebff"/>
+    <text x="427" y="753" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">VERIFIED RAG</text>
+
+    <rect x="536" y="724" width="238" height="46" rx="23" fill="#fffae6"/>
+    <text x="655" y="753" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AUDIT-READY ACTIONS</text>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="1180" y="250" width="600" height="566" rx="40" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+  </g>
+
+  <g>
+    <text x="1228" y="340" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" letter-spacing="3">WHAT JUDGES SHOULD REMEMBER</text>
+
+    <circle cx="1240" cy="434" r="26" fill="#deebff"/>
+    <text x="1240" y="443" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">1</text>
+    <text x="1286" y="424" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800">Real product, not concept art</text>
+    <text x="1286" y="456" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">Role-based screens, incident states, approval paths,</text>
+    <text x="1286" y="486" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">and post-approval execution are already working.</text>
+
+    <circle cx="1240" cy="584" r="26" fill="#e3fcef"/>
+    <text x="1240" y="593" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">2</text>
+    <text x="1286" y="574" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800">AI stays governed by design</text>
+    <text x="1286" y="606" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">Confidence gating, human edits, verification, and</text>
+    <text x="1286" y="636" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">audit trails are visible in the operator workflow.</text>
+
+    <circle cx="1240" cy="734" r="26" fill="#fffae6"/>
+    <text x="1240" y="743" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">3</text>
+    <text x="1286" y="724" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="800">The platform is reusable</text>
+    <text x="1286" y="756" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">The same pattern can be distributed across plants</text>
+    <text x="1286" y="786" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">where regulated decisions need speed and control.</text>
+  </g>
+
+  <rect x="112" y="920" width="544" height="70" rx="35" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+  <text x="384" y="955" text-anchor="middle" dominant-baseline="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="700">Sentinel Intelligence · Azure AI Foundry · Track A</text>
+
+  <text x="1808" y="966" text-anchor="end" fill="#97a0af" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">Governed AI for real operations</text>
+</svg>

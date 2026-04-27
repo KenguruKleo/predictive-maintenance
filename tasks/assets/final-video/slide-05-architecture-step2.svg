@@ -1,0 +1,144 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="1800" y2="1040" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f5f7"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1520 180) rotate(145) scale(620 380)">
+      <stop stop-color="#deebff"/>
+      <stop offset="1" stop-color="#deebff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 980) rotate(10) scale(540 300)">
+      <stop stop-color="#e3fcef"/>
+      <stop offset="1" stop-color="#e3fcef" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cardShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#172b4d" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M1 1L11 6L1 11V1Z" fill="#0052cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#blueGlow)"/>
+  <rect width="1920" height="1080" fill="url(#mintGlow)"/>
+  <rect x="0" y="0" width="1920" height="96" fill="#172b4d"/>
+
+  <text x="128" y="61" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Sentinel Intelligence</text>
+  <text x="1788" y="61" text-anchor="end" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Architecture reveal · Step 2</text>
+
+  <text x="128" y="156" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">TRACK A · PLATFORM SERVICES</text>
+  <text x="128" y="210" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800">Queue, state, grounding, and guardrails</text>
+  <text x="128" y="260" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800">make the workflow operational.</text>
+  <text x="128" y="298" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500">Each supporting service owns one job: intake, durable state, grounded evidence, real-time UX, secure access, or safe release.</text>
+
+  <g>
+    <rect x="128" y="326" width="142" height="42" rx="21" fill="#24292f"/>
+    <text x="199" y="353" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">GITHUB</text>
+
+    <rect x="286" y="326" width="128" height="42" rx="21" fill="#deebff"/>
+    <text x="350" y="353" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE</text>
+
+    <rect x="430" y="326" width="248" height="42" rx="21" fill="#e3fcef"/>
+    <text x="554" y="353" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE AI FOUNDRY</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="56" y="390" width="1232" height="680" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="56" y="390" width="1232" height="680" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1328" y="390" width="560" height="680" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="1328" y="390" width="560" height="680" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g>
+    <rect x="88" y="430" width="1168" height="208" rx="30" fill="#172b4d"/>
+    <rect x="120" y="462" width="170" height="36" rx="18" fill="#deebff"/>
+    <text x="205" y="485" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">FLOW BACKBONE</text>
+    <text x="320" y="486" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Runtime backbone</text>
+    <text x="320" y="520" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500">Queue, state, and push layers keep incident handling alive under load.</text>
+
+    <rect x="120" y="550" width="304" height="60" rx="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="272" y="576" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800">Service Bus</text>
+    <text x="272" y="597" text-anchor="middle" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">alert-queue absorbs incident bursts</text>
+
+    <rect x="476" y="550" width="304" height="60" rx="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="628" y="576" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800">Cosmos DB</text>
+    <text x="628" y="597" text-anchor="middle" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">durable incident state + audit timeline</text>
+
+    <rect x="832" y="550" width="304" height="60" rx="22" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="984" y="576" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800">SignalR</text>
+    <text x="984" y="597" text-anchor="middle" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">real-time bell + status push to UI</text>
+
+    <path d="M424 580H476" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M780 580H832" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+
+    <text x="628" y="628" text-anchor="middle" fill="#4c9aff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">intake → durable state → live operator updates</text>
+  </g>
+
+  <g>
+    <rect x="88" y="666" width="1168" height="184" rx="30" fill="#fbfcfe" stroke="#dfe1e6" stroke-width="2"/>
+    <rect x="120" y="700" width="188" height="36" rx="18" fill="#e3fcef"/>
+    <text x="214" y="723" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">GROUNDING + TOOLS</text>
+    <text x="332" y="724" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Evidence and modular actions</text>
+    <text x="332" y="758" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500">AI Search grounds the package. MCP keeps QMS and CMMS integrations replaceable.</text>
+
+    <rect x="120" y="782" width="500" height="60" rx="22" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="370" y="808" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800">AI Search</text>
+    <text x="370" y="829" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">validated documents · 5 indexes · grounded answers</text>
+
+    <rect x="676" y="782" width="516" height="60" rx="22" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="934" y="808" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="800">MCP integrations</text>
+    <text x="934" y="829" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">modular QMS + CMMS tools after approval</text>
+  </g>
+
+  <g>
+    <rect x="88" y="878" width="1168" height="180" rx="30" fill="#fffbef" stroke="#f1d58b" stroke-width="2"/>
+    <rect x="120" y="912" width="190" height="36" rx="18" fill="#fffae6"/>
+    <text x="215" y="935" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">ACCESS + DELIVERY</text>
+    <text x="338" y="936" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Security and release guardrails</text>
+    <text x="338" y="970" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500">RBAC protects runtime access. CI/CD blocks model changes that fail the eval gate.</text>
+
+    <rect x="120" y="986" width="288" height="60" rx="22" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="264" y="1012" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">Entra ID + App Roles</text>
+    <text x="264" y="1033" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">Microsoft sign-in + RBAC enforcement</text>
+
+    <rect x="436" y="986" width="300" height="60" rx="22" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="586" y="1012" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">PIM + CA + Defender</text>
+    <text x="586" y="1033" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">MFA, JIT access, and cloud protection</text>
+
+    <rect x="764" y="986" width="428" height="60" rx="22" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="978" y="1012" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">GitHub Actions + Foundry eval gate</text>
+    <text x="978" y="1033" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="14" font-weight="700">stop deployment when AI quality drops</text>
+  </g>
+
+  <g>
+    <text x="1368" y="454" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="800">Why this layer matters</text>
+    <text x="1368" y="492" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">These services turn the agent flow into a</text>
+    <text x="1368" y="522" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">production system operators can trust.</text>
+
+    <circle cx="1400" cy="598" r="24" fill="#deebff"/>
+    <text x="1400" y="606" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">1</text>
+    <text x="1448" y="586" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Burst handling stays decoupled</text>
+    <text x="1448" y="620" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Service Bus absorbs alert spikes before the workflow starts.</text>
+    <text x="1448" y="648" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Cosmos preserves the case once it exists.</text>
+
+    <circle cx="1400" cy="754" r="24" fill="#e3fcef"/>
+    <text x="1400" y="762" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">2</text>
+    <text x="1448" y="742" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Evidence stays grounded and live</text>
+    <text x="1448" y="776" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">AI Search validates the evidence layer.</text>
+    <text x="1448" y="804" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">SignalR updates users; MCP keeps actions modular.</text>
+
+    <circle cx="1400" cy="910" r="24" fill="#fffae6"/>
+    <text x="1400" y="918" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">3</text>
+    <text x="1448" y="898" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Governance travels with delivery</text>
+    <text x="1448" y="932" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Entra RBAC limits access.</text>
+    <text x="1448" y="960" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">PIM, MFA, Defender, and eval gates cut release risk.</text>
+
+    <rect x="1368" y="996" width="480" height="36" rx="18" fill="#172b4d"/>
+    <text x="1608" y="1019" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800">Step 2 = platform services, security, and delivery controls</text>
+  </g>
+</svg>

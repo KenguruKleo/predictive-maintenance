@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="1800" y2="1040" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f5f7"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1520 180) rotate(145) scale(620 380)">
+      <stop stop-color="#deebff"/>
+      <stop offset="1" stop-color="#deebff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 980) rotate(10) scale(540 300)">
+      <stop stop-color="#e3fcef"/>
+      <stop offset="1" stop-color="#e3fcef" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cardShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#172b4d" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M1 1L11 6L1 11V1Z" fill="#0052cc"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M1 1L11 6L1 11V1Z" fill="#006644"/>
+    </marker>
+    <marker id="arrowAmber" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M1 1L11 6L1 11V1Z" fill="#ca7d01"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#blueGlow)"/>
+  <rect width="1920" height="1080" fill="url(#mintGlow)"/>
+  <rect x="0" y="0" width="1920" height="96" fill="#172b4d"/>
+
+  <text x="128" y="61" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Sentinel Intelligence</text>
+  <text x="1788" y="61" text-anchor="end" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Architecture reveal · Step 3</text>
+
+  <text x="128" y="156" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">FEEDBACK + RESILIENCE</text>
+  <text x="128" y="210" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800">Human rejection feeds the source system back.</text>
+  <text x="128" y="260" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800">Watchdog recovery restarts lost workflows safely.</text>
+  <text x="128" y="298" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="500">One path improves upstream alert quality. The other restores stuck or orphaned incidents without losing business context.</text>
+
+  <g>
+    <rect x="128" y="326" width="142" height="42" rx="21" fill="#24292f"/>
+    <text x="199" y="353" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">GITHUB</text>
+
+    <rect x="286" y="326" width="128" height="42" rx="21" fill="#deebff"/>
+    <text x="350" y="353" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE</text>
+
+    <rect x="430" y="326" width="248" height="42" rx="21" fill="#e3fcef"/>
+    <text x="554" y="353" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE AI FOUNDRY</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="56" y="390" width="1232" height="680" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="56" y="390" width="1232" height="680" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1328" y="390" width="560" height="680" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="1328" y="390" width="560" height="680" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g>
+    <rect x="88" y="430" width="1168" height="322" rx="30" fill="#fbfcfe" stroke="#dfe1e6" stroke-width="2"/>
+    <rect x="120" y="464" width="250" height="36" rx="18" fill="#deebff"/>
+    <text x="245" y="487" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">REJECT FEEDBACK LOOP</text>
+    <text x="390" y="488" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">False positives become upstream learning</text>
+    <text x="390" y="520" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="500">A rejected decision closes the incident, writes the audit trail,</text>
+    <text x="390" y="548" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="500">and sends structured feedback to the alerting system.</text>
+
+    <rect x="136" y="598" width="284" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="278" y="630" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="800">Operator rejects</text>
+    <text x="278" y="657" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">reason captured in decision UI</text>
+
+    <rect x="530" y="598" width="284" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="672" y="630" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="800">close_incident</text>
+    <text x="672" y="657" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">outcome = rejected + audit finalized</text>
+
+    <rect x="924" y="598" width="284" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="1066" y="630" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="800">Alert feedback event</text>
+    <text x="1066" y="657" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">disagreement flag + closure reason</text>
+
+    <rect x="460" y="680" width="420" height="34" rx="17" fill="#e3fcef"/>
+    <text x="670" y="702" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800">async POST to ALERT_FEEDBACK_URL</text>
+
+    <rect x="456" y="560" width="428" height="30" rx="15" fill="#fffae6"/>
+    <text x="670" y="580" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="800">lets SCADA / MES learn from false positives</text>
+
+    <path d="M420 640H530" stroke="#0052cc" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M814 640H924" stroke="#0052cc" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M1066 682V742H278V694" stroke="#006644" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" marker-end="url(#arrowGreen)"/>
+  </g>
+
+  <g>
+    <rect x="88" y="782" width="1168" height="276" rx="30" fill="#fffbef" stroke="#f1d58b" stroke-width="2"/>
+    <rect x="120" y="816" width="194" height="36" rx="18" fill="#fffae6"/>
+    <text x="217" y="839" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">WATCHDOG RECOVERY</text>
+    <text x="342" y="840" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Stuck or orphaned cases get requeued</text>
+    <text x="342" y="872" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="500">A timer trigger checks old incidents, detects missing Durable instances,</text>
+    <text x="342" y="900" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="500">and republishes the alert through Service Bus.</text>
+
+    <rect x="120" y="920" width="256" height="86" rx="24" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="248" y="951" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">Timer Trigger</text>
+    <text x="248" y="975" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">every 5 min</text>
+    <text x="248" y="995" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">scan stale incidents</text>
+
+    <rect x="424" y="920" width="256" height="86" rx="24" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="552" y="951" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">Durable status check</text>
+    <text x="552" y="975" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Running / Pending = skip</text>
+    <text x="552" y="995" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">NOT_FOUND / Failed = recover</text>
+
+    <rect x="728" y="920" width="210" height="86" rx="24" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="833" y="951" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">Requeue</text>
+    <text x="833" y="975" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">publish_alert(payload)</text>
+    <text x="833" y="995" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">back to Service Bus</text>
+
+    <rect x="986" y="920" width="222" height="86" rx="24" fill="#ffffff" stroke="#f1d58b" stroke-width="2"/>
+    <text x="1097" y="951" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">Fresh orchestrator</text>
+    <text x="1097" y="975" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">business context preserved</text>
+    <text x="1097" y="995" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">status restored automatically</text>
+
+    <path d="M376 963H424" stroke="#ca7d01" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
+    <path d="M680 963H728" stroke="#ca7d01" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
+    <path d="M938 963H986" stroke="#ca7d01" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowAmber)"/>
+
+    <text x="122" y="1042" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="600">Stuck analysis threshold: 15 min. Orphaned approval grace period: 2 min. Safety cap: 10 recoveries per run.</text>
+  </g>
+
+  <g>
+    <text x="1368" y="454" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="800">Why this matters</text>
+    <text x="1368" y="492" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">The system learns from human rejection and</text>
+    <text x="1368" y="522" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">stays recoverable when orchestration breaks.</text>
+
+    <circle cx="1400" cy="602" r="24" fill="#deebff"/>
+    <text x="1400" y="610" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">1</text>
+    <text x="1448" y="590" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Reject stays explicit</text>
+    <text x="1448" y="624" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">The audit record keeps the rejection outcome,</text>
+    <text x="1448" y="652" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">override context, and operator agreement flag.</text>
+
+    <circle cx="1400" cy="760" r="24" fill="#e3fcef"/>
+    <text x="1400" y="768" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">2</text>
+    <text x="1448" y="748" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Upstream alerts improve</text>
+    <text x="1448" y="782" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Async feedback gives SCADA or MES a clean signal</text>
+    <text x="1448" y="810" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">about false positives and rejected recommendations.</text>
+
+    <circle cx="1400" cy="918" r="24" fill="#fffae6"/>
+    <text x="1400" y="926" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">3</text>
+    <text x="1448" y="906" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Recovery stays idempotent</text>
+    <text x="1448" y="940" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">The watchdog republishes through Service Bus</text>
+    <text x="1448" y="968" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">instead of mutating state directly,</text>
+    <text x="1448" y="996" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">so restart logic stays safe.</text>
+
+    <rect x="1368" y="1010" width="480" height="36" rx="18" fill="#172b4d"/>
+    <text x="1608" y="1033" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800">Step 3 = feedback learning loop + resilient recovery path</text>
+  </g>
+</svg>

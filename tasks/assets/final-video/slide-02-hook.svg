@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="hookBg" x1="1920" y1="0" x2="0" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f5f7"/>
+    </linearGradient>
+    <linearGradient id="metricFade" x1="160" y1="248" x2="1760" y2="248" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#172b4d"/>
+      <stop offset="1" stop-color="#0052cc"/>
+    </linearGradient>
+    <radialGradient id="hookGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1520 190) rotate(142) scale(520 360)">
+      <stop stop-color="#deebff"/>
+      <stop offset="1" stop-color="#deebff" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cardShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="28" flood-color="#1c2b3a" flood-opacity="0.12"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#hookBg)"/>
+  <rect width="1920" height="1080" fill="url(#hookGlow)"/>
+  <rect x="0" y="0" width="1920" height="96" fill="#1c2b3a"/>
+  <text x="128" y="61" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Sentinel Intelligence</text>
+  <text x="1718" y="61" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700" text-anchor="end">Governed AI assistance</text>
+
+  <g filter="url(#cardShadow)">
+    <rect x="128" y="168" width="1664" height="486" rx="42" fill="#ffffff"/>
+  </g>
+
+  <text x="180" y="278" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="6">FROM MANUAL INVESTIGATION TO OPERATIONAL DECISION SUPPORT</text>
+
+  <text x="180" y="444" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="800">45 min</text>
+  <path d="M720 425H905" stroke="url(#metricFade)" stroke-width="12" stroke-linecap="round"/>
+  <path d="M872 382L930 425L872 468" stroke="#0052cc" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="1008" y="444" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="112" font-weight="800">&lt; 2 min</text>
+
+  <text x="180" y="540" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="34" font-weight="500">From deviation signal to governed action package with evidence, human approval, and traceability.</text>
+
+  <g>
+    <rect x="180" y="590" width="260" height="48" rx="24" fill="#deebff"/>
+    <text x="310" y="621" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">GOVERNED AI</text>
+
+    <rect x="470" y="590" width="304" height="48" rx="24" fill="#e3fcef"/>
+    <text x="622" y="621" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">HUMAN APPROVAL</text>
+
+    <rect x="804" y="590" width="316" height="48" rx="24" fill="#fffae6"/>
+    <text x="962" y="621" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">VERIFIED EVIDENCE</text>
+  </g>
+
+  <g>
+    <rect x="128" y="734" width="518" height="210" rx="30" fill="#172b4d"/>
+    <text x="180" y="806" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Not just a demo</text>
+    <text x="180" y="854" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">A reusable application designed for</text>
+    <text x="180" y="888" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">distribution across real regulated operations.</text>
+  </g>
+
+  <g>
+    <rect x="682" y="734" width="526" height="210" rx="30" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="734" y="806" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Reusable operating pattern</text>
+    <text x="734" y="854" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">Swap source systems and keep the same</text>
+    <text x="734" y="886" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">governed workflow across plants.</text>
+    <text x="734" y="920" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="700">signal -&gt; reasoning -&gt; decision -&gt; audit trail</text>
+  </g>
+
+  <g>
+    <rect x="1244" y="734" width="548" height="210" rx="30" fill="#fffbf0" stroke="#ffecd1" stroke-width="2"/>
+    <text x="1296" y="806" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Ready for production use</text>
+    <text x="1296" y="854" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">Human-in-the-loop, real-time notifications,</text>
+    <text x="1296" y="888" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="400">verified citations, and traceability by design.</text>
+  </g>
+</svg>

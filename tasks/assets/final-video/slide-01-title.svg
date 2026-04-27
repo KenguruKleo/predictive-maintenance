@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="240" y1="96" x2="1680" y2="984" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1c2b3a"/>
+      <stop offset="1" stop-color="#172b4d"/>
+    </linearGradient>
+    <radialGradient id="glowBlue" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1450 220) rotate(145.3) scale(680 540)">
+      <stop stop-color="#0052cc" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#0052cc" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="glowMint" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(310 850) rotate(30) scale(480 320)">
+      <stop stop-color="#006644" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#006644" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="48" height="48" patternUnits="userSpaceOnUse">
+      <path d="M48 0H0V48" stroke="#dfe1e6" stroke-opacity="0.08" stroke-width="1"/>
+    </pattern>
+    <filter id="softShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="24" stdDeviation="32" flood-color="#09111b" flood-opacity="0.22"/>
+    </filter>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#grid)"/>
+  <rect width="1920" height="1080" fill="url(#glowBlue)"/>
+  <rect width="1920" height="1080" fill="url(#glowMint)"/>
+
+  <g opacity="0.14">
+    <circle cx="1650" cy="220" r="6" fill="#ffffff"/>
+    <circle cx="1540" cy="310" r="6" fill="#ffffff"/>
+    <circle cx="1430" cy="400" r="6" fill="#ffffff"/>
+    <path d="M1430 400L1540 310L1650 220" stroke="#ffffff" stroke-width="2"/>
+  </g>
+
+  <g filter="url(#softShadow)">
+    <rect x="112" y="120" width="244" height="64" rx="20" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.12"/>
+    <path d="M148 152L170 132H204L226 152L204 172H170L148 152Z" fill="#deebff"/>
+    <path d="M170 132L204 132L218 146V170L187 186L156 170V146L170 132Z" fill="#0052cc"/>
+    <path d="M187 145L199 151V165L187 171L175 165V151L187 145Z" fill="#ffffff" fill-opacity="0.96"/>
+    <text x="252" y="160" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Sentinel Intelligence</text>
+  </g>
+
+  <g>
+    <text x="112" y="350" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700" letter-spacing="6">MICROSOFT AGENTIC INDUSTRY HACKATHON 2026</text>
+    <text x="112" y="470" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="98" font-weight="800">Sentinel Intelligence</text>
+    <text x="112" y="560" fill="#deebff" font-family="Arial, Helvetica, sans-serif" font-size="46" font-weight="600">GMP Deviation &amp; CAPA Operations Assistant</text>
+    <rect x="112" y="606" width="212" height="6" rx="3" fill="#0052cc"/>
+    <text x="112" y="690" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="400">A reusable, production-ready application for governed pharma operations.</text>
+  </g>
+
+  <g>
+    <rect x="1110" y="286" width="626" height="446" rx="36" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="1162" y="372" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="26" font-weight="700" letter-spacing="3">READY TO DISTRIBUTE</text>
+
+    <rect x="1162" y="422" width="188" height="44" rx="22" fill="#e3fcef"/>
+    <text x="1256" y="450" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800">PRODUCTION</text>
+
+    <rect x="1368" y="422" width="178" height="44" rx="22" fill="#deebff"/>
+    <text x="1457" y="450" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800">REUSABLE</text>
+
+    <rect x="1162" y="492" width="196" height="44" rx="22" fill="#fffae6"/>
+    <text x="1260" y="520" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="800">AUDIT-READY</text>
+
+    <text x="1162" y="596" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="700">Built for real manufacturing teams</text>
+    <text x="1162" y="646" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400">Human approval, verified evidence,</text>
+    <text x="1162" y="682" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400">traceable outcomes, and reusable</text>
+    <text x="1162" y="718" fill="#dfe1e6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="400">integration patterns across regulated plants.</text>
+  </g>
+
+  <text x="112" y="970" fill="#97a0af" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="600">Track A  |  Azure AI Foundry  |  Human-in-the-loop  |  Real-time operations</text>
+</svg>

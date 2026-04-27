@@ -1,0 +1,143 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="120" y1="80" x2="1800" y2="1040" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#f4f5f7"/>
+    </linearGradient>
+    <radialGradient id="blueGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1520 180) rotate(145) scale(620 380)">
+      <stop stop-color="#deebff"/>
+      <stop offset="1" stop-color="#deebff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="mintGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(260 980) rotate(10) scale(540 300)">
+      <stop stop-color="#e3fcef"/>
+      <stop offset="1" stop-color="#e3fcef" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="cardShadow" x="0" y="0" width="1920" height="1080" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="18" stdDeviation="26" flood-color="#172b4d" flood-opacity="0.14"/>
+    </filter>
+    <marker id="arrowBlue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M1 1L11 6L1 11V1Z" fill="#0052cc"/>
+    </marker>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <rect width="1920" height="1080" fill="url(#blueGlow)"/>
+  <rect width="1920" height="1080" fill="url(#mintGlow)"/>
+  <rect x="0" y="0" width="1920" height="96" fill="#172b4d"/>
+
+  <text x="128" y="61" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="28" font-weight="700">Sentinel Intelligence</text>
+  <text x="1788" y="61" text-anchor="end" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">Architecture reveal · Step 1</text>
+
+  <text x="128" y="160" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="700" letter-spacing="5">TRACK A · TWO-LEVEL ORCHESTRATION</text>
+  <text x="128" y="220" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="60" font-weight="800">Workflow state and AI reasoning stay separate.</text>
+  <text x="128" y="264" fill="#344563" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="500">Durable Functions owns the long-running business flow. Azure AI Foundry owns the agent pipeline.</text>
+
+  <g>
+    <rect x="128" y="296" width="142" height="42" rx="21" fill="#24292f"/>
+    <text x="199" y="323" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">GITHUB</text>
+
+    <rect x="286" y="296" width="128" height="42" rx="21" fill="#deebff"/>
+    <text x="350" y="323" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE</text>
+
+    <rect x="430" y="296" width="248" height="42" rx="21" fill="#e3fcef"/>
+    <text x="554" y="323" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">AZURE AI FOUNDRY</text>
+  </g>
+
+  <g filter="url(#cardShadow)">
+    <rect x="56" y="376" width="1232" height="694" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="56" y="376" width="1232" height="694" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g filter="url(#cardShadow)">
+    <rect x="1328" y="376" width="560" height="694" rx="36" fill="#ffffff"/>
+  </g>
+  <rect x="1328" y="376" width="560" height="694" rx="36" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+
+  <g>
+    <rect x="88" y="416" width="1176" height="194" rx="30" fill="#172b4d"/>
+    <rect x="120" y="446" width="98" height="36" rx="18" fill="#deebff"/>
+    <text x="169" y="469" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">LEVEL 1</text>
+    <text x="240" y="470" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">Workflow Orchestrator</text>
+    <text x="240" y="504" fill="#b3bac5" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500">Azure Durable Functions · stateful business process, retries, escalation, HITL pause</text>
+
+    <rect x="120" y="544" width="164" height="46" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="202" y="572" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">create incident</text>
+
+    <rect x="324" y="544" width="164" height="46" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="406" y="572" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">enrich context</text>
+
+    <rect x="528" y="544" width="198" height="46" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="627" y="572" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">notify operator</text>
+
+    <rect x="766" y="532" width="282" height="72" rx="24" fill="#fffae6"/>
+    <text x="907" y="560" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800">HITL PAUSE</text>
+    <text x="907" y="582" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">waitForExternalEvent</text>
+    <text x="907" y="600" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="700">24h timer</text>
+
+    <rect x="1080" y="544" width="172" height="46" rx="18" fill="#ffffff" fill-opacity="0.08" stroke="#ffffff" stroke-opacity="0.14"/>
+    <text x="1166" y="572" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">finalize audit</text>
+
+    <path d="M284 567H324" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M488 567H528" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M726 567H766" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+    <path d="M1048 567H1080" stroke="#4c9aff" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+  </g>
+
+  <text x="620" y="642" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">run_foundry_agents</text>
+  <path d="M620 654V704" stroke="#0052cc" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+
+  <text x="1060" y="642" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">run_execution_agent on approve</text>
+  <path d="M1060 654V704" stroke="#006644" stroke-width="4" stroke-linecap="round" marker-end="url(#arrowBlue)"/>
+
+  <g>
+    <rect x="88" y="724" width="1168" height="322" rx="30" fill="#fbfcfe" stroke="#dfe1e6" stroke-width="2"/>
+    <rect x="120" y="758" width="98" height="36" rx="18" fill="#e3fcef"/>
+    <text x="169" y="781" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="800">LEVEL 2</text>
+    <text x="240" y="782" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="30" font-weight="800">AI Orchestrator</text>
+    <text x="240" y="818" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="20" font-weight="500">Azure AI Foundry Agent Service · Connected Agents, reasoning loop, tool calls</text>
+
+    <rect x="760" y="754" width="236" height="36" rx="18" fill="#deebff"/>
+    <text x="878" y="777" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800">ORCHESTRATOR AGENT</text>
+
+    <rect x="120" y="876" width="320" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="280" y="908" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800">Research Agent</text>
+    <text x="280" y="934" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">RAG x5 + MCP sentinel-db</text>
+
+    <rect x="468" y="876" width="320" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="628" y="908" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800">Document Agent</text>
+    <text x="628" y="934" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Structured output + confidence gate</text>
+
+    <rect x="816" y="876" width="376" height="84" rx="24" fill="#ffffff" stroke="#dfe1e6" stroke-width="2"/>
+    <text x="1004" y="908" text-anchor="middle" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="800">Execution Agent</text>
+    <text x="1004" y="934" text-anchor="middle" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">MCP qms + cmms · after approval</text>
+
+    <text x="120" y="1010" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="600">Research → synthesis → tools, while the workflow state stays outside the LLM run.</text>
+  </g>
+
+  <g>
+    <text x="1368" y="456" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="800">Why two levels?</text>
+    <text x="1368" y="494" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">This split makes the system practical</text>
+    <text x="1368" y="524" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="21" font-weight="500">for regulated operations.</text>
+
+    <circle cx="1400" cy="606" r="24" fill="#deebff"/>
+    <text x="1400" y="614" text-anchor="middle" fill="#0052cc" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">1</text>
+    <text x="1448" y="594" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Workflow stays durable</text>
+    <text x="1448" y="628" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Incident creation, retries, escalation,</text>
+    <text x="1448" y="656" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">and the human pause live in Durable Functions.</text>
+
+    <circle cx="1400" cy="748" r="24" fill="#e3fcef"/>
+    <text x="1400" y="756" text-anchor="middle" fill="#006644" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">2</text>
+    <text x="1448" y="736" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">AI stays focused on reasoning</text>
+    <text x="1448" y="770" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">Foundry handles research, document synthesis,</text>
+    <text x="1448" y="798" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">tool calls, and approved execution via MCP.</text>
+
+    <circle cx="1400" cy="890" r="24" fill="#fffae6"/>
+    <text x="1400" y="898" text-anchor="middle" fill="#ca7d01" font-family="Arial, Helvetica, sans-serif" font-size="22" font-weight="800">3</text>
+    <text x="1448" y="878" fill="#172b4d" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="800">Separation reduces operational risk</text>
+    <text x="1448" y="912" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">A long-running human review does not depend</text>
+    <text x="1448" y="940" fill="#5e6c84" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="400">on a single agent run staying alive.</text>
+
+    <rect x="1368" y="990" width="480" height="36" rx="18" fill="#172b4d"/>
+    <text x="1608" y="1013" text-anchor="middle" fill="#ffffff" font-family="Arial, Helvetica, sans-serif" font-size="16" font-weight="800">Track A = GitHub + Azure + Azure AI Foundry</text>
+  </g>
+</svg>
