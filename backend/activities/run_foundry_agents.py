@@ -108,10 +108,6 @@ def run_foundry_agents(input_data: dict) -> dict:
     # can distinguish "queued behind another incident" from "actively in Foundry".
     _mark_incident_queued_for_analysis(incident_id, more_info_round)
 
-    # Write analysis_started event on the first (non-more_info) run
-    if more_info_round == 0:
-        _write_analysis_started_event(incident_id, more_info_round)
-
     # HACKATHON: fallback to the provisioned agent ID so local runs work without a
     # full env-var setup. Remove the fallback before a production deployment.
     _FALLBACK_AGENT_ID = "asst_CNYK3TZIaOCH4OPKcP4N9B2r"
@@ -164,6 +160,11 @@ def run_foundry_agents(input_data: dict) -> dict:
     # Slot acquired — flip status to "analyzing" so the UI knows we are now actively
     # in Foundry (vs. just queued).
     _mark_incident_analyzing(incident_id, more_info_round)
+
+    # Write analysis_started event AFTER the slot is acquired so the status history
+    # reflects when the incident actually entered Foundry, not when it was queued.
+    if more_info_round == 0:
+        _write_analysis_started_event(incident_id, more_info_round)
 
     prompt = _build_prompt(
         incident_id,
