@@ -118,7 +118,7 @@ export default function Header({
   return (
     <header className="app-header">
       <Link to="/" className="app-header-brand">
-        <span className="app-header-icon">🛡️</span>
+        <img className="app-header-icon" src="/favicon.svg" alt="" aria-hidden="true" />
         <span className="app-header-title">Sentinel Intelligence</span>
       </Link>
 

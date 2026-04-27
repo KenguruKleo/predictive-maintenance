@@ -8,6 +8,7 @@
   "build": {
     "appId": "com.sentinelintelligence.operatorconsole",
     "productName": "Sentinel Intelligence",
+    "icon": "electron/assets/icon.icns",
     "asar": true,
     "npmRebuild": false,
     "directories": {

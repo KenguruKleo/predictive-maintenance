@@ -7,6 +7,7 @@ const isDev = Boolean(process.env.ELECTRON_RENDERER_URL);
 const remoteDebuggingPort = process.env.ELECTRON_REMOTE_DEBUGGING_PORT;
 const rendererPort = Number.parseInt(process.env.ELECTRON_RENDERER_PORT ?? "5173", 10);
 const appName = "Sentinel Intelligence";
+const iconPath = path.join(__dirname, "assets", "icon.png");
 const hasSingleInstanceLock = app.requestSingleInstanceLock();
 let mainWindow = null;
 let isQuitting = false;
@@ -122,6 +123,7 @@ function createWindow() {
     minWidth: 1180,
     minHeight: 760,
     title: appName,
+    icon: iconPath,
     backgroundColor: "#f6f8fb",
     show: false,
     webPreferences: {

@@ -118,7 +118,13 @@
   text-decoration: none;
 }
 
-.app-header-icon { font-size: 18px; }
+.app-header-icon {
+  display: block;
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+  border-radius: 6px;
+}
 
 .app-header-title {
   font-size: 15px;
