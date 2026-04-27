@@ -136,10 +136,7 @@ export function useSignalR() {
 
   const maybeShowBrowserNotification = useCallback(
     (title: string, body: string, tag: string, incidentId?: string) => {
-      if (typeof window === "undefined" || !("Notification" in window)) {
-        return;
-      }
-      if (Notification.permission !== "granted") {
+      if (typeof window === "undefined") {
         return;
       }
       if (document.visibilityState === "visible" && document.hasFocus()) {
@@ -147,6 +144,13 @@ export function useSignalR() {
       }
 
       if (maybeShowDesktopNotification(title, body, incidentId)) {
+        return;
+      }
+
+      if (!("Notification" in window)) {
+        return;
+      }
+      if (Notification.permission !== "granted") {
         return;
       }
 

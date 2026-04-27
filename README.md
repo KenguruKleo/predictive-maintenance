@@ -96,6 +96,26 @@ To point at local backend, create `frontend/.env.local`:
 VITE_API_BASE_URL=http://localhost:7071/api
 ```
 
+### Build Frontend and Desktop App
+
+```bash
+cd frontend
+npm ci
+
+# Web/SWA production build
+npm run build
+
+# Electron production smoke run
+npm run electron:start
+
+# macOS desktop distributables: DMG + ZIP in frontend/release/
+npm run electron:dist:mac
+```
+
+The Electron build serves the packaged React app from `http://localhost:5173` so the same Entra redirect URI works in dev and packaged macOS builds. Quit any existing Vite/Electron process using port `5173` before running a packaged desktop smoke test. The macOS package is currently unsigned; Gatekeeper may require right-click → Open until a Developer ID certificate/notarization step is added.
+
+GitHub Actions workflow [electron-macos.yml](./.github/workflows/electron-macos.yml) builds the macOS app on `main`, on manual dispatch, and on `v*` tags. Every successful run uploads DMG/ZIP files as workflow artifacts; tagged `v*` runs also attach the same files to the GitHub Release.
+
 ## Project Documents
 
 | | File | Contents |

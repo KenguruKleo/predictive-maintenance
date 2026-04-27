@@ -6,6 +6,7 @@
  * Tenant:      baf5b083-4c53-493a-8af7-a6ae9812014c
  */
 
+import { BrowserCacheLocation } from "@azure/msal-browser";
 import type { Configuration, PopupRequest, RedirectRequest } from "@azure/msal-browser";
 import { IS_E2E_AUTH } from "./authRuntime";
 
@@ -16,6 +17,7 @@ const SPA_CLIENT_ID =
   import.meta.env.VITE_ENTRA_SPA_CLIENT_ID ?? "1bdb80fb-950c-45b8-be9c-8f8a7fa26ca9";
 const API_CLIENT_ID =
   import.meta.env.VITE_ENTRA_API_CLIENT_ID ?? "38843d08-f211-4445-bcef-a07d383f2ee6";
+const IS_DESKTOP_RUNTIME = typeof window !== "undefined" && Boolean(window.sentinelDesktop);
 
 export const msalConfig: Configuration = {
   auth: {
@@ -25,7 +27,9 @@ export const msalConfig: Configuration = {
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: "sessionStorage",
+    cacheLocation: IS_DESKTOP_RUNTIME
+      ? BrowserCacheLocation.LocalStorage
+      : BrowserCacheLocation.SessionStorage,
   },
 };
 

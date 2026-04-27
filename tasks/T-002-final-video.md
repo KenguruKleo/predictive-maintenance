@@ -53,6 +53,12 @@ orchestrators → auto-requeue to Service Bus without losing business context
 
 [06:30–07:15]  IMPACT + CLOSE
 KPI + three-state confidence gate differentiator + GxP audit trail + closing
+
+[07:15–07:45]  OPTIONAL ADD-ON — DESKTOP OPERATIONS SURFACE
+               Show the Electron app running on the desktop
+               Native unread badge + OS notification from a new incident
+               Why this matters: production operators need more than a web tab
+               Future extension: Teams / collaboration notification channel
 ```
 
 ---
@@ -69,7 +75,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - **Post-approval execution visibility** — after Approve the CAPA plan goes into execution: the system creates a work order task and an audit record, and this transition is visible both in the incident itself and in the **Workflow Pipeline** on the main screen
 - **RBAC** — different roles are seen by different surfaces: Operator, QA Manager, Auditor, IT Admin
 - **Three-state confidence gate** — NORMAL / LOW_CONFIDENCE (banner + mandatory comment) / BLOCKED (empty forms + manual fill)
-- **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views
+- **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views, plus Electron native badge/OS notifications for desktop operators
 - **Long-running autonomy** — workflow can wait 24h or more without losing state, with escalation to QA
 - **Traceability & observability** — status history, telemetry page, audit export, incident timeline, AI recommendations in CSV
 - **Operational oversight** — manager surfaces show AI recommendation, AI confidence, response time, human override, agreement rate KPI
@@ -135,10 +141,11 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - **Workflow Pipeline** widget on the dashboard — shows both AI stages and the post-approval `Execution` stage
 - Consistent status color language across dashboard, sidebar, badges, queue, and timeline
 - Command palette (`Cmd+K`) with role-aware navigation
+- **Electron desktop app** — same operator console as a multi-platform desktop app with native unread badge and OS notifications for production-floor monitoring
 
 ### Optional backup only
 
-- Browser popup notification
+- Electron desktop add-on: native unread badge + OS notification
 - Command palette demo
 - Template editor deep dive
 - E2E preview role switch
@@ -239,14 +246,16 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - If there is a prepared transcript, in the happy path show `Need More Info` loop as already recorded conversation, not live typing
 - For manager beat, show `AiVsHumanBadge` — where ✅ (operator agreed) and ⚠️ (operator override AI). Better to have a mix of both in Recent Decisions
 - For admin beat, target the incident with telemetry summary where there are `Prompt Tokens`, `Completion Tokens`, `Total Tokens`
-- Optional only: browser popup notification. Do not make it critical for the final cut
+- Optional only: Electron desktop notification beat after 07:15. Do not make it critical for the final cut
 
 ---
 
-## Optional popup beat
+## Optional desktop / notification beat
 
-- If it works stably during recording: give browser notification permission, switch the window and show the system popup
-- If not stable: remove from the final cut. In-app bell + unread highlight already sufficient
+- If the final cut has room after 07:15, show the Electron desktop app rather than a browser-only popup.
+- Trigger a fresh incident and show the native unread badge / OS notification beside the in-app bell.
+- Position it as a production-readiness point: real operators often need a desktop surface that survives normal work habits, minimized windows, and shift-floor monitoring.
+- Mention this can be extended later to Teams or another collaboration notification channel.
 
 ---
 
@@ -280,6 +289,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 | **06:30–06:50** | KPI slide: before/after numbers + three-state confidence gate summary. | "The result is a faster, more consistent, and fully traceable way to handle deviations in regulated manufacturing. And the three-state confidence gate — normal, low confidence, and blocked — keeps the system from sounding certain when it is not grounded." |
 | **06:50–07:05** | Closing product screenshot or KPI slide. | "Instead of chasing documents, context, and approvals by hand, operators get a decision package in minutes, with evidence, actions, and next steps already laid out." |
 | **07:05–07:15** | Final branded closing frame. | "This is Sentinel Intelligence, built to support governed pharma operations at scale." |
+| **07:15–07:45** | Optional add-on block: show the Electron desktop app on macOS/Windows-style desktop, native unread badge, and OS notification from a newly simulated incident. | "And this is not only a web dashboard. For real production floors, operators should not depend on keeping a browser tab visible. Sentinel Intelligence also runs as a multi-platform desktop app, using the same governed workflow but adding native unread badges and operating-system notifications. That makes live deviation monitoring feel like a real operations tool. The same channel can later be extended to collaboration surfaces like Microsoft Teams." |
 
 ### Delivery notes
 
@@ -293,6 +303,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - **Reject beat** — use `INC-2026-0042`; linger on `AI Recommendation (Operator Override)` and `Closure Reason` so that the judges have time to read exactly what the AI ​​proposed and why the operator rejected the decision
 - On the architecture slide, make a step-by-step reveal in 3 steps: orchestration → services → feedback loop
 - If the approval click breaks the pacing, you can show the available actions and the audit timeline with a separate cut instead of the live click
+- **Desktop add-on beat (after 07:15)** — optional if final timing allows. Show it after the main close as "one more production-ready surface", not in the critical path. The point is not Electron as technology; the point is native operator attention: taskbar/Dock badge, OS notification, and future Teams/collaboration extension.
 
 ---
 
@@ -312,6 +323,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - [ ] Reject path shown clearly: preserved AI recommendation + explicit closure reason / override rationale
 - [ ] **Infinite scroll** in Recent Decisions is shown (scroll → spinner → new lines) (T-043)
 - [ ] Live demo recorded clean segments for editing
+- [ ] Optional Electron desktop add-on recorded if the final cut has spare time: native badge/notification visible after a new incident
 - [ ] The video is assembled into a single file
 - [ ] Subtitles added and checked
 - [ ] Duration ≤ 10:10

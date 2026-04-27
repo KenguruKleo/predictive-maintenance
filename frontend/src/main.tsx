@@ -22,19 +22,27 @@ const queryClient = new QueryClient({
 const msalInstance = new PublicClientApplication(msalConfig);
 setMsalInstance(msalInstance);
 
-msalInstance.initialize().then(() => {
-  // Handle the redirect response (auth code → tokens) before rendering
-  msalInstance.handleRedirectPromise().then((result) => {
+async function bootstrap() {
+  await msalInstance.initialize();
+
+  // Handle the redirect response (auth code → tokens) before rendering.
+  try {
+    const result = await msalInstance.handleRedirectPromise();
     if (result?.account) {
       msalInstance.setActiveAccount(result.account);
     } else {
-      // Restore cached account on page reload
       const accounts = msalInstance.getAllAccounts();
       if (accounts.length > 0) {
         msalInstance.setActiveAccount(accounts[0]);
       }
     }
-  });
+  } catch (error) {
+    console.error("MSAL redirect handling failed", error);
+    const accounts = msalInstance.getAllAccounts();
+    if (accounts.length > 0) {
+      msalInstance.setActiveAccount(accounts[0]);
+    }
+  }
 
   // Also set active account on LOGIN_SUCCESS event
   msalInstance.addEventCallback((event) => {
@@ -56,4 +64,6 @@ msalInstance.initialize().then(() => {
       </MsalProvider>
     </React.StrictMode>
   );
-});
+}
+
+void bootstrap();

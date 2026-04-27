@@ -81,6 +81,7 @@
 | ID | Task | Gap / Requirement | Priority | Status |
 |---|---|---|---|---|
 | T-046 | **[Foundry Agent code hardening](./tasks/T-046-foundry-agent-code-hardening.md)** — post-demo cleanup: remove `_infer_known_document()` hardcode, replace keyword-matching `_has_direct_stop_requirement()` with LLM response in Document Agent prompt, add `agent_recommendation: APPROVE | REJECT` to Document Agent output schema, remove startup sleep from Activity, add `RAG_TOP_K`/`RAG_EXCERPT_CHARS` env vars | post-demo | 🟢 LOW | 🔜 TODO |
+| T-057 | **[Config externalization + environment portability](./tasks/T-057-config-externalization-portability.md)** — remove hardcoded dev tenant/client/resource IDs and endpoints from runtime code, centralize config for frontend/backend/scripts, add reusable local config templates and fail-fast validation so the app can run in another tenant/subscription without source edits | Reuse, multi-environment support | 🟢 LOW | 🔜 TODO |
 
 ### Post-hackathon (Security, Reliability, RAI & Operational Excellence)
 
@@ -100,7 +101,7 @@
 | T-050 | **[Recovery Procedures Runbook](./tasks/T-050-recovery-runbook.md)** — extend `docs/operations-runbook.md` with 3 recovery scenarios (orchestrator hang, DLQ, Foundry timeout) + DLQ depth Azure Monitor alert in Bicep | RE:09 | 🟢 LOW | 🔜 TODO |
 | T-051 | **[Azure Load Testing](./tasks/T-051-load-testing.md)** — 4 Locust scenarios (alert spike 200 RPS, SignalR 200 concurrent, agent E2E 10 parallel, read API 500 RPS); Azure Load Testing resource in Bicep; GitHub Actions CI gate | PE:05/06 | 🟡 MEDIUM | 🔜 TODO |
 | T-055 | **[AI pipeline status contract hardening](./tasks/T-055-ai-pipeline-status-contract.md)** — remove the demo workaround and fix the backend status contract: `ingested/analyzing/awaiting_agents` should actually be placed in Cosmos, and `incident_status_changed` / `agent_step_completed` should actually fly through SignalR; cleanup legacy `queued` / `analyzing_agents` in watchdog | Gap #3, UX consistency, T-024/T-030/T-031 | 🟡 MEDIUM | 🔜 TODO |
-| T-056 | **[Electron desktop app shell](./tasks/T-056-electron-desktop-app.md)** — desktop wrapper for the React operator console with native unread badge and SignalR-driven native notifications | Demo UX, T-030/T-032/T-033 | 🟡 MEDIUM | ✅ DONE |
+| T-056 | **[Electron desktop app shell](./tasks/T-056-electron-desktop-app.md)** — multi-platform desktop operator console for production floors, reusing the React UI with native unread badge and SignalR-driven OS notifications | Demo UX, production operator UX, T-030/T-032/T-033 | 🟡 MEDIUM | ✅ DONE |
 
 ### New tasks (HITL UX hardening)
 

@@ -173,6 +173,12 @@ Sensor Signal → Alert (automated anomaly detection)
 └─────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────────┐
+│              ELECTRON DESKTOP APP (MULTI-PLATFORM)                 │
+│  Same React operator console packaged for shop-floor desktops       │
+│  Native unread badge · native incident notifications · deep links   │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
 │               CROSS-CUTTING CONCERNS                                │
 │  Identity:   Entra ID · MSAL · Managed Identity · App Roles        │
 │  Network:    VNet · Private Endpoints · Private DNS · NSGs          │
@@ -210,7 +216,7 @@ Sensor Signal → Alert (automated anomaly detection)
 
 Foundry natively manages the reasoning loop and `max_iterations`. The backend performs a separate **verification pass** on citations before persisting.
 
-**Step 5 — Notify operator.** Activity `notify_operator` writes entries in `approval-tasks`, `notifications`, `incident_events` and publishes event in Azure SignalR `deviationHub` → React UI.
+**Step 5 — Notify operator.** Activity `notify_operator` writes entries in `approval-tasks`, `notifications`, `incident_events` and publishes event in Azure SignalR `deviationHub` → React UI and the Electron desktop shell. In web mode the operator sees the in-app notification center; in desktop mode the same unread count also drives the native badge and SignalR events can surface as native OS notifications.
 
 **Step 6 — Human decision.** Operator looks at decision package: AI recommendation (`agent_recommendation: APPROVE | REJECT`), rationale, evidence, **edited forms** WO draft and audit entry draft (pre-filled by Document Agent; mandatory for Approve). Pushes `Approve` / `Reject` / `More info`. `POST /api/incidents/{id}/decision` calls Durable `raise_event("operator_decision", ...)` → orchestrator wakes up.
 
@@ -246,6 +252,7 @@ Foundry natively manages the reasoning loop and `max_iterations`. The backend pe
 | **Real-time Push** | Azure SignalR Service | Hub `deviationHub`, role-based groups, push approval/status events |
 | **Backend API** | Azure Functions HTTP | REST endpoints for SPA and decision resume |
 | **Frontend** | React 18 + Vite + TypeScript | SPA on Azure Static Web Apps, MSAL, role-based views |
+| **Desktop App** | Electron + React/Vite preload bridge | Multi-platform desktop operator console reusing the SPA; native unread badge and incident notifications for shop-floor monitoring |
 | **Identity** | Azure Entra ID | AuthN (MSAL), AuthZ (App Roles), Managed Identities, assignment_required |
 | **Privileged Access** | Entra CA + Azure PIM | MFA + geo-restriction; JIT-eligible Contributor for IT Admin |
 | **Secrets** | Azure Key Vault | Connection strings, API keys; 90-day rotation policy + Event Grid trigger |
@@ -666,6 +673,8 @@ React UI: operator clicks [Approve] / [Reject] / [More info]
 
 Hub: `deviationHub` · Negotiate: `POST /api/negotiate` (Bearer → role-based groups).
 
+The real-time layer is consumed by both delivery channels: the browser SPA and the Electron desktop app. This matters for production operations because operators may keep the console minimized while working on the shop floor. Electron maps the same unread notification state to a native app badge and uses a narrow preload bridge (`window.sentinelDesktop`) for native notifications and incident deep links. The web path remains unchanged and uses the in-app notification center/browser notification fallback.
+
 | Group | Events |
 |---|---|
 | `role:operator` | `incident_pending_approval`, `incident_updated` |
@@ -946,6 +955,7 @@ They are launched in staging before each prod release via GitHub Actions `load-t
 | SignalR | Azure SignalR Service | Serverless mode, REST negotiate |
 | AI Search | Azure AI Search | `azure-search-documents` SDK, HNSW vector + semantic ranker |
 | Frontend | React 18 + Vite + TypeScript | `@azure/msal-react` |
+| Desktop shell | Electron | Secure preload bridge, `HashRouter` for `file://`, native unread badge + OS notifications |
 | Auth | Azure Entry ID (MSAL) | Managed Identities on all Functions |
 | Secrets | Azure Key Vault | `azure-keyvault-secrets` + MI + rotation |
 | Network | VNet + Private Endpoints + Private DNS | Flex Consumption plan |
@@ -970,6 +980,7 @@ Architecture consciously contains only **TO-BE design**. Companion artifacts liv
 | Infrastructure Diagram (Mermaid + Draw.io) | [infra/diagram.md](./infra/diagram.md), [infra/architecture.drawio](./infra/architecture.drawio) |
 | Document ingestion pipeline | [docs/document-ingestion.md](./docs/document-ingestion.md) |
 | SignalR contract | [docs/signalr-contract.md](./docs/signalr-contract.md) |
+| Electron desktop app task | [tasks/T-056-electron-desktop-app.md](./tasks/T-056-electron-desktop-app.md) |
 | Operations runbook (DR, recovery, chaos) | [docs/operations-runbook.md](./docs/operations-runbook.md) |
 | Entra ID role assignment | [docs/entra-role-assignment.md](./docs/entra-role-assignment.md) |
 | Frontend design system | [docs/design-system.md](./docs/design-system.md), [docs/frontend-design.md](./docs/frontend-design.md) |

@@ -25,6 +25,7 @@ obj/
 # Node / Frontend
 node_modules/
 dist/
+release/
 .cache/
 *.tsbuildinfo
 
