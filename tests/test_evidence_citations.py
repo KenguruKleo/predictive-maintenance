@@ -8,8 +8,8 @@ sys.path.insert(0, str(ROOT / "backend"))
 from activities.run_foundry_agents import (
     _normalize_agent_result,
     _normalize_evidence_citations,
-    _trace_enabled,
 )
+from shared.agent_telemetry import _trace_enabled
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:

@@ -49,7 +49,7 @@ from azure.ai.agents.models import (
 )
 from azure.identity import DefaultAzureCredential
 
-from shared.agent_telemetry import TRACE_MARKER, log_trace_json, log_trace_text
+from shared.agent_telemetry import log_trace_json, log_trace_text
 from shared.cosmos_client import get_container, get_cosmos_client
 from shared.foundry_run import (
     FoundryRunTimeoutError,
@@ -637,7 +637,6 @@ def _build_agent_failure_result(
     failure_flag = "FOUNDRY_TIMEOUT" if is_timeout else "FOUNDRY_FAILURE"
 
     if previous and more_info_round > 0:
-        recommendation = str(previous.get("recommendation") or "").strip()
         analysis_note = (
             "The latest AI follow-up did not complete successfully, so the previous completed recommendation remains the current guidance. "
             f"Reason: {error_text[:300]}"
@@ -771,6 +770,8 @@ def _build_prompt(
             "The summaries above are only routing context to help you call the right tools. "
             "Use your Research sub-agent as the single source of evidence for SOPs, "
             "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
+            "You must actually call the Research sub-agent; do not simulate tool_calls_log or "
+            "invent citations from model memory. "
             "You, the Orchestrator, must produce the final structured analysis and decision. "
             "Use your Document sub-agent only after you decide, and pass it only the compact "
             "documentation package it needs: incident identifiers, your final decision fields, "
@@ -788,6 +789,7 @@ def _build_prompt(
             "step fails or returns an error."
         ),
         "Carry forward tool_calls_log from the Research Agent. Merge only documentation fields from Document Agent.",
+        "If Research Agent did not return real SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
         "For REJECT decisions, work_order_draft and work_order_id must be null.",
         "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer follow-up questions directly.",
     ]
@@ -1182,6 +1184,9 @@ def _normalize_reference_collection(
             }
         )
 
+    if citation_type != "sop":
+        normalized_refs.sort(key=lambda item: 0 if str(item.get("section") or "").strip() else 1)
+
     return normalized_refs
 
 
@@ -1200,7 +1205,7 @@ def _build_regulatory_reference_summary(
         if _should_skip_reference_summary_item(item, label):
             continue
 
-        section = str(item.get("relevant_section") or item.get("section") or "").strip()
+        section = _reference_summary_section_display(item)
         summary = f"{label} {section}".strip() if section else label
         if not summary:
             continue
@@ -1288,8 +1293,7 @@ def _should_skip_reference_summary_item(item: dict, label: str) -> bool:
 
 
 def _reference_section_display(citation: dict) -> str:
-    unresolved_reason = _normalize_text(str(citation.get("unresolved_reason") or ""))
-    if "authoritative section match" in unresolved_reason:
+    if _should_suppress_unverified_section(citation):
         return ""
 
     section_key = str(citation.get("section_key") or "").strip()
@@ -1302,6 +1306,41 @@ def _reference_section_display(citation: dict) -> str:
         or citation.get("section_heading")
         or ""
     ).strip()
+
+
+def _reference_summary_section_display(citation: dict) -> str:
+    if _has_unverified_authoritative_section(citation):
+        return ""
+
+    return _reference_section_display(citation)
+
+
+def _should_suppress_unverified_section(citation: dict) -> bool:
+    if _is_weak_generic_regulatory_citation(citation):
+        return True
+
+    if (
+        _has_unverified_authoritative_section(citation)
+        and str(citation.get("_source_collection") or "") == "regulatory_refs"
+    ):
+        return True
+
+    return False
+
+
+def _is_weak_generic_regulatory_citation(citation: dict) -> bool:
+    citation_type = str(citation.get("type") or "").strip()
+    if citation_type == "sop":
+        return False
+
+    source = str(citation.get("source") or "").strip()
+    reference = str(citation.get("reference") or "").strip()
+    return _is_generic_reference_label(source) and not reference
+
+
+def _has_unverified_authoritative_section(citation: dict) -> bool:
+    unresolved_reason = _normalize_text(str(citation.get("unresolved_reason") or ""))
+    return "authoritative section match" in unresolved_reason
 
 
 def _normalize_operator_dialogue(
@@ -1405,7 +1444,6 @@ def _build_followup_operator_dialogue(
     operator_questions: list[dict],
 ) -> str:
     latest_question = _get_latest_operator_question(operator_questions)
-    recommendation = str(result.get("recommendation") or "").strip()
     root_cause = str(result.get("root_cause") or "").strip()
     changed_fields = _get_changed_followup_fields(result, previous_ai_result)
     direct_requirement_answer = _build_direct_requirement_answer(latest_question, result)
@@ -1765,9 +1803,9 @@ def _normalize_evidence_citations(
     if "gmp" not in has_type_from_evidence:
         for item in result.get("regulatory_refs", []) or []:
             if isinstance(item, dict):
-                raw_items.append({"type": "gmp", **item})
+                raw_items.append({"type": "gmp", "_source_collection": "regulatory_refs", **item})
             elif isinstance(item, str):
-                raw_items.append({"type": "gmp", "source": item, "document_title": item})
+                raw_items.append({"type": "gmp", "_source_collection": "regulatory_refs", "source": item, "document_title": item})
 
     normalized: list[dict] = []
     seen: set[tuple] = set()
@@ -1946,7 +1984,11 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         prefer_authoritative=raw_excerpt_matches_source or _pinned_doc_match,
     )
     section_heading = str(item.get("section_heading") or (match or {}).get("section_heading") or section).strip()
-    section_key = str(item.get("section_key") or (match or {}).get("section_key") or _normalize_section_key(section)).strip()
+    section_key = str(
+        item.get("section_key")
+        or ((match or {}).get("section_key") if section_verified else "")
+        or _normalize_section_key(section)
+    ).strip()
     section_path = str(item.get("section_path") or (match or {}).get("section_path") or section_heading or section).strip()
     text_excerpt = _build_citation_excerpt(item, match)
     url = item.get("url") or _citation_url(
@@ -1985,6 +2027,7 @@ def _normalize_single_citation(item: dict, flat_hits: list[dict]) -> dict:
         "score": item.get("score", (match or {}).get("score")),
         "resolution_status": resolution_status,
         "unresolved_reason": unresolved_reason,
+        "_source_collection": item.get("_source_collection", ""),
     }
     citation["url"] = url
     return citation
@@ -1999,7 +2042,10 @@ def _citation_identity_key(citation: dict) -> tuple[str, str, str, str]:
         or str(citation.get("source") or "").strip()
         or str(citation.get("document_title") or "").strip()
     )
-    section = str(citation.get("section_key") or citation.get("section") or "").strip()
+    if _should_suppress_unverified_section(citation):
+        section = ""
+    else:
+        section = str(citation.get("section_key") or citation.get("section") or "").strip()
     citation_type = str(citation.get("type") or "").strip()
     return (citation_type, primary_id.lower(), section.lower(), "")
 
@@ -2250,7 +2296,9 @@ def _deduplicate_ghost_citations(citations: list[dict]) -> list[dict]:
         source = str(c.get("source") or "").strip()
         if not doc_id and _is_generic_reference_label(source):
             c_type = str(c.get("type") or "").strip()
-            c_section = _normalize_section_key(str(c.get("section") or c.get("section_key") or ""))
+            c_section = "" if _should_suppress_unverified_section(c) else _normalize_section_key(
+                str(c.get("section") or c.get("section_key") or "")
+            )
             if (c_type, c_section) in real_keys:
                 # Ghost citation — already covered by a real document citation
                 continue

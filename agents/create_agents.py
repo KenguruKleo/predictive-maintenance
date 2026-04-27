@@ -653,8 +653,9 @@ def main(update: bool = False) -> dict:
         id=research_agent.id,
         name="research_agent",
         description=(
-            "Gathers equipment context, batch records, SOPs, GMP regulations, "
-            "and historical incidents relevant to the deviation."
+            "Mandatory evidence collector. Call before every final decision. It gathers "
+            "equipment context, batch records, SOPs, GMP regulations, BPR constraints, "
+            "manual excerpts, and historical incidents. Do not simulate its output."
         ),
     )
     document_connected = ConnectedAgentTool(
