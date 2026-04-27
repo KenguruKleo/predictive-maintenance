@@ -144,10 +144,10 @@ def run_foundry_agents(input_data: dict) -> dict:
         except Exception as exc:
             logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
 
-    # Foundry concurrency gate: wait until no other incident is being analyzed.
-    # Uses Cosmos DB "analyzing" status as a shared semaphore — no new infra needed.
-    # MAX_CONCURRENT_FOUNDRY=1 means strictly sequential; set to 2 to allow two
-    # parallel Foundry runs (useful when model quota is higher).
+    # Foundry concurrency gate: wait until a slot is free, then mark self as active.
+    # Cleared in the finally block below so the next queued incident can proceed.
+    _db = get_cosmos_client().get_database_client(DB_NAME)
+    _incidents_container = _db.get_container_client("incidents")
     _wait_for_foundry_slot(incident_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30)
 
     prompt = _build_prompt(
@@ -185,6 +185,9 @@ def run_foundry_agents(input_data: dict) -> dict:
             more_info_round=more_info_round,
             error=exc,
         )
+    finally:
+        # Always release the Foundry slot so the next waiting incident can proceed.
+        _set_foundry_active(_incidents_container, incident_id, False)
 
     result = _normalize_agent_result(
         result,
@@ -229,25 +232,71 @@ _MAX_CONCURRENT_FOUNDRY = int(os.getenv("MAX_CONCURRENT_FOUNDRY", "1"))
 _FOUNDRY_SLOT_POLL_SECS = 10
 
 
-def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
-    """Block until fewer than _MAX_CONCURRENT_FOUNDRY other incidents are in 'analyzing' state.
+def _set_foundry_active(container, incident_id: str, active: bool) -> None:
+    """Patch foundry_active flag on the incident document.
 
-    Uses Cosmos DB as a lightweight semaphore — no extra infrastructure needed.
-    When other incidents finish (status leaves 'analyzing'), this incident proceeds.
-    If gate_deadline is reached without a free slot, we proceed anyway and rely on
-    the rate-limit retry logic inside _call_orchestrator_agent.
+    This is a best-effort operation — failure is logged but not fatal.
+    We use a partial patch so we only touch this one field.
+    """
+    try:
+        # Cosmos patch API — only updates the one field, no full read-write needed.
+        container.patch_item(
+            item=incident_id,
+            partition_key=incident_id,  # NOTE: actual PK may differ — see fallback below
+            patch_operations=[{"op": "set", "path": "/foundry_active", "value": active}],
+        )
+    except Exception:
+        # Partition key is equipmentId, not incidentId — fall back to full read + upsert.
+        try:
+            docs = list(
+                container.query_items(
+                    query="SELECT * FROM c WHERE c.id = @id",
+                    parameters=[{"name": "@id", "value": incident_id}],
+                    enable_cross_partition_query=True,
+                )
+            )
+            if docs:
+                doc = docs[0]
+                doc["foundry_active"] = active
+                container.upsert_item(doc)
+        except Exception as exc2:
+            logger.warning(
+                "Could not set foundry_active=%s for %s: %s", active, incident_id, exc2
+            )
+
+
+def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
+    """Block until fewer than _MAX_CONCURRENT_FOUNDRY incidents have foundry_active=true.
+
+    Uses a dedicated 'foundry_active' boolean field on the Cosmos incident document as a
+    lightweight mutex — distinct from 'analyzing' status, which ALL concurrent incidents
+    already share before this gate is reached.  Using 'analyzing' caused deadlock: every
+    incident saw every other incident as 'analyzing' and all waited forever.
+
+    Protocol:
+      1. Poll: count how many OTHER incidents have foundry_active=true.
+      2. If count < MAX: set own foundry_active=true, proceed.
+      3. Caller must call _set_foundry_active(..., False) after Foundry returns.
+      4. On deadline: proceed anyway; rate-limit retry inside _call_orchestrator_agent
+         handles the fallout.
     """
     db = get_cosmos_client().get_database_client(DB_NAME)
     container = db.get_container_client("incidents")
-    query = "SELECT VALUE COUNT(1) FROM c WHERE c.status = 'analyzing' AND c.id != @self"
+    query = (
+        "SELECT VALUE COUNT(1) FROM c "
+        "WHERE c.foundry_active = true AND c.id != @self"
+    )
     params = [{"name": "@self", "value": incident_id}]
+
     while True:
         remaining = gate_deadline - time.monotonic()
         if remaining <= 0:
             logger.warning(
                 "Foundry slot gate deadline reached for %s — proceeding anyway", incident_id
             )
-            break
+            _set_foundry_active(container, incident_id, True)
+            return
+
         try:
             count = list(
                 container.query_items(
@@ -256,16 +305,18 @@ def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
             )[0]
         except Exception as exc:
             logger.warning("Foundry slot check failed (non-fatal): %s — proceeding", exc)
-            break
+            return
+
         if count < _MAX_CONCURRENT_FOUNDRY:
-            if count > 0:
-                logger.info(
-                    "Foundry slot available for %s (%d other(s) still analyzing, max=%d)",
-                    incident_id, count, _MAX_CONCURRENT_FOUNDRY,
-                )
-            break
+            logger.info(
+                "Foundry slot acquired for %s (%d other(s) active, max=%d)",
+                incident_id, count, _MAX_CONCURRENT_FOUNDRY,
+            )
+            _set_foundry_active(container, incident_id, True)
+            return
+
         logger.info(
-            "Foundry busy (%d active, max=%d) — %s waiting %ds for a slot (%.0fs remaining)",
+            "Foundry busy (%d/%d active) — %s waiting %ds (%.0fs budget left)",
             count, _MAX_CONCURRENT_FOUNDRY, incident_id, _FOUNDRY_SLOT_POLL_SECS, remaining,
         )
         time.sleep(_FOUNDRY_SLOT_POLL_SECS)
