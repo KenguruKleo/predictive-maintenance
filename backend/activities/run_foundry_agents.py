@@ -1474,15 +1474,18 @@ def _normalize_agent_result(
 ) -> dict:
     """Make citation output stable for the operator UI."""
     result["title"] = _normalize_incident_title(result)
-    citation_source = result
     package_citations = (authoritative_research_package or {}).get("evidence_citations")
     if isinstance(package_citations, list):
-        citation_source = {"evidence_citations": package_citations}
-    result["evidence_citations"] = _normalize_evidence_citations(
-        citation_source,
-        rag_context or {},
-        current_incident_id=str(result.get("incident_id") or ""),
-    )
+        result["evidence_citations"] = _normalize_authoritative_research_citations(
+            package_citations,
+            current_incident_id=str(result.get("incident_id") or ""),
+        )
+    else:
+        result["evidence_citations"] = _normalize_evidence_citations(
+            result,
+            rag_context or {},
+            current_incident_id=str(result.get("incident_id") or ""),
+        )
     package_tool_calls = (authoritative_research_package or {}).get("tool_calls_log")
     if isinstance(package_tool_calls, list):
         result["tool_calls_log"] = package_tool_calls
@@ -1521,6 +1524,65 @@ def _normalize_agent_result(
         else:
             result["agent_recommendation"] = None
     return result
+
+
+def _normalize_authoritative_research_citations(
+    citations: list[dict],
+    *,
+    current_incident_id: str,
+) -> list[dict]:
+    normalized: list[dict] = []
+    seen: set[tuple[str, str, int]] = set()
+    for item in citations:
+        if not isinstance(item, dict):
+            continue
+
+        citation = dict(item)
+        if citation.get("type") == "incident" or _citation_points_to_incident(
+            citation,
+            current_incident_id,
+        ):
+            continue
+
+        index_name = str(citation.get("index_name") or "").strip()
+        citation_type = str(citation.get("type") or INDEX_EVIDENCE_META.get(index_name, {}).get("type") or "document")
+        document_id = str(citation.get("document_id") or "").strip()
+        source_blob = str(citation.get("source_blob") or citation.get("source") or "").strip()
+        chunk_index = int(citation.get("chunk_index") or 0)
+        key = (index_name, document_id or source_blob, chunk_index)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        section_heading = str(citation.get("section_heading") or citation.get("section") or "").strip()
+        container = str(citation.get("container") or INDEX_EVIDENCE_META.get(index_name, {}).get("container") or "")
+        citation.update(
+            {
+                "type": citation_type,
+                "document_id": document_id,
+                "document_title": str(citation.get("document_title") or document_id).strip(),
+                "section_heading": section_heading,
+                "section": str(citation.get("section") or section_heading).strip(),
+                "section_key": str(citation.get("section_key") or _normalize_section_key(section_heading)).strip(),
+                "section_path": str(citation.get("section_path") or section_heading).strip(),
+                "source_blob": source_blob,
+                "container": container,
+                "index_name": index_name,
+                "chunk_index": chunk_index,
+                "score": citation.get("score", 0.0),
+                "resolution_status": "resolved" if source_blob or citation_type == "historical" else "unresolved",
+                "unresolved_reason": "" if source_blob or citation_type == "historical" else "Missing source_blob",
+            }
+        )
+        if not citation.get("url"):
+            citation["url"] = _citation_url(
+                citation_type=citation_type,
+                document_id=document_id,
+                container=container,
+                source_blob=source_blob,
+            )
+        normalized.append(citation)
+    return normalized
 
 
 def _normalize_reference_collection(

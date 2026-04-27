@@ -259,6 +259,17 @@ def test_normalize_agent_result_uses_authoritative_research_package_citations() 
         "evidence_citations": [
             result["evidence_citations"][0],
             {
+                "type": "bpr",
+                "document_id": "BPR-MET-500-v3_2-Process-Specification",
+                "document_title": "BPR Metformin 500mg Process Specification",
+                "section_heading": "Document header",
+                "text_excerpt": "Master batch process specification for Metformin HCl 500mg tablets.",
+                "source_blob": "BPR-MET-500-v3.2-Process-Specification.md",
+                "index_name": "idx-bpr-documents",
+                "chunk_index": 0,
+                "score": 0.88,
+            },
+            {
                 "type": "historical",
                 "document_id": "INC-2026-0015",
                 "document_title": "Historical incident INC-2026-0015",
@@ -281,9 +292,11 @@ def test_normalize_agent_result_uses_authoritative_research_package_citations() 
 
     assert [citation["document_id"] for citation in normalized["evidence_citations"]] == [
         "BPR-MET-500-v3_2-Process-Specification",
+        "BPR-MET-500-v3_2-Process-Specification",
         "INC-2026-0015",
     ]
-    assert normalized["evidence_citations"][1]["url"] == "/incidents/INC-2026-0015"
+    assert [citation["chunk_index"] for citation in normalized["evidence_citations"]] == [8, 0, 0]
+    assert normalized["evidence_citations"][2]["url"] == "/incidents/INC-2026-0015"
     assert [entry["tool"] for entry in normalized["tool_calls_log"]] == [
         "sentinel_search_search_bpr_documents",
         "sentinel_search_search_incident_history",
