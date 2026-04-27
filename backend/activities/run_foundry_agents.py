@@ -146,9 +146,17 @@ def run_foundry_agents(input_data: dict) -> dict:
 
     # Foundry concurrency gate: wait until a slot is free, then mark self as active.
     # Cleared in the finally block below so the next queued incident can proceed.
+    _equipment_id = (
+        context_data.get("equipment_id")
+        or context_data.get("equipment", {}).get("id")
+        or context_data.get("alert_payload", {}).get("equipment_id")
+        or ""
+    )
     _db = get_cosmos_client().get_database_client(DB_NAME)
     _incidents_container = _db.get_container_client("incidents")
-    _wait_for_foundry_slot(incident_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30)
+    _wait_for_foundry_slot(
+        incident_id, _equipment_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30
+    )
 
     prompt = _build_prompt(
         incident_id,
@@ -187,7 +195,7 @@ def run_foundry_agents(input_data: dict) -> dict:
         )
     finally:
         # Always release the Foundry slot so the next waiting incident can proceed.
-        _set_foundry_active(_incidents_container, incident_id, False)
+        _set_foundry_active(_incidents_container, incident_id, _equipment_id, False)
 
     result = _normalize_agent_result(
         result,
@@ -232,40 +240,34 @@ _MAX_CONCURRENT_FOUNDRY = int(os.getenv("MAX_CONCURRENT_FOUNDRY", "1"))
 _FOUNDRY_SLOT_POLL_SECS = 10
 
 
-def _set_foundry_active(container, incident_id: str, active: bool) -> None:
+def _set_foundry_active(container, incident_id: str, equipment_id: str, active: bool) -> None:
     """Patch foundry_active flag on the incident document.
 
-    This is a best-effort operation — failure is logged but not fatal.
-    We use a partial patch so we only touch this one field.
+    Uses Cosmos partial-document patch — atomic on the single field, no read-modify-write
+    race with concurrent writers (e.g. _mark_incident_analyzing). The partition key MUST
+    be equipmentId (the container's PK path).
     """
+    if not equipment_id:
+        logger.warning(
+            "Cannot set foundry_active=%s for %s: equipment_id missing", active, incident_id
+        )
+        return
     try:
-        # Cosmos patch API — only updates the one field, no full read-write needed.
         container.patch_item(
             item=incident_id,
-            partition_key=incident_id,  # NOTE: actual PK may differ — see fallback below
+            partition_key=equipment_id,
             patch_operations=[{"op": "set", "path": "/foundry_active", "value": active}],
         )
-    except Exception:
-        # Partition key is equipmentId, not incidentId — fall back to full read + upsert.
-        try:
-            docs = list(
-                container.query_items(
-                    query="SELECT * FROM c WHERE c.id = @id",
-                    parameters=[{"name": "@id", "value": incident_id}],
-                    enable_cross_partition_query=True,
-                )
-            )
-            if docs:
-                doc = docs[0]
-                doc["foundry_active"] = active
-                container.upsert_item(doc)
-        except Exception as exc2:
-            logger.warning(
-                "Could not set foundry_active=%s for %s: %s", active, incident_id, exc2
-            )
+    except Exception as exc:
+        logger.warning(
+            "Could not patch foundry_active=%s for %s (pk=%s): %s",
+            active, incident_id, equipment_id, exc,
+        )
 
 
-def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
+def _wait_for_foundry_slot(
+    incident_id: str, equipment_id: str, gate_deadline: float
+) -> None:
     """Block until fewer than _MAX_CONCURRENT_FOUNDRY incidents have foundry_active=true.
 
     Uses a dedicated 'foundry_active' boolean field on the Cosmos incident document as a
@@ -275,7 +277,7 @@ def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
 
     Protocol:
       1. Poll: count how many OTHER incidents have foundry_active=true.
-      2. If count < MAX: set own foundry_active=true, proceed.
+      2. If count < MAX: set own foundry_active=true (atomic patch), proceed.
       3. Caller must call _set_foundry_active(..., False) after Foundry returns.
       4. On deadline: proceed anyway; rate-limit retry inside _call_orchestrator_agent
          handles the fallout.
@@ -294,7 +296,7 @@ def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
             logger.warning(
                 "Foundry slot gate deadline reached for %s — proceeding anyway", incident_id
             )
-            _set_foundry_active(container, incident_id, True)
+            _set_foundry_active(container, incident_id, equipment_id, True)
             return
 
         try:
@@ -312,7 +314,7 @@ def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
                 "Foundry slot acquired for %s (%d other(s) active, max=%d)",
                 incident_id, count, _MAX_CONCURRENT_FOUNDRY,
             )
-            _set_foundry_active(container, incident_id, True)
+            _set_foundry_active(container, incident_id, equipment_id, True)
             return
 
         logger.info(
