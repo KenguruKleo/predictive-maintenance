@@ -72,6 +72,30 @@ try:
 except ValueError:
     FOUNDRY_ACTIVITY_TIMEOUT_SECS = 360.0
 
+try:
+    FOUNDRY_SLOT_WAIT_SECS = max(
+        30.0,
+        float(os.getenv("FOUNDRY_SLOT_WAIT_SECS", "180")),
+    )
+except ValueError:
+    FOUNDRY_SLOT_WAIT_SECS = 180.0
+
+try:
+    FOUNDRY_STALE_LOCK_SECS = max(
+        300.0,
+        float(os.getenv("FOUNDRY_STALE_LOCK_SECS", "1800")),
+    )
+except ValueError:
+    FOUNDRY_STALE_LOCK_SECS = 1800.0
+
+try:
+    FOUNDRY_LOCK_GRACE_SECS = max(
+        10.0,
+        float(os.getenv("FOUNDRY_LOCK_GRACE_SECS", "60")),
+    )
+except ValueError:
+    FOUNDRY_LOCK_GRACE_SECS = 60.0
+
 INDEX_EVIDENCE_META = {
     "idx-sop-documents": {"type": "sop", "container": "blob-sop"},
     "idx-equipment-manuals": {"type": "manual", "container": "blob-manuals"},
@@ -107,6 +131,7 @@ def run_foundry_agents(input_data: dict) -> dict:
     # The transition to "analyzing" happens AFTER the slot is acquired so the UI
     # can distinguish "queued behind another incident" from "actively in Foundry".
     _mark_incident_queued_for_analysis(incident_id, more_info_round)
+    _write_analysis_queued_event(incident_id, more_info_round)
 
     # HACKATHON: fallback to the provisioned agent ID so local runs work without a
     # full env-var setup. Remove the fallback before a production deployment.
@@ -154,7 +179,7 @@ def run_foundry_agents(input_data: dict) -> dict:
     _db = get_cosmos_client().get_database_client(DB_NAME)
     _incidents_container = _db.get_container_client("incidents")
     _wait_for_foundry_slot(
-        incident_id, _equipment_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30
+        incident_id, _equipment_id, time.monotonic() + FOUNDRY_SLOT_WAIT_SECS
     )
 
     # Slot acquired — flip status to "analyzing" so the UI knows we are now actively
@@ -163,8 +188,7 @@ def run_foundry_agents(input_data: dict) -> dict:
 
     # Write analysis_started event AFTER the slot is acquired so the status history
     # reflects when the incident actually entered Foundry, not when it was queued.
-    if more_info_round == 0:
-        _write_analysis_started_event(incident_id, more_info_round)
+    _write_analysis_started_event(incident_id, more_info_round)
 
     prompt = _build_prompt(
         incident_id,
@@ -248,7 +272,11 @@ _MAX_CONCURRENT_FOUNDRY = int(os.getenv("MAX_CONCURRENT_FOUNDRY", "1"))
 _FOUNDRY_SLOT_POLL_SECS = 10
 
 
-def _set_foundry_active(container, incident_id: str, equipment_id: str, active: bool) -> None:
+class FoundrySlotUnavailableError(RuntimeError):
+    """Raised when an incident cannot acquire the Foundry concurrency slot."""
+
+
+def _set_foundry_active(container, incident_id: str, equipment_id: str, active: bool) -> bool:
     """Patch foundry_active flag on the incident document.
 
     Uses Cosmos partial-document patch — atomic on the single field, no read-modify-write
@@ -259,18 +287,100 @@ def _set_foundry_active(container, incident_id: str, equipment_id: str, active: 
         logger.warning(
             "Cannot set foundry_active=%s for %s: equipment_id missing", active, incident_id
         )
-        return
+        return False
     try:
+        patch_operations = [
+            {"op": "set", "path": "/foundry_active", "value": active},
+        ]
+        if active:
+            patch_operations.append(
+                {
+                    "op": "set",
+                    "path": "/foundry_active_at",
+                    "value": datetime.now(timezone.utc).isoformat(),
+                }
+            )
+        else:
+            patch_operations.extend(
+                [
+                    {"op": "set", "path": "/foundry_active_at", "value": None},
+                    {
+                        "op": "set",
+                        "path": "/foundry_released_at",
+                        "value": datetime.now(timezone.utc).isoformat(),
+                    },
+                ]
+            )
         container.patch_item(
             item=incident_id,
             partition_key=equipment_id,
-            patch_operations=[{"op": "set", "path": "/foundry_active", "value": active}],
+            patch_operations=patch_operations,
         )
+        return True
     except Exception as exc:
         logger.warning(
             "Could not patch foundry_active=%s for %s (pk=%s): %s",
             active, incident_id, equipment_id, exc,
         )
+        return False
+
+
+def _parse_utc(value: object) -> datetime | None:
+    if not value:
+        return None
+    try:
+        raw = str(value).replace("Z", "+00:00")
+        parsed = datetime.fromisoformat(raw)
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def _lock_sort_key(item: dict) -> tuple[datetime, str]:
+    parsed = _parse_utc(item.get("foundry_active_at")) or _parse_utc(item.get("updated_at"))
+    return (parsed or datetime.min.replace(tzinfo=timezone.utc), str(item.get("id") or ""))
+
+
+def _release_stale_foundry_locks(container) -> None:
+    now = datetime.now(timezone.utc)
+    query = (
+        "SELECT c.id, c.equipmentId, c.equipment_id, c.status, c.foundry_active_at, "
+        "c.updated_at, c.updatedAt FROM c WHERE c.foundry_active = true"
+    )
+    try:
+        active_items = list(container.query_items(query=query, enable_cross_partition_query=True))
+    except Exception as exc:
+        raise FoundrySlotUnavailableError(f"Could not inspect Foundry locks: {exc}") from exc
+
+    for item in active_items:
+        active_at = _parse_utc(item.get("foundry_active_at"))
+        updated_at = _parse_utc(item.get("updated_at") or item.get("updatedAt"))
+        age_source = active_at or updated_at
+        age_secs = (now - age_source).total_seconds() if age_source else float("inf")
+        status = str(item.get("status") or "")
+        stale = age_secs > FOUNDRY_STALE_LOCK_SECS or (
+            status != "analyzing" and age_secs > FOUNDRY_LOCK_GRACE_SECS
+        )
+        if not stale:
+            continue
+        equipment_id = str(item.get("equipmentId") or item.get("equipment_id") or "")
+        logger.warning(
+            "Releasing stale Foundry lock: incident=%s status=%s age=%.0fs",
+            item.get("id"), status, age_secs,
+        )
+        _set_foundry_active(container, str(item.get("id") or ""), equipment_id, False)
+
+
+def _get_active_foundry_locks(container) -> list[dict]:
+    query = (
+        "SELECT c.id, c.equipmentId, c.equipment_id, c.status, c.foundry_active_at, "
+        "c.updated_at, c.updatedAt FROM c WHERE c.foundry_active = true"
+    )
+    try:
+        items = list(container.query_items(query=query, enable_cross_partition_query=True))
+    except Exception as exc:
+        raise FoundrySlotUnavailableError(f"Could not query Foundry locks: {exc}") from exc
+    return sorted(items, key=_lock_sort_key)
 
 
 def _wait_for_foundry_slot(
@@ -285,45 +395,65 @@ def _wait_for_foundry_slot(
 
     Protocol:
       1. Poll: count how many OTHER incidents have foundry_active=true.
-      2. If count < MAX: set own foundry_active=true (atomic patch), proceed.
-      3. Caller must call _set_foundry_active(..., False) after Foundry returns.
-      4. On deadline: proceed anyway; rate-limit retry inside _call_orchestrator_agent
-         handles the fallout.
+      2. If count < MAX: set own foundry_active=true.
+      3. Re-read active locks and keep only the oldest MAX lock holders; if we lost
+         a simultaneous race, release our flag and keep waiting.
+      4. Caller must call _set_foundry_active(..., False) after Foundry returns.
+      5. On deadline: raise so Durable retries later, rather than violating the
+         one-active-Foundry invariant.
     """
     db = get_cosmos_client().get_database_client(DB_NAME)
     container = db.get_container_client("incidents")
-    query = (
-        "SELECT VALUE COUNT(1) FROM c "
-        "WHERE c.foundry_active = true AND c.id != @self"
-    )
-    params = [{"name": "@self", "value": incident_id}]
 
     while True:
         remaining = gate_deadline - time.monotonic()
         if remaining <= 0:
-            logger.warning(
-                "Foundry slot gate deadline reached for %s — proceeding anyway", incident_id
+            raise FoundrySlotUnavailableError(
+                f"Foundry slot unavailable for {incident_id} after {FOUNDRY_SLOT_WAIT_SECS:.0f}s"
             )
-            _set_foundry_active(container, incident_id, equipment_id, True)
-            return
 
         try:
-            count = list(
-                container.query_items(
-                    query=query, parameters=params, enable_cross_partition_query=True
-                )
-            )[0]
-        except Exception as exc:
-            logger.warning("Foundry slot check failed (non-fatal): %s — proceeding", exc)
-            return
+            _release_stale_foundry_locks(container)
+            active_locks = _get_active_foundry_locks(container)
+        except FoundrySlotUnavailableError as exc:
+            logger.warning(
+                "Foundry slot poll failed for %s — retrying within budget: %s",
+                incident_id, exc,
+            )
+            time.sleep(min(_FOUNDRY_SLOT_POLL_SECS, max(0.0, remaining)))
+            continue
+
+        other_active = [item for item in active_locks if item.get("id") != incident_id]
+        count = len(other_active)
 
         if count < _MAX_CONCURRENT_FOUNDRY:
+            if not _set_foundry_active(container, incident_id, equipment_id, True):
+                raise FoundrySlotUnavailableError(
+                    f"Could not acquire Foundry slot for {incident_id}"
+                )
+            try:
+                winners = {
+                    str(item.get("id"))
+                    for item in _get_active_foundry_locks(container)[:_MAX_CONCURRENT_FOUNDRY]
+                }
+            except FoundrySlotUnavailableError as exc:
+                logger.warning(
+                    "Foundry slot race check failed for %s — releasing tentative lock: %s",
+                    incident_id, exc,
+                )
+                _set_foundry_active(container, incident_id, equipment_id, False)
+                time.sleep(min(_FOUNDRY_SLOT_POLL_SECS, max(0.0, remaining)))
+                continue
+            if incident_id in winners:
+                logger.info(
+                    "Foundry slot acquired for %s (%d other(s) active, max=%d)",
+                    incident_id, count, _MAX_CONCURRENT_FOUNDRY,
+                )
+                return
             logger.info(
-                "Foundry slot acquired for %s (%d other(s) active, max=%d)",
-                incident_id, count, _MAX_CONCURRENT_FOUNDRY,
+                "Foundry slot race lost for %s — releasing and waiting", incident_id
             )
-            _set_foundry_active(container, incident_id, equipment_id, True)
-            return
+            _set_foundry_active(container, incident_id, equipment_id, False)
 
         logger.info(
             "Foundry busy (%d/%d active) — %s waiting %ds (%.0fs budget left)",
@@ -2413,6 +2543,31 @@ def _write_analysis_started_event(incident_id: str, more_info_round: int = 0) ->
         pass  # idempotent on orchestrator replay
     except Exception as exc:  # noqa: BLE001
         logger.warning("Could not write analysis_started event for %s: %s", incident_id, exc)
+
+
+def _write_analysis_queued_event(incident_id: str, more_info_round: int = 0) -> None:
+    """Write an idempotent audit event when the incident enters the Foundry queue."""
+    from azure.cosmos.exceptions import CosmosResourceExistsError
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    event = {
+        "id": f"{incident_id}-analysis-queued-r{more_info_round}",
+        "incident_id": incident_id,
+        "incidentId": incident_id,
+        "timestamp": now,
+        "action": "analysis_queued",
+        "actor": "AI Orchestrator",
+        "actor_type": "agent",
+        "category": "status",
+        "details": "Incident queued for AI analysis; waiting for an available Foundry analyzer slot.",
+    }
+    try:
+        container = get_container("incident_events")
+        container.create_item(event, enable_automatic_id_generation=False)
+    except CosmosResourceExistsError:
+        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Could not write analysis_queued event for %s: %s", incident_id, exc)
 
 
 def _mark_incident_queued_for_analysis(incident_id: str, more_info_round: int) -> None:

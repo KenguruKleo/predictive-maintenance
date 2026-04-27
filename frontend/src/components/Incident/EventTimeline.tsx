@@ -10,6 +10,7 @@ interface Props {
 // Per-action display metadata: [label, dot-color-class]
 const ACTION_META: Record<string, [string, string]> = {
   incident_registered:  ["Incident Registered",   "evt-dot--analyzing"],
+  analysis_queued:      ["AI Analysis Queued",    "evt-dot--analyzing"],
   analysis_started:     ["AI Analysis Started",   "evt-dot--analyzing"],
   approval_requested:   ["Awaiting Approval",     "evt-dot--pending"],
   more_info:            ["More Info Requested",   "evt-dot--analyzing"],
