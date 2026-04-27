@@ -114,7 +114,8 @@ def enrich_context(input_data: dict) -> dict:
     try:
         incidents = db.get_container_client("incidents")
         query = (
-            "SELECT TOP 5 c.id, c.alertType, c.severity, c.status, c.createdAt "
+            "SELECT TOP 5 c.id, c.alertType, c.severity, c.status, c.createdAt, "
+            "c.lastDecision, c.finalDecision "
             "FROM c WHERE c.equipmentId = @eqId AND c.id != @self "
             "ORDER BY c.createdAt DESC"
         )

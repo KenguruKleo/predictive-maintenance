@@ -88,24 +88,21 @@ export default function NotificationCenter({
   dismissVersion = 0,
   onOpen,
 }: Props) {
-  const [open, setOpen] = useState(false);
+  const [openAtDismissVersion, setOpenAtDismissVersion] = useState<number | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    setOpen(false);
-  }, [dismissVersion]);
+  const open = openAtDismissVersion === dismissVersion;
 
   useEffect(() => {
     if (!open) return;
 
     const handlePointerDown = (event: MouseEvent) => {
       if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
+        setOpenAtDismissVersion(null);
       }
     };
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
+        setOpenAtDismissVersion(null);
       }
     };
 
@@ -124,17 +121,17 @@ export default function NotificationCenter({
   );
 
   const handleBellClick = () => {
-    setOpen((value) => {
-      const nextValue = !value;
-      if (nextValue) {
-        onOpen?.();
-      }
-      return nextValue;
-    });
+    if (open) {
+      setOpenAtDismissVersion(null);
+      return;
+    }
+
+    onOpen?.();
+    setOpenAtDismissVersion(dismissVersion);
   };
 
   const handleNotificationClick = (incidentId: string) => {
-    setOpen(false);
+    setOpenAtDismissVersion(null);
     void onNotificationClick?.(incidentId);
   };
 

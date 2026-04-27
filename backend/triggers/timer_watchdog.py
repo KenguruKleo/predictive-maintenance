@@ -151,7 +151,7 @@ def _query_orphaned_approvals() -> list[dict[str, Any]]:
 
 
 @bp.timer_trigger(
-    schedule="0 */5 * * * *",
+    schedule="0 */1 * * * *",
     arg_name="timer",
     run_on_startup=False,
     use_monitor=False,

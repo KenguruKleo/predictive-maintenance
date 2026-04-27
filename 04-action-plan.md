@@ -21,7 +21,7 @@
 > Deadline for final submission: 1st week of May 2026
 > Stack: Python 3.11 · Azure Durable Functions · Azure AI Foundry · Cosmos DB · React + Vite
 
-**Currently working:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-034 (manager/auditor/IT-admin views — manager stats contract hardening) · T-039 (Reliability hardening) · T-040 (RAI observability)
+**Currently working:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-039 (Reliability hardening) · T-040 (RAI observability)
 
 > **ADR-002 - Foundry Connected Agents:** Research Agent + Document Agent are implemented as sub-agents of Foundry Orchestrator Agent.
 > Durable calls one activity `run_foundry_agents` — Foundry manages the Research → Document pipeline natively.
@@ -100,6 +100,7 @@
 | T-050 | **[Recovery Procedures Runbook](./tasks/T-050-recovery-runbook.md)** — extend `docs/operations-runbook.md` with 3 recovery scenarios (orchestrator hang, DLQ, Foundry timeout) + DLQ depth Azure Monitor alert in Bicep | RE:09 | 🟢 LOW | 🔜 TODO |
 | T-051 | **[Azure Load Testing](./tasks/T-051-load-testing.md)** — 4 Locust scenarios (alert spike 200 RPS, SignalR 200 concurrent, agent E2E 10 parallel, read API 500 RPS); Azure Load Testing resource in Bicep; GitHub Actions CI gate | PE:05/06 | 🟡 MEDIUM | 🔜 TODO |
 | T-055 | **[AI pipeline status contract hardening](./tasks/T-055-ai-pipeline-status-contract.md)** — remove the demo workaround and fix the backend status contract: `ingested/analyzing/awaiting_agents` should actually be placed in Cosmos, and `incident_status_changed` / `agent_step_completed` should actually fly through SignalR; cleanup legacy `queued` / `analyzing_agents` in watchdog | Gap #3, UX consistency, T-024/T-030/T-031 | 🟡 MEDIUM | 🔜 TODO |
+| T-056 | **[Electron desktop app shell](./tasks/T-056-electron-desktop-app.md)** — desktop wrapper for the React operator console with native unread badge and SignalR-driven native notifications | Demo UX, T-030/T-032/T-033 | 🟡 MEDIUM | ✅ DONE |
 
 ### New tasks (HITL UX hardening)
 

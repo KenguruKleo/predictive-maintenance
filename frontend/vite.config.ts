@@ -5,6 +5,7 @@ const devPort = Number(process.env.PORT ?? process.env.VITE_PORT ?? "5173");
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: process.env.VITE_ELECTRON === "true" ? "./" : "/",
   plugins: [react()],
   server: {
     port: devPort,

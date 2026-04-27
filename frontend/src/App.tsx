@@ -1,6 +1,6 @@
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
 import { InteractionStatus } from "@azure/msal-browser";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, HashRouter, Routes, Route, Navigate } from "react-router-dom";
 import { loginRequest } from "./authConfig";
 import LoginPage from "./pages/LoginPage";
 import AppShell from "./components/Layout/AppShell";
@@ -18,6 +18,7 @@ import "./App.css";
 export default function App() {
   const isAuthenticated = useIsAuthenticated();
   const { inProgress } = useMsal();
+  const Router = window.sentinelDesktop ? HashRouter : BrowserRouter;
 
   if (!IS_E2E_AUTH && inProgress !== InteractionStatus.None) {
     return (
@@ -33,7 +34,7 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <Router>
       <ErrorBoundary section="Application">
         <Routes>
           <Route element={<AppShell />}>
@@ -72,6 +73,6 @@ export default function App() {
           </Route>
         </Routes>
       </ErrorBoundary>
-    </BrowserRouter>
+    </Router>
   );
 }

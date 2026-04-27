@@ -17,7 +17,7 @@ interface Props {
 
 export default function ApprovalPanel({ incident, events, canMakeDecision, draftState }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
-  const [showQuestionComposer, setShowQuestionComposer] = useState(false);
+  const [questionComposerIncidentId, setQuestionComposerIncidentId] = useState<string | null>(null);
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -33,6 +33,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
     incident.status === "escalated";
   const isAwaitingAgents = incident.status === "awaiting_agents";
   const shouldShowChat = isPending || isAwaitingAgents || hasChatTranscript;
+  const showQuestionComposer = questionComposerIncidentId === incident.id && isPending;
 
   // Derive whether the operator overrode the agent's recommendation
   const agentRec = incident.ai_analysis?.agent_recommendation;
@@ -56,17 +57,12 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   const approveDisabled = decision.isPending || (isPending && isBlocked && !draftsFilledEnough);
 
   useEffect(() => {
-    if (!isPending) {
-      setShowQuestionComposer(false);
-      return;
-    }
-
     if (showQuestionComposer) {
       requestAnimationFrame(() => {
         chatInputRef.current?.focus();
       });
     }
-  }, [isPending, showQuestionComposer]);
+  }, [showQuestionComposer]);
 
 
   const handleApprove = () => {
@@ -92,14 +88,14 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
       { action: "more_info", question },
       {
         onSuccess: () => {
-          setShowQuestionComposer(false);
+          setQuestionComposerIncidentId(null);
         },
       },
     );
   };
 
   const handleNeedMoreInfo = () => {
-    setShowQuestionComposer(true);
+    setQuestionComposerIncidentId(incident.id);
   };
 
   const panelTitle = isPending

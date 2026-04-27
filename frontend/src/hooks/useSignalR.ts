@@ -100,6 +100,40 @@ export function useSignalR() {
     return permission;
   }, []);
 
+  const refreshBrowserNotificationPermission = useCallback(() => {
+    setBrowserPermission(getBrowserNotificationPermission());
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) {
+      return;
+    }
+
+    window.addEventListener("focus", refreshBrowserNotificationPermission);
+    document.addEventListener("visibilitychange", refreshBrowserNotificationPermission);
+
+    return () => {
+      window.removeEventListener("focus", refreshBrowserNotificationPermission);
+      document.removeEventListener("visibilitychange", refreshBrowserNotificationPermission);
+    };
+  }, [refreshBrowserNotificationPermission]);
+
+  const maybeShowDesktopNotification = useCallback(
+    (title: string, body: string, incidentId?: string) => {
+      if (typeof window === "undefined" || !window.sentinelDesktop) {
+        return false;
+      }
+
+      try {
+        window.sentinelDesktop.notify({ title, body, incidentId });
+        return true;
+      } catch {
+        return false;
+      }
+    },
+    [],
+  );
+
   const maybeShowBrowserNotification = useCallback(
     (title: string, body: string, tag: string, incidentId?: string) => {
       if (typeof window === "undefined" || !("Notification" in window)) {
@@ -109,6 +143,10 @@ export function useSignalR() {
         return;
       }
       if (document.visibilityState === "visible" && document.hasFocus()) {
+        return;
+      }
+
+      if (maybeShowDesktopNotification(title, body, incidentId)) {
         return;
       }
 
@@ -129,15 +167,13 @@ export function useSignalR() {
         // Browser notifications are optional enhancement only.
       }
     },
-    [],
+    [maybeShowDesktopNotification],
   );
 
   useEffect(() => {
     if (!authReady) {
       return;
     }
-
-    setBrowserPermission(getBrowserNotificationPermission());
 
     let cancelled = false;
 

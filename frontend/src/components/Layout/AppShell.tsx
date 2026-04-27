@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import AppFooter from "./AppFooter";
@@ -17,6 +17,7 @@ import { IS_E2E_AUTH } from "../../authRuntime";
 
 export default function AppShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const navigate = useNavigate();
   const { account, rolesHydrated } = useAuth();
   const {
     connected,
@@ -40,6 +41,16 @@ export default function AppShell() {
 
   const unreadCount = notificationSummary?.unread_count ?? notificationFeed?.unread_count ?? 0;
   const unreadIncidentIds = notificationSummary?.unread_incident_ids ?? [];
+
+  useEffect(() => {
+    window.sentinelDesktop?.setUnreadCount(unreadCount);
+  }, [unreadCount]);
+
+  useEffect(() => {
+    return window.sentinelDesktop?.onOpenIncident((incidentId) => {
+      navigate(`/incidents/${encodeURIComponent(incidentId)}`);
+    });
+  }, [navigate]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

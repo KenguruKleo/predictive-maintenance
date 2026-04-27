@@ -144,20 +144,11 @@ def run_foundry_agents(input_data: dict) -> dict:
         except Exception as exc:
             logger.warning("RAG pre-fetch failed (non-fatal): %s", exc)
 
-    # Startup stagger: deterministically spread concurrent incidents to avoid
-    # thundering-herd on the Foundry rate limit.  Uses the numeric suffix of the
-    # incident ID to derive a 0-60 s offset (e.g. INC-2026-0048 → 48*17 % 60 = 36 s).
-    try:
-        suffix = int(incident_id.rsplit("-", 1)[-1])
-        stagger = (suffix * 17) % 60
-    except ValueError:
-        stagger = random.randint(0, 59)
-    if stagger > 0:
-        logger.info(
-            "Startup stagger %.0fs for %s (thundering-herd prevention)",
-            stagger, incident_id,
-        )
-        time.sleep(stagger)
+    # Foundry concurrency gate: wait until no other incident is being analyzed.
+    # Uses Cosmos DB "analyzing" status as a shared semaphore — no new infra needed.
+    # MAX_CONCURRENT_FOUNDRY=1 means strictly sequential; set to 2 to allow two
+    # parallel Foundry runs (useful when model quota is higher).
+    _wait_for_foundry_slot(incident_id, time.monotonic() + FOUNDRY_ACTIVITY_TIMEOUT_SECS - 30)
 
     prompt = _build_prompt(
         incident_id,
@@ -232,6 +223,52 @@ _RATE_LIMIT_MAX_RETRIES = 5
 # Base backoff in seconds; actual wait = base + random jitter (0..base/2)
 # This prevents thundering herd when multiple incidents retry simultaneously.
 _RATE_LIMIT_BACKOFF_SECS = [45, 90, 135, 180, 270]
+
+
+_MAX_CONCURRENT_FOUNDRY = int(os.getenv("MAX_CONCURRENT_FOUNDRY", "1"))
+_FOUNDRY_SLOT_POLL_SECS = 10
+
+
+def _wait_for_foundry_slot(incident_id: str, gate_deadline: float) -> None:
+    """Block until fewer than _MAX_CONCURRENT_FOUNDRY other incidents are in 'analyzing' state.
+
+    Uses Cosmos DB as a lightweight semaphore — no extra infrastructure needed.
+    When other incidents finish (status leaves 'analyzing'), this incident proceeds.
+    If gate_deadline is reached without a free slot, we proceed anyway and rely on
+    the rate-limit retry logic inside _call_orchestrator_agent.
+    """
+    db = get_cosmos_client().get_database_client(DB_NAME)
+    container = db.get_container_client("incidents")
+    query = "SELECT VALUE COUNT(1) FROM c WHERE c.status = 'analyzing' AND c.id != @self"
+    params = [{"name": "@self", "value": incident_id}]
+    while True:
+        remaining = gate_deadline - time.monotonic()
+        if remaining <= 0:
+            logger.warning(
+                "Foundry slot gate deadline reached for %s — proceeding anyway", incident_id
+            )
+            break
+        try:
+            count = list(
+                container.query_items(
+                    query=query, parameters=params, enable_cross_partition_query=True
+                )
+            )[0]
+        except Exception as exc:
+            logger.warning("Foundry slot check failed (non-fatal): %s — proceeding", exc)
+            break
+        if count < _MAX_CONCURRENT_FOUNDRY:
+            if count > 0:
+                logger.info(
+                    "Foundry slot available for %s (%d other(s) still analyzing, max=%d)",
+                    incident_id, count, _MAX_CONCURRENT_FOUNDRY,
+                )
+            break
+        logger.info(
+            "Foundry busy (%d active, max=%d) — %s waiting %ds for a slot (%.0fs remaining)",
+            count, _MAX_CONCURRENT_FOUNDRY, incident_id, _FOUNDRY_SLOT_POLL_SECS, remaining,
+        )
+        time.sleep(_FOUNDRY_SLOT_POLL_SECS)
 
 
 def _is_rate_limit_error(err: object) -> bool:
@@ -680,9 +717,14 @@ def _build_prompt(
         "Every field above is required except execution_error, which may be null when tool execution succeeds.",
         "Carry forward tool_calls_log from the Research Agent and preserve work_order_id/audit_entry_id from the Document Agent tool execution.",
         "Set agent_recommendation to APPROVE if the deviation requires CAPA action (risk high/critical/medium). "
-        "Set to REJECT if the deviation is a transient/startup spike, sensor noise, or false positive with NO physical deviation confirmed AND NO history of recurrence requiring investigation. "
-        "Examples of REJECT: single 8-second motor current spike during startup with no fault found, single sensor blip auto-cleared. "
-        "Examples of APPROVE: sustained excursion >1 min, confirmed equipment fault, batch quality impact, repeat pattern requiring CAPA. "
+        "Set to REJECT if the deviation is a transient/startup spike, sensor noise, or false positive with NO physical deviation confirmed AND NO open/unresolved history of recurrence. "
+        "CRITICAL for historical incidents: if recent_incidents shows similar events on the same equipment where lastDecision or finalDecision has action='rejected' (human dismissed as false positive), "
+        "that human rejection is STRONG evidence to REJECT the current incident too — do NOT treat it as 'recurring issue requiring CAPA'. "
+        "Only treat historical incidents as evidence of a recurring problem if they were approved/escalated (action='approved') or remain unresolved. "
+        "Also: if duration_seconds < 30 AND notes explicitly state startup transient or maintenance confirmed no fault, "
+        "set agent_recommendation to REJECT unless there is confirmed product quality impact or sustained equipment damage. "
+        "Examples of REJECT: single 8-second motor current spike during startup with no fault found; identical transient spikes previously rejected by human operators. "
+        "Examples of APPROVE: sustained excursion >1 min, confirmed equipment fault, batch quality impact, repeat pattern with prior human-approved investigations. "
         "Never fabricate data. Cite all sources. If confidence is below 0.75, "
         "set risk_level to 'LOW_CONFIDENCE' and explain what additional information "
         "would raise confidence.",

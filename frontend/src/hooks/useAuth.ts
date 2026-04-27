@@ -42,19 +42,19 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 export function useAuth() {
   const { instance, accounts } = useMsal();
   const account = accounts[0] ?? null;
+  const accountKey = account?.homeAccountId ?? account?.localAccountId ?? account?.username ?? null;
   const e2eAuthState = useMemo(() => getE2EAuthState(), []);
-  const [accessTokenRoles, setAccessTokenRoles] = useState<AppRole[]>([]);
-  const [rolesHydrated, setRolesHydrated] = useState(IS_E2E_AUTH);
+  const [tokenRoleState, setTokenRoleState] = useState<{
+    accountKey: string | null;
+    roles: AppRole[];
+  }>({ accountKey: null, roles: [] });
 
   useEffect(() => {
-    if (IS_E2E_AUTH || !account) {
-      setAccessTokenRoles([]);
-      setRolesHydrated(true);
+    if (IS_E2E_AUTH || !account || !accountKey) {
       return;
     }
 
     let cancelled = false;
-    setRolesHydrated(false);
 
     instance.acquireTokenSilent({
       ...apiRequest,
@@ -62,29 +62,30 @@ export function useAuth() {
     }).then((result) => {
       if (cancelled) return;
       const payload = decodeJwtPayload(result.accessToken);
-      setAccessTokenRoles(normalizeRoles(payload?.roles));
-      setRolesHydrated(true);
+      setTokenRoleState({ accountKey, roles: normalizeRoles(payload?.roles) });
     }).catch(() => {
       if (!cancelled) {
-        setAccessTokenRoles([]);
-        setRolesHydrated(true);
+        setTokenRoleState({ accountKey, roles: [] });
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [account, instance]);
+  }, [account, accountKey, instance]);
+
+  const rolesHydrated = IS_E2E_AUTH || !account || tokenRoleState.accountKey === accountKey;
 
   const roles = useMemo<AppRole[]>(() => {
     if (IS_E2E_AUTH) return e2eAuthState.roles;
     if (!account) return [];
+    const accessTokenRoles = tokenRoleState.accountKey === accountKey ? tokenRoleState.roles : [];
     if (accessTokenRoles.length > 0) return accessTokenRoles;
 
     const claims = account.idTokenClaims as Record<string, unknown> | undefined;
     const normalized = normalizeRoles(claims?.roles);
     return normalized;
-  }, [account, accessTokenRoles, e2eAuthState.roles]);
+  }, [account, accountKey, e2eAuthState.roles, tokenRoleState.accountKey, tokenRoleState.roles]);
 
   const displayName = IS_E2E_AUTH
     ? e2eAuthState.displayName

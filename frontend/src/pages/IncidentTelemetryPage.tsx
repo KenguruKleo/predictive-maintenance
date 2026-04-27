@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import AgentRunSummary from "../components/Admin/AgentRunSummary";
 import IncidentTelemetryTimeline from "../components/Admin/IncidentTelemetryTimeline";
@@ -13,8 +13,26 @@ import type {
   IncidentTelemetryFilters,
 } from "../types/incident";
 
+interface DraftTelemetryFilters {
+  searchToken: string;
+  incidentId: string;
+  agentName: AgentTelemetryAgentName | "";
+  status: AgentTelemetryStatus | "";
+  round: string;
+}
+
 function getStringParam(params: URLSearchParams, key: string): string {
   return params.get(key)?.trim() ?? "";
+}
+
+function readDraftFilters(params: URLSearchParams, searchToken: string): DraftTelemetryFilters {
+  return {
+    searchToken,
+    incidentId: getStringParam(params, "incidentId"),
+    agentName: getStringParam(params, "agent_name") as AgentTelemetryAgentName | "",
+    status: getStringParam(params, "status") as AgentTelemetryStatus | "",
+    round: getStringParam(params, "round"),
+  };
 }
 
 function buildEmptyTelemetryHints(options: {
@@ -51,23 +69,18 @@ export default function IncidentTelemetryPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchToken = searchParams.toString();
   const activeIncidentId = getStringParam(searchParams, "incidentId");
+  const urlDraftFilters = useMemo(
+    () => readDraftFilters(searchParams, searchToken),
+    [searchParams, searchToken],
+  );
 
-  const [draftIncidentId, setDraftIncidentId] = useState(activeIncidentId);
-  const [draftAgentName, setDraftAgentName] = useState<AgentTelemetryAgentName | "">(
-    getStringParam(searchParams, "agent_name") as AgentTelemetryAgentName | "",
-  );
-  const [draftStatus, setDraftStatus] = useState<AgentTelemetryStatus | "">(
-    getStringParam(searchParams, "status") as AgentTelemetryStatus | "",
-  );
-  const [draftRound, setDraftRound] = useState(getStringParam(searchParams, "round"));
+  const [draftFilters, setDraftFilters] = useState(urlDraftFilters);
+  const activeDraftFilters = draftFilters.searchToken === searchToken ? draftFilters : urlDraftFilters;
+  const draftIncidentId = activeDraftFilters.incidentId;
+  const draftAgentName = activeDraftFilters.agentName;
+  const draftStatus = activeDraftFilters.status;
+  const draftRound = activeDraftFilters.round;
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
-
-  useEffect(() => {
-    setDraftIncidentId(activeIncidentId);
-    setDraftAgentName(getStringParam(searchParams, "agent_name") as AgentTelemetryAgentName | "");
-    setDraftStatus(getStringParam(searchParams, "status") as AgentTelemetryStatus | "");
-    setDraftRound(getStringParam(searchParams, "round"));
-  }, [activeIncidentId, searchToken, searchParams]);
 
   const filters = useMemo<IncidentTelemetryFilters>(() => {
     const roundValue = getStringParam(searchParams, "round");
@@ -76,7 +89,11 @@ export default function IncidentTelemetryPage() {
       status: (getStringParam(searchParams, "status") as AgentTelemetryStatus | "") || undefined,
       round: roundValue ? Number(roundValue) : undefined,
     };
-  }, [searchToken, searchParams]);
+  }, [searchParams]);
+
+  const updateDraftFilters = (patch: Partial<Omit<DraftTelemetryFilters, "searchToken">>) => {
+    setDraftFilters({ ...activeDraftFilters, ...patch, searchToken });
+  };
 
   const telemetryQuery = useIncidentTelemetry(activeIncidentId, filters);
   const incidentQuery = useIncident(activeIncidentId || "");
@@ -105,10 +122,6 @@ export default function IncidentTelemetryPage() {
   };
 
   const resetFilters = () => {
-    setDraftAgentName("");
-    setDraftStatus("");
-    setDraftRound("");
-
     const trimmedIncidentId = draftIncidentId.trim();
     if (!trimmedIncidentId) {
       setSearchParams({}, { replace: true });
@@ -161,10 +174,10 @@ export default function IncidentTelemetryPage() {
           agentName={draftAgentName}
           status={draftStatus}
           round={draftRound}
-          onIncidentIdChange={setDraftIncidentId}
-          onAgentNameChange={setDraftAgentName}
-          onStatusChange={setDraftStatus}
-          onRoundChange={setDraftRound}
+          onIncidentIdChange={(incidentId) => updateDraftFilters({ incidentId })}
+          onAgentNameChange={(agentName) => updateDraftFilters({ agentName })}
+          onStatusChange={(status) => updateDraftFilters({ status })}
+          onRoundChange={(round) => updateDraftFilters({ round })}
           onApply={applyFilters}
           onReset={resetFilters}
         />

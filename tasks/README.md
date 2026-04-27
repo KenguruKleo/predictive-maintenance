@@ -43,3 +43,4 @@
 | T-053 | [T-053-alert-feedback-loop.md](./T-053-alert-feedback-loop.md) |
 | T-054 | [T-054-agent-recommendation-visibility.md](./T-054-agent-recommendation-visibility.md) |
 | T-055 | [T-055-ai-pipeline-status-contract.md](./T-055-ai-pipeline-status-contract.md) |
+| T-056 | [T-056-electron-desktop-app.md](./T-056-electron-desktop-app.md) |

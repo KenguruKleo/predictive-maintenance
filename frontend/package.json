@@ -2,9 +2,13 @@
   "name": "frontend",
   "private": true,
   "version": "0.0.0",
+  "productName": "Sentinel Intelligence",
   "type": "module",
+  "main": "electron/main.cjs",
   "scripts": {
     "dev": "env -u VITE_AUTH_MODE -u VITE_API_BASE_URL -u SENTINEL_LOCAL_API_URL vite",
+    "electron:dev": "concurrently -k \"npm run dev -- --host localhost\" \"wait-on tcp:5173 && ELECTRON_RENDERER_URL=http://localhost:5173 ELECTRON_REMOTE_DEBUGGING_PORT=9333 electron .\"",
+    "electron:start": "VITE_ELECTRON=true npm run build && electron .",
     "dev:e2e": "VITE_AUTH_MODE=e2e vite --config vite.config.e2e.ts --host 127.0.0.1 --port 4173",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -31,12 +35,15 @@
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "electron": "^41.3.0",
     "eslint": "^9.39.4",
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.4.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.0",
-    "vite": "^8.0.4"
+    "vite": "^8.0.4",
+    "wait-on": "^9.0.5"
   }
 }

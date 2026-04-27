@@ -155,8 +155,15 @@ def search_all_indexes(
         f"equipment_ids/any(e: e eq '{equipment_id}')" if equipment_id else None
     )
 
+    # For SOPs: prefer equipment-specific results (filtered), fall back to
+    # unfiltered so generic SOPs (e.g. SOP-DEV-001) are still returned when
+    # no equipment-tagged SOPs exist in the index.
+    sop_results = search_index(IDX_SOP, query, top_k, eq_filter) if eq_filter else []
+    if not sop_results:
+        sop_results = search_index(IDX_SOP, query, top_k)
+
     return {
-        IDX_SOP: search_index(IDX_SOP, query, top_k),
+        IDX_SOP: sop_results,
         IDX_MANUALS: search_index(IDX_MANUALS, query, top_k, eq_filter),
         IDX_BPR: search_index(IDX_BPR, query, top_k, eq_filter),
         IDX_GMP: search_index(IDX_GMP, query, top_k),
