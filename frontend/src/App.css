@@ -1131,6 +1131,7 @@
   min-width: 60px;
 }
 .pipeline-stage--ingested  { background: color-mix(in srgb, var(--status-ingested-fg,  var(--text-muted)) 12%, transparent); }
+.pipeline-stage--queued    { background: color-mix(in srgb, var(--status-analyzing-fg) 6%, transparent); opacity: 0.85; }
 .pipeline-stage--analyzing { background: color-mix(in srgb, var(--status-analyzing-fg) 12%, transparent); }
 .pipeline-stage--execution { background: color-mix(in srgb, var(--status-approved-fg) 12%, transparent); }
 .pipeline-stage-count {

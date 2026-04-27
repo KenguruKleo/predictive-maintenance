@@ -31,7 +31,7 @@ function sortIncidents(items: Incident[]) {
   );
 }
 
-type PipelineStageKey = "ingested" | "analyzing" | "execution";
+type PipelineStageKey = "ingested" | "queued" | "analyzing" | "execution";
 
 const PIPELINE_STAGES: Array<{
   key: PipelineStageKey;
@@ -46,10 +46,16 @@ const PIPELINE_STAGES: Array<{
     statuses: ["ingested"],
   },
   {
+    key: "queued",
+    label: "Queued for AI",
+    className: "pipeline-stage--queued",
+    statuses: ["queued_for_analysis"],
+  },
+  {
     key: "analyzing",
     label: "Analyzing",
     className: "pipeline-stage--analyzing",
-    statuses: ["queued_for_analysis", "analyzing", "awaiting_agents"],
+    statuses: ["analyzing", "awaiting_agents"],
   },
   {
     key: "execution",
@@ -64,6 +70,7 @@ const PIPELINE_STATUSES = PIPELINE_STAGES.flatMap((stage) => stage.statuses);
 function PipelineStatusWidget({ incidents }: { incidents: Incident[] }) {
   const counts: Record<PipelineStageKey, number> = {
     ingested: 0,
+    queued: 0,
     analyzing: 0,
     execution: 0,
   };
