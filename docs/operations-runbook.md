@@ -148,7 +148,7 @@ The simulator validates two layers:
 
 | # | Purpose | Submit contract | Expected AI outcome | Expected artifacts and evidence |
 | --- | --- | --- | --- | --- |
-| 1 | GR-204 impeller speed low, short major excursion | `202` and Durable orchestration starts | `REJECT`, `medium`, batch disposition `release`; rationale should explain short duration, limited excursion, and low product impact | Audit record present, no corrective work order, canonical BPR/SOP/GMP/history citations, tool log present |
+| 1 | GR-204 impeller speed low, short major excursion | `202` and Durable orchestration starts | `REJECT`, `low`, batch disposition `release`; rationale should explain short duration, limited excursion, and low product impact | Audit record present, no corrective work order, canonical BPR/SOP/GMP/history citations, tool log present |
 | 2 | GR-204 spray rate high, critical long excursion | `202` and Durable orchestration starts | `APPROVE`, `critical`, batch disposition `conditional_release_pending_testing`; rationale should explain process impact and need for documented controls | Audit record and corrective work order present, canonical BPR/SOP/GMP/history citations, tool log present |
 | 3 | MIX-102 motor current spike, brief minor anomaly | `202` and Durable orchestration starts | `REJECT`, `low`, batch disposition `release`; rationale should explain brief transient behavior and no material impact | Audit record present, no corrective work order, citations must not include GR-204-specific SOP/manual evidence |
 | 4 | DRY-303 inlet temperature low, critical drying excursion | `202` and Durable orchestration starts | `APPROVE`, `critical`, batch disposition `hold_pending_review` or equivalent hold/review disposition; rationale should explain drying impact and batch review need | Audit record and corrective work order present, SOP/GMP/history citations present. If `BPR-AML-005-v2.0` is not indexed, report an evidence gap instead of citing another product's BPR |
@@ -164,7 +164,7 @@ The simulator validates two layers:
 2. Message published to Service Bus `alert-queue`
 3. Durable Orchestrator starts (`durable-INC-2026-NNNN`)
 4. Context enrichment from Cosmos (equipment + batch data)
-5. Foundry Orchestrator Agent runs (~5–10 min) and calls Research + Document agents via MCP
+5. Backend retrieves the authoritative Search evidence package, then the Foundry Orchestrator returns the compact final decision JSON
 6. Notification written to Cosmos and pushed via SignalR
 7. Orchestrator enters HITL wait state with `wait_for_external_event("operator_decision")`
 8. Operator approves or rejects via UI, which triggers Execution Agent or closes the incident
