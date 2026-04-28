@@ -10,6 +10,7 @@ import StatsCards from "../components/Manager/StatsCards";
 import EscalationQueue from "../components/Manager/EscalationQueue";
 import RecentDecisions from "../components/Manager/RecentDecisions";
 import EquipmentHealthGrid from "../components/Operations/EquipmentHealthGrid";
+import OperationsCards from "../components/IncidentList/OperationsCards";
 import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
 import type { Incident, IncidentStatus } from "../types/incident";
 import type { StatsSummary } from "../types/stats";
@@ -32,6 +33,13 @@ function sortIncidents(items: Incident[]) {
 }
 
 type PipelineStageKey = "ingested" | "queued" | "analyzing" | "execution";
+
+const PIPELINE_STAGE_ORDER: Record<PipelineStageKey, number> = {
+  ingested: 0,
+  queued: 1,
+  analyzing: 2,
+  execution: 3,
+};
 
 const PIPELINE_STAGES: Array<{
   key: PipelineStageKey;
@@ -66,6 +74,23 @@ const PIPELINE_STAGES: Array<{
 ];
 
 const PIPELINE_STATUSES = PIPELINE_STAGES.flatMap((stage) => stage.statuses);
+
+function getPipelineStage(status: IncidentStatus): PipelineStageKey | undefined {
+  return PIPELINE_STAGES.find((candidate) => candidate.statuses.includes(status))?.key;
+}
+
+function sortPipelineIncidents(items: Incident[]) {
+  return [...items].sort((a, b) => {
+    const stageDiff =
+      (PIPELINE_STAGE_ORDER[getPipelineStage(a.status) ?? "execution"] ?? 99)
+      - (PIPELINE_STAGE_ORDER[getPipelineStage(b.status) ?? "execution"] ?? 99);
+
+    if (stageDiff !== 0) return stageDiff;
+
+    return new Date(b.updated_at ?? b.created_at ?? b.reported_at ?? 0).getTime()
+      - new Date(a.updated_at ?? a.created_at ?? a.reported_at ?? 0).getTime();
+  });
+}
 
 function PipelineStatusWidget({ incidents }: { incidents: Incident[] }) {
   const counts: Record<PipelineStageKey, number> = {
@@ -143,11 +168,12 @@ export default function OperationsDashboard() {
   const equipment = equipmentData ?? [];
   const pendingIncidents = pendingData?.items ?? [];
   const escalatedIncidents = escalatedData?.items ?? [];
+  const pipelineIncidents = sortPipelineIncidents(
+    allIncidents.filter((incident) => PIPELINE_STATUSES.includes(incident.status)),
+  );
   const sorted = sortIncidents(allIncidents);
 
-  const aiProcessingCount = allIncidents.filter((i) =>
-    (PIPELINE_STATUSES as string[]).includes(i.status)
-  ).length;
+  const aiProcessingCount = pipelineIncidents.length;
 
   const opsStats: StatsSummary = {
     total_incidents: allData?.total ?? allIncidents.length,
@@ -186,11 +212,16 @@ export default function OperationsDashboard() {
           </div>
           <aside className="ops-two-col-side" aria-label="workflow pipeline sidebar">
             <h2 className="section-heading ops-two-col-heading ops-two-col-side-heading">Workflow Pipeline</h2>
-            <PipelineStatusWidget incidents={allIncidents} />
+            <PipelineStatusWidget incidents={pipelineIncidents} />
             {aiProcessingCount > 0 && (
-              <p className="pipeline-hint">
-                {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently in the AI and execution flow
-              </p>
+              <>
+                <p className="pipeline-hint">
+                  {aiProcessingCount} incident{aiProcessingCount !== 1 ? "s" : ""} currently in the AI and execution flow
+                </p>
+                <div className="pipeline-incident-list" aria-label="pipeline incidents">
+                  <OperationsCards incidents={pipelineIncidents} />
+                </div>
+              </>
             )}
           </aside>
         </div>

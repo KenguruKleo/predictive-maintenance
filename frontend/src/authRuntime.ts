@@ -55,23 +55,23 @@ export const APP_ROLE_OPTIONS: AppRole[] = [
   "it-admin",
 ];
 
-function normalizeRole(value: unknown): AppRole | null {
+export function normalizeRoleClaim(value: unknown): AppRole | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
   return ROLE_MAP[trimmed] ?? ROLE_MAP[trimmed.toLowerCase()] ?? null;
 }
 
-function normalizeRoles(value: unknown): AppRole[] {
+export function normalizeRoleClaims(value: unknown): AppRole[] {
   const rawRoles = Array.isArray(value) ? value : [value];
   const normalized = rawRoles
-    .map((role) => normalizeRole(role))
+    .map((role) => normalizeRoleClaim(role))
     .filter((role): role is AppRole => Boolean(role));
-  return normalized.length > 0 ? Array.from(new Set(normalized)) : ["operator"];
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : [];
 }
 
 function getDefaultAuthState(): E2EAuthState {
-  const defaultRole = normalizeRole(import.meta.env.VITE_E2E_DEFAULT_ROLE) ?? "operator";
+  const defaultRole = normalizeRoleClaim(import.meta.env.VITE_E2E_DEFAULT_ROLE) ?? "operator";
   const userId = String(import.meta.env.VITE_E2E_DEFAULT_USER_ID ?? "ivan.petrenko");
   const displayName = String(import.meta.env.VITE_E2E_DEFAULT_NAME ?? "Ivan Petrenko");
   const email = String(
@@ -115,11 +115,13 @@ export function getE2EAuthState(): E2EAuthState {
     ? stored.email.trim()
     : defaults.email;
 
+  const roles = normalizeRoleClaims(stored.roles);
+
   return {
     userId,
     displayName,
     email,
-    roles: normalizeRoles(stored.roles),
+    roles: roles.length > 0 ? roles : ["operator"],
   };
 }
 

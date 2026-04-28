@@ -1,0 +1,42 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.17",
+  "version": "0.3.0",
+  "id": "8a8fb4c0-5b99-4d4f-8a1b-d59f4991cb74",
+  "developer": {
+    "name": "Sentinel Intelligence",
+    "websiteUrl": "https://calm-flower-0a6d7f90f.7.azurestaticapps.net",
+    "privacyUrl": "https://calm-flower-0a6d7f90f.7.azurestaticapps.net/privacy",
+    "termsOfUseUrl": "https://calm-flower-0a6d7f90f.7.azurestaticapps.net/terms"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Sentinel",
+    "full": "Sentinel Intelligence"
+  },
+  "description": {
+    "short": "Sentinel Intelligence operator console for Teams.",
+    "full": "Microsoft Teams app package for Sentinel Intelligence, bringing the governed deviation and CAPA operator console into Teams. Teams SSO, proactive notifications, and approval actions are planned as the production integration path."
+  },
+  "accentColor": "#2563EB",
+  "staticTabs": [
+    {
+      "entityId": "sentinel-intelligence-console",
+      "name": "Console",
+      "contentUrl": "https://calm-flower-0a6d7f90f.7.azurestaticapps.net/teams.html",
+      "websiteUrl": "https://calm-flower-0a6d7f90f.7.azurestaticapps.net/",
+      "scopes": ["personal"]
+    }
+  ],
+  "validDomains": [
+    "calm-flower-0a6d7f90f.7.azurestaticapps.net",
+    "func-sentinel-intel-dev-erzrpo.azurewebsites.net"
+  ],
+  "webApplicationInfo": {
+    "id": "38843d08-f211-4445-bcef-a07d383f2ee6",
+    "resource": "api://38843d08-f211-4445-bcef-a07d383f2ee6"
+  }
+}

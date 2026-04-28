@@ -3,6 +3,8 @@ import { PublicClientApplication } from "@azure/msal-browser";
 import type { InternalAxiosRequestConfig } from "axios";
 import { API_BASE_URL, apiRequest } from "../authConfig";
 import { getE2ERequestHeaders, IS_E2E_AUTH } from "../authRuntime";
+import { getTeamsAuthState, setTeamsAuthToken } from "../teamsAuth";
+import { getTeamsSsoToken, isLikelyTeamsHost } from "../teamsRuntime";
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -48,6 +50,21 @@ client.interceptors.request.use(async (config) => {
     return config;
   }
 
+  if (getTeamsAuthState().isAuthenticated) {
+    try {
+      const token = await getTeamsSsoToken();
+      setTeamsAuthToken(token);
+      setHeader(config, "Authorization", `Bearer ${token}`);
+      return config;
+    } catch {
+      const token = getTeamsAuthState().accessToken;
+      if (token) {
+        setHeader(config, "Authorization", `Bearer ${token}`);
+        return config;
+      }
+    }
+  }
+
   if (!msalInstance) return config;
   const account = msalInstance.getActiveAccount();
   if (!account) return config;
@@ -59,6 +76,9 @@ client.interceptors.request.use(async (config) => {
     setHeader(config, "Authorization", `Bearer ${result.accessToken}`);
   } catch (error) {
     if (requiresInteractiveTokenAcquisition(error) && !tokenRedirectInFlight) {
+      if (isLikelyTeamsHost()) {
+        return Promise.reject(new Error("Interactive Microsoft sign-in is disabled inside Teams. Use Teams SSO or open Sentinel in the browser."));
+      }
       tokenRedirectInFlight = true;
       void msalInstance.acquireTokenRedirect({
         ...apiRequest,

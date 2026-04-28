@@ -109,7 +109,12 @@ def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
         "_record_decision",
         lambda incident_id, decision, now_iso: recorded.update(
             {"incident_id": incident_id, "decision": decision, "now_iso": now_iso}
-        ),
+        )
+        or {
+            "previous_status": "pending_approval",
+            "new_status": "approved",
+            "equipment_id": "GR-204",
+        },
     )
 
     req = FakeRequest(
@@ -118,6 +123,8 @@ def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
             "user_id": "spoofed.user",
             "role": "qa-manager",
             "reason": "Proceed with corrective action.",
+            "work_order_draft": {"description": "Inspect granulator valve."},
+            "audit_entry_draft": {"description": "Document the approval decision."},
         },
         route_params={"incident_id": "INC-2026-0029"},
     )
@@ -144,6 +151,10 @@ def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
                 "role": "operator",
                 "reason": "Proceed with corrective action.",
                 "question": "",
+                "agent_recommendation": None,
+                "operator_agrees_with_agent": None,
+                "work_order_draft": {"description": "Inspect granulator valve."},
+                "audit_entry_draft": {"description": "Document the approval decision."},
             },
         )
     ]
@@ -174,7 +185,12 @@ def test_http_decision_forbids_qamanager_on_operator_owned_incident(monkeypatch)
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
 
     req = FakeRequest(
-        {"action": "approved", "reason": "QA should not decide this one."},
+        {
+            "action": "approved",
+            "reason": "QA should not decide this one.",
+            "work_order_draft": {"description": "Attempted QA draft."},
+            "audit_entry_draft": {"description": "Attempted QA audit entry."},
+        },
         route_params={"incident_id": "INC-2026-0029"},
     )
 
@@ -190,7 +206,12 @@ def test_http_decision_forbids_operator_on_qamanager_owned_incident(monkeypatch)
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "qa-manager")
 
     req = FakeRequest(
-        {"action": "approved", "reason": "Operator should not decide escalated incidents."},
+        {
+            "action": "approved",
+            "reason": "Operator should not decide escalated incidents.",
+            "work_order_draft": {"description": "Attempted operator draft."},
+            "audit_entry_draft": {"description": "Attempted operator audit entry."},
+        },
         route_params={"incident_id": "INC-2026-0029"},
     )
 

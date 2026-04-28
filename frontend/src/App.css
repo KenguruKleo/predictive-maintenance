@@ -1159,6 +1159,19 @@
   font-style: italic;
 }
 
+.pipeline-incident-list {
+  margin-top: var(--space-4);
+}
+
+.pipeline-incident-list .operations-cards {
+  grid-template-columns: 1fr;
+  gap: var(--space-3);
+}
+
+.pipeline-incident-list .ops-card {
+  padding: 14px 16px;
+}
+
 /* ── Equipment Health Grid ── */
 .equipment-health-grid {
   display: grid;

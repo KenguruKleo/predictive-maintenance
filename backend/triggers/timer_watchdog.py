@@ -159,6 +159,10 @@ def _query_orphaned_approvals() -> list[dict[str, Any]]:
 )
 @bp.durable_client_input(client_name="client")
 async def orchestrator_watchdog(timer: func.TimerRequest, client) -> None:
+    await _run_watchdog(timer, client)
+
+
+async def _run_watchdog(timer: func.TimerRequest, client) -> None:
     """Check for stuck orchestrators and requeue them to Service Bus."""
     if timer.past_due:
         logger.info("Watchdog timer is running late — proceeding anyway")
@@ -208,6 +212,7 @@ async def orchestrator_watchdog(timer: func.TimerRequest, client) -> None:
                 "Failed",
                 "Terminated",
                 "Canceled",
+                "Completed",
             ):
                 logger.debug(
                     "Watchdog: pending_approval incident %s durable=%s — skipping",

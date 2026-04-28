@@ -1,5 +1,7 @@
 # Frontend
 
+Unit tests use `Vitest 4` with `jsdom` and require Node.js 20+.
+
 ## Local E2E
 
 The frontend now supports a local `Playwright` flow that bypasses interactive Entra login.

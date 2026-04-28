@@ -62,6 +62,7 @@ def test_search_index_returns_section_metadata(monkeypatch) -> None:
             "section_path": "SOP-DEV-001 — GMP Deviation Management Procedure > 4.2 Process Parameter Excursions — Granulation",
             "text": "Spray Rate: Affects binder distribution.",
             "keywords": [],
+            "equipment_ids": [],
             "source": "SOP-DEV-001-Deviation-Management.md",
             "score": 0.9,
         }

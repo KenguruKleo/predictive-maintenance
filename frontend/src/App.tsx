@@ -13,14 +13,16 @@ import TemplateManagementPage from "./pages/TemplateManagementPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { IS_E2E_AUTH } from "./authRuntime";
+import { useTeamsAuth } from "./teamsAuth";
 import "./App.css";
 
 export default function App() {
   const isAuthenticated = useIsAuthenticated();
   const { inProgress } = useMsal();
+  const teamsAuth = useTeamsAuth();
   const Router = window.sentinelDesktop ? HashRouter : BrowserRouter;
 
-  if (!IS_E2E_AUTH && inProgress !== InteractionStatus.None) {
+  if (!IS_E2E_AUTH && !teamsAuth.isAuthenticated && inProgress !== InteractionStatus.None) {
     return (
       <div className="loading-screen">
         <div className="spinner" />
@@ -29,7 +31,7 @@ export default function App() {
     );
   }
 
-  if (!IS_E2E_AUTH && !isAuthenticated) {
+  if (!IS_E2E_AUTH && !teamsAuth.isAuthenticated && !isAuthenticated) {
     return <LoginPage loginRequest={loginRequest} />;
   }
 

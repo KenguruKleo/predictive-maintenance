@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _citation_applies_to_bpr_reference,
     _citation_applies_to_equipment,
     _normalize_agent_result,
     _normalize_evidence_citations,
@@ -352,6 +353,66 @@ def test_citation_applies_to_equipment_filters_specific_sop_without_equipment_id
         {},
         "MIX-102",
     )
+
+
+def test_citation_applies_to_bpr_reference_filters_other_product_specs() -> None:
+    assert not _citation_applies_to_bpr_reference(
+        {
+            "index_name": "idx-bpr-documents",
+            "document_id": "BPR-PCT-500-v2_0-Process-Specification",
+            "document_title": "Paracetamol 500mg Tablets",
+            "source_blob": "BPR-PCT-500-v2.0-Process-Specification.md",
+        },
+        {},
+        "BPR-AML-005-v2.0",
+    )
+    assert _citation_applies_to_bpr_reference(
+        {
+            "index_name": "idx-bpr-documents",
+            "document_id": "BPR-AML-005-v2_0-Process-Specification",
+            "document_title": "Amlodipine 5mg Tablets",
+            "source_blob": "BPR-AML-005-v2.0-Process-Specification.md",
+        },
+        {},
+        "BPR-AML-005-v2.0",
+    )
+    assert _citation_applies_to_bpr_reference(
+        {"index_name": "idx-sop-documents", "document_id": "SOP-DEV-001"},
+        {},
+        "BPR-AML-005-v2.0",
+    )
+
+
+def test_approve_keeps_critical_source_alert_risk_critical() -> None:
+    normalized = _normalize_agent_result(
+        {
+            "incident_id": "INC-2026-0101",
+            "title": "Dryer Temperature Low",
+            "classification": "process_parameter_excursion",
+            "risk_level": "medium",
+            "confidence": 0.85,
+            "root_cause": "Sustained critical process parameter excursion.",
+            "analysis": "The alert severity is critical and corrective action is required.",
+            "recommendation": "Investigate and correct the temperature control deviation.",
+            "agent_recommendation": "APPROVE",
+            "batch_disposition": "hold_pending_review",
+            "operator_dialogue": "Approve corrective action.",
+            "audit_entry_draft": {"description": "Critical excursion."},
+            "work_order_draft": {"title": "Investigate dryer temperature control"},
+            "evidence_citations": [],
+            "tool_calls_log": [],
+        },
+        {},
+        more_info_round=0,
+        authoritative_research_package={
+            "incident_facts": {"severity": "critical"},
+            "evidence_citations": [],
+            "tool_calls_log": [],
+        },
+    )
+
+    assert normalized["agent_recommendation"] == "APPROVE"
+    assert normalized["risk_level"] == "critical"
 
 
 def test_approve_recommendation_contract_sets_testing_disposition() -> None:

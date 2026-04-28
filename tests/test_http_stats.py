@@ -18,6 +18,7 @@ def test_build_recent_decisions_returns_latest_finalized_items() -> None:
             "createdAt": "2026-04-20T08:00:00Z",
             "closedAt": "2026-04-20T09:30:00Z",
             "confidence": 0.52,
+            "operatorAgreesWithAgent": False,
             "finalDecision": {
                 "action": "approved",
                 "role": "qa-manager",
@@ -30,6 +31,7 @@ def test_build_recent_decisions_returns_latest_finalized_items() -> None:
             "createdAt": "2026-04-20T07:00:00Z",
             "closedAt": "2026-04-20T08:00:00Z",
             "confidence": 0.71,
+            "operatorAgreesWithAgent": True,
             "finalDecision": {
                 "action": "rejected",
                 "role": "operator",
@@ -42,6 +44,7 @@ def test_build_recent_decisions_returns_latest_finalized_items() -> None:
             "createdAt": "2026-04-20T06:00:00Z",
             "closedAt": "2026-04-20T06:15:00Z",
             "confidence": 0.84,
+            "operatorAgreesWithAgent": True,
             "finalDecision": {
                 "action": "approved",
                 "role": "operator",

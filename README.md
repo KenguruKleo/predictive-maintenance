@@ -48,7 +48,7 @@ See [02-architecture.md](./02-architecture.md) for the full component diagram an
 
 ### Prerequisites
 
-- Python 3.11+, Node.js 18+
+- Python 3.11+, Node.js 20+
 - [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
 - Azure CLI (`az login` completed)
 

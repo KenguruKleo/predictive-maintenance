@@ -27,7 +27,6 @@ from pathlib import Path
 
 from azure.ai.agents import AgentsClient
 from azure.ai.agents.models import (
-    ConnectedAgentTool,
     OpenApiAnonymousAuthDetails,
     OpenApiTool,
     ResponseFormatJsonSchema,
@@ -764,29 +763,9 @@ def main(update: bool = False) -> dict:
 
     # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
     print("\n[3/3] Orchestrator Agent...")
-    research_connected = ConnectedAgentTool(
-        id=research_agent.id,
-        name="research_agent",
-        description=(
-            "Mandatory evidence collector. Call before every final decision. It gathers "
-            "equipment context, batch records, SOPs, GMP regulations, BPR constraints, "
-            "manual excerpts, and historical incidents. Do not simulate its output."
-        ),
-    )
-    document_connected = ConnectedAgentTool(
-        id=document_agent.id,
-        name="document_agent",
-        description=(
-            "Prepares and persists GMP documentation that matches the Orchestrator's "
-            "already-decided outcome: creates a QMS audit entry and, only when needed, "
-            "a CMMS corrective work order. It must not determine classification, risk, "
-            "or recommendation."
-        ),
-    )
-
     orchestrator_agent = _create_or_update(
         client, "sentinel-orchestrator-agent", ORCHESTRATOR_MODEL, ORCHESTRATOR_PROMPT,
-        research_connected.definitions + document_connected.definitions,  # type: ignore[operator]
+        [],
         None,
         update,
         response_format=FINAL_ANALYSIS_RESPONSE_FORMAT,

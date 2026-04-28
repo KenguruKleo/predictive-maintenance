@@ -82,6 +82,8 @@
 |---|---|---|---|---|
 | T-046 | **[Foundry Agent code hardening](./tasks/T-046-foundry-agent-code-hardening.md)** — post-demo cleanup: remove `_infer_known_document()` hardcode, replace keyword-matching `_has_direct_stop_requirement()` with LLM response in Document Agent prompt, add `agent_recommendation: APPROVE | REJECT` to Document Agent output schema, remove startup sleep from Activity, add `RAG_TOP_K`/`RAG_EXCERPT_CHARS` env vars | post-demo | 🟢 LOW | 🔜 TODO |
 | T-057 | **[Config externalization + environment portability](./tasks/T-057-config-externalization-portability.md)** — remove hardcoded dev tenant/client/resource IDs and endpoints from runtime code, centralize config for frontend/backend/scripts, add reusable local config templates and fail-fast validation so the app can run in another tenant/subscription without source edits | Reuse, multi-environment support | 🟢 LOW | 🔜 TODO |
+| T-058 | **[Frontend unit test coverage](./tasks/T-058-frontend-unit-test-coverage.md)** — add a minimal unit/integration test layer for React auth, role guards, optimistic React Query cache updates, pure analytics/utils logic, and interaction-heavy UI like Command Palette / Approval Panel; keep Playwright smoke as the browser-level layer | Frontend quality, regression prevention | 🟢 LOW | ✅ DONE |
+| T-059 | **[Backend test coverage](./tasks/T-059-backend-test-coverage.md)** — expand focused Python backend tests for HTTP triggers, auth/access helpers, and workflow-side utilities; Python pytest already runs in CI, the gap is deeper module-level coverage | Backend quality, regression prevention | 🟢 LOW | ✅ DONE |
 
 ### Post-hackathon (Security, Reliability, RAI & Operational Excellence)
 
@@ -110,6 +112,7 @@
 | T-052 | **[Editable WO / Audit entry forms](./tasks/T-052-editable-wo-audit-forms.md)** — WO draft and audit entry draft in the approval UI as pre-filled editable fields (operator/QA can change); empty + mandatory in BLOCKED state; other read-only roles; backend payload from verified drafts is transferred to CMMS/QMS | Gap #5, HITL | 🟠 HIGH | 🔜 TODO |
 | T-053 | **[Alert feedback loop](./tasks/T-053-alert-feedback-loop.md)** — at Reject: async POST to `ALERT_FEEDBACK_URL` (configurable, optional); payload with `source_alert_id`, `outcome`, `operator_agrees_with_agent`; retry 3×; event in `incident_events`; frontend shows the status in the timeline | SCADA/MES learning | 🟡 MEDIUM | 🔜 TODO |
 | T-054 | **[Agent recommendation visibility](./tasks/T-054-agent-recommendation-visibility.md)** — `agent_recommendation: APPROVE\|REJECT` everywhere: badge in ApprovalPanel (above buttons), AI column in IncidentTable + IncidentHistoryPage, AiVsHumanBadge in AuditTrail, agreement rate KPI in RecentDecisions; backend: store in `ai_analysis`, `finalDecision`, `recent_decisions` stats | Demo story, Analytics | 🟠 HIGH | 🔜 TODO |
+| T-060 | **[Microsoft Teams app integration](./tasks/T-060-teams-app-integration.md)** — Teams app package with personal/channel tab, Teams SSO, proactive notification bot, Adaptive Card approve/reject/more-info actions wired to the existing decision API, audit metadata for Teams-originated decisions, and automated package create/update/publish flow via Microsoft 365 Agents Toolkit or Graph; Bicep provisions only Azure-side dependencies | Collaboration, HITL, Enterprise adoption | 🟢 LOW | 🔜 TODO |
 
 ---
 
@@ -136,7 +139,7 @@
 ### Week 3 (May 1–7) — Polish + Submission
 | Subtask |
 |---|
-| T-034 (other frontend roles) · T-038/039/040 (security/reliability/RAI layers) · T-043 (agent telemetry admin view) |
+| T-034 (other frontend roles) · T-038/039/040 (security/reliability/RAI layers) · T-043 (agent telemetry admin view) · ✅ T-058 (frontend unit test baseline) · ✅ T-059 (backend test baseline) |
 | T-001 (update presentation) · T-002 (demo-first video) |
 | Final submission |
 

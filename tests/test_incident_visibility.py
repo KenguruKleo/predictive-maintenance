@@ -18,7 +18,7 @@ def test_operator_visibility_clause_includes_unassigned_items() -> None:
 
 
 def test_operator_incident_query_includes_unassigned_items() -> None:
-    query, params = _build_query(["Operator"], "user@example.com", [], "", "", "", 1, 20)
+    query, params = _build_query(["Operator"], "user@example.com", [], "", "", "", "", 1, 20)
 
     assert _operator_visibility_clause() in query
     assert params == [{"name": "@caller_id", "value": "user@example.com"}]

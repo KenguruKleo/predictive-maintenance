@@ -40,11 +40,23 @@ def test_research_prompt_uses_foundry_openapi_function_names() -> None:
 def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     prompt = (PROMPTS / "orchestrator_system.md").read_text(encoding="utf-8")
 
-    assert "must call `research_agent`" in prompt
+    assert "Do not call connected agents or external tools" in prompt
     assert "Do not write or simulate `tool_calls_log`" in prompt
     assert "Do not invent citations" in prompt
     assert "agent_recommendation_rationale" in prompt
-    assert "Copy the\n  full array intact" in prompt
+    assert "backend provides a Research Evidence Package" in prompt
+    assert "Backend normalization restores the canonical package" in prompt
+    assert "severity: critical" in prompt
+
+
+def test_orchestrator_agent_has_no_connected_tools() -> None:
+    source = (ROOT / "agents" / "create_agents.py").read_text(encoding="utf-8")
+
+    orchestrator_section = source.split("# ── 3. Orchestrator Agent", 1)[1]
+    orchestrator_section = orchestrator_section.split("print(\"\\n\" + \"=\" * 60)", 1)[0]
+    assert "ConnectedAgentTool" not in orchestrator_section
+    assert "research_connected" not in orchestrator_section
+    assert "document_connected" not in orchestrator_section
 
 
 def test_foundry_agent_schemas_require_canonical_research_evidence() -> None:

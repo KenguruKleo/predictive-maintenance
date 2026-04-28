@@ -180,6 +180,11 @@ def _build_all_decisions(rows: list[dict]) -> list[dict]:
     return items
 
 
+def _build_recent_decisions(rows: list[dict]) -> list[dict]:
+    """Backward-compatible helper kept for unit tests and summary call sites."""
+    return _build_all_decisions(rows)
+
+
 def _coerce_float(value) -> float:
     try:
         return float(value or 0.0)

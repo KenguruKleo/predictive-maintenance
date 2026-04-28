@@ -73,6 +73,44 @@
   background: #006cbf;
 }
 
+.login-button:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.login-error {
+  margin-top: 16px;
+  padding: 12px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #991b1b;
+  text-align: left;
+}
+
+.login-error p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.login-secondary-button {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #fff;
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-secondary-button:hover {
+  background: #f8fafc;
+}
+
 .ms-logo {
   width: 20px;
   height: 20px;

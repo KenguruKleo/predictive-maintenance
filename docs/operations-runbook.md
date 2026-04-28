@@ -125,7 +125,7 @@ export FUNCTION_KEY=$(az functionapp keys list \
 # Run a single scenario
 python scripts/simulate_alerts.py --fresh --scenario 1
 
-# Run all 6 scenarios
+# Run all 7 scenarios
 python scripts/simulate_alerts.py --fresh --all
 ```
 
@@ -139,18 +139,24 @@ python scripts/simulate_alerts.py --local --fresh --scenario 1
 python scripts/simulate_alerts.py --local --fresh --all
 ```
 
-### Scenario Catalog
+### Scenario Catalog And Expected Outcomes
 
-| # | Equipment | Severity | Expected |
-| --- | --- | --- | --- |
-| 1 | GR-204 Granulator | major | 202 → Durable orchestrator starts |
-| 2 | GR-204 Granulator | critical | 202 → Durable orchestrator starts |
-| 3 | MIX-102 Mixer | minor | 202 → Durable orchestrator starts |
-| 4 | DRY-303 Dryer | critical | 202 → Durable orchestrator starts |
-| 5 | Duplicate of scenario 1 | — | 200 `already_exists` (idempotent) |
-| 6 | Invalid payload | — | 400 validation error |
+The simulator validates two layers:
 
-> Use `--fresh` to generate unique IDs each run. Without it, scenarios 1–4 return `already_exists`.
+- API contract: `/api/alerts` accepts valid alerts, rejects invalid payloads, and deduplicates repeated `alert_id` values.
+- AI decision contract: completed incidents have a normalized `agent_recommendation`, `agent_recommendation_rationale`, evidence citations, and tool log entries that the UI can render without parsing raw agent JSON.
+
+| # | Purpose | Submit contract | Expected AI outcome | Expected artifacts and evidence |
+| --- | --- | --- | --- | --- |
+| 1 | GR-204 impeller speed low, short major excursion | `202` and Durable orchestration starts | `REJECT`, `medium`, batch disposition `release`; rationale should explain short duration, limited excursion, and low product impact | Audit record present, no corrective work order, canonical BPR/SOP/GMP/history citations, tool log present |
+| 2 | GR-204 spray rate high, critical long excursion | `202` and Durable orchestration starts | `APPROVE`, `critical`, batch disposition `conditional_release_pending_testing`; rationale should explain process impact and need for documented controls | Audit record and corrective work order present, canonical BPR/SOP/GMP/history citations, tool log present |
+| 3 | MIX-102 motor current spike, brief minor anomaly | `202` and Durable orchestration starts | `REJECT`, `low`, batch disposition `release`; rationale should explain brief transient behavior and no material impact | Audit record present, no corrective work order, citations must not include GR-204-specific SOP/manual evidence |
+| 4 | DRY-303 inlet temperature low, critical drying excursion | `202` and Durable orchestration starts | `APPROVE`, `critical`, batch disposition `hold_pending_review` or equivalent hold/review disposition; rationale should explain drying impact and batch review need | Audit record and corrective work order present, SOP/GMP/history citations present. If `BPR-AML-005-v2.0` is not indexed, report an evidence gap instead of citing another product's BPR |
+| 5 | Duplicate of scenario 1, idempotency | `200` with `already_exists` when scenario 1 with the same `alert_id` already exists | AI decision is not the objective; no duplicate orchestration should be started | Use `--all --fresh` or run scenario 1 then scenario 5 with the same IDs to prove deduplication |
+| 6 | Invalid payload missing `unit` | `400` validation error, typically `Missing required field: 'unit'` | No AI analysis should run | No incident, no orchestration, no notification |
+| 7 | MIX-102 borderline start-up transient | `202` and Durable orchestration starts | `REJECT`, `low`, batch disposition `release`; rationale should explain start-up transient context, no batch impact, and no corrective action needed | Audit record present, no corrective work order, citations/tool log present, UI recommendation must be a plain decision string plus rationale, not raw JSON |
+
+> Use `--fresh` to generate unique IDs each run. In `--all --fresh`, scenario 5 intentionally receives the same fresh `alert_id` suffix as scenario 1, so it should still return `already_exists`.
 
 ### What Happens After A Successful Alert
 

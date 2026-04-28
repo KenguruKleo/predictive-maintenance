@@ -95,9 +95,17 @@ export function useMarkIncidentNotificationsRead() {
       if (previousSummary) {
         const hadUnreadIncident = previousSummary.unread_incident_ids.includes(incidentId);
         if (hadUnreadIncident) {
+          const removedSummaryCount = new Set(
+            previousNotificationQueries.flatMap(([, previousValue]) => {
+              if (!previousValue) return [];
+              return previousValue.items
+                .filter((item) => item.incident_id === incidentId && !item.is_read)
+                .map((item) => item.id);
+            }),
+          ).size;
           queryClient.setQueryData<NotificationSummary>(["notifications-summary"], {
             ...previousSummary,
-            unread_count: Math.max(0, previousSummary.unread_count - 1),
+            unread_count: Math.max(0, previousSummary.unread_count - removedSummaryCount),
             unread_incident_ids: previousSummary.unread_incident_ids.filter((id) => id !== incidentId),
           });
         }

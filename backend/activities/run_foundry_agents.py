@@ -741,7 +741,11 @@ def _build_prompt(
             "",
             "### Research Evidence Package (authoritative)",
             "This package was retrieved directly from Sentinel DB/Search before this Orchestrator run.",
-            "Use its `evidence_citations` as the source of truth and preserve canonical citation fields.",
+            (
+                "Use its `evidence_citations` as the source of truth for your reasoning. "
+                "The backend will attach the canonical citations and tool log after your decision, "
+                "so do not echo the large evidence/tool arrays in your final JSON."
+            ),
             "```json",
             json.dumps(research_package, indent=2, default=str),
             "```",
@@ -781,21 +785,21 @@ def _build_prompt(
         "---",
         "### Instructions",
         (
-            "The summaries above are only routing context to help you call the right tools. "
-            "Use your Research sub-agent as the single source of evidence for SOPs, "
+            "The summaries above are only routing context for your final decision. "
+            "Use the Research Evidence Package above as the single source of evidence for SOPs, "
             "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
             "When the prompt contains a Research Evidence Package, that package is the Research "
-            "sub-agent output for this run; do not call Research again or replace its citations. "
-            "If the package is absent, call the Research sub-agent. Do not simulate tool_calls_log "
-            "or invent citations from model memory. "
-            "Copy the full Research Agent evidence_citations array into your final response and "
-            "preserve every canonical field: "
-            "document_id, document_title, section_heading, text_excerpt, source_blob, "
-            "index_name, chunk_index, and score. "
+            "output for this run; do not call connected agents or external tools. "
+            "Do not simulate tool_calls_log or invent citations from model memory. "
+            "When the Research Evidence Package is present, keep the final JSON compact: set "
+            "evidence_citations, sop_refs, regulatory_refs, and tool_calls_log to empty arrays. "
+            "The backend will carry forward the full canonical package. If the package is absent, "
+            "copy only real Research Agent citations/tool calls and preserve canonical fields. "
             "You, the Orchestrator, must produce the final structured analysis and decision. "
-            "Use your Document sub-agent only after you decide, and pass it only the compact "
-            "documentation package it needs: incident identifiers, your final decision fields, "
-            "audit/work-order drafting inputs, and citations used."
+            "Draft audit_entry_draft and, for APPROVE only, work_order_draft directly in the final JSON; "
+            "leave audit_entry_id and work_order_id null. For source alerts with severity=critical, "
+            "keep risk_level=critical when agent_recommendation=APPROVE unless the evidence supports "
+            "a REJECT false-positive/no-impact transient."
         ),
         "",
         "Return one JSON object that matches the configured response schema. Required top-level fields: ",
@@ -808,7 +812,7 @@ def _build_prompt(
             "audit_entry_id, work_order_id. Include execution_error only when a tool/documentation "
             "step fails or returns an error."
         ),
-        "Carry forward tool_calls_log from the Research Agent. Merge only documentation fields from Document Agent.",
+        "When the Research Evidence Package is present, return compact empty arrays for evidence_citations, sop_refs, regulatory_refs, and tool_calls_log; backend normalization restores them. Do not call connected agents or external tools.",
         "If Research Agent did not return real canonical SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
         "For REJECT decisions, work_order_draft and work_order_id must be null.",
         "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer follow-up questions directly.",
@@ -1082,6 +1086,8 @@ def _collect_research_evidence_package(
                 continue
             if not _citation_applies_to_equipment(citation, hit, equipment_id):
                 continue
+            if not _citation_applies_to_bpr_reference(citation, hit, bpr_reference):
+                continue
             citation_key = (
                 str(citation.get("index_name") or ""),
                 str(citation.get("document_id") or ""),
@@ -1097,6 +1103,10 @@ def _collect_research_evidence_package(
 
     if not citations:
         evidence_gaps.append("No canonical evidence citations were retrieved from Azure AI Search.")
+    if bpr_reference and not any(citation.get("type") == "bpr" for citation in citations):
+        evidence_gaps.append(
+            f"No BPR citation matched batch bpr_reference '{bpr_reference}'; product-specific BPR evidence is missing from search results."
+        )
 
     historical_citations = [c for c in citations if c.get("type") == "historical"]
     bpr_citation = next((c for c in citations if c.get("type") == "bpr"), None)
@@ -1154,6 +1164,7 @@ def _collect_research_evidence_package(
                 "upper_limit": upper_limit,
                 "duration_seconds": duration_seconds,
                 "deviation_type": alert_payload.get("deviation_type"),
+                "severity": alert_payload.get("severity"),
             },
             [
                 "incident_id",
@@ -1165,6 +1176,7 @@ def _collect_research_evidence_package(
                 "upper_limit",
                 "duration_seconds",
                 "deviation_type",
+                "severity",
             ],
         ),
         "equipment_facts": _compact_equipment_context(equipment),
@@ -1434,6 +1446,9 @@ _log_trace_json = log_trace_json
 _log_trace_text = log_trace_text
 
 
+_MISSING_JSON_FIELD = object()
+
+
 def _parse_response(raw_text: str) -> dict:
     """Extract JSON block from agent response, with graceful fallback."""
     # Try ```json ... ``` block first
@@ -1454,11 +1469,23 @@ def _parse_response(raw_text: str) -> dict:
     except json.JSONDecodeError:
         pass
 
+    recovered = _recover_truncated_agent_json(raw_text)
+    if recovered:
+        return recovered
+
     # Fallback — unstructured response (shouldn't happen in production)
     logger.warning("Could not parse structured JSON from Foundry agent response")
+    stripped = raw_text.strip()
+    fallback_analysis = (
+        "Structured agent response could not be parsed. See raw_response in the audit trace."
+        if stripped.startswith("{")
+        else raw_text[:2000]
+        if raw_text
+        else "Analysis not available."
+    )
     return {
         "title": "Deviation Review Required",
-        "analysis": raw_text[:2000] if raw_text else "Analysis not available.",
+        "analysis": fallback_analysis,
         "root_cause": "Could not determine root cause automatically.",
         "operator_dialogue": "I could not produce a structured follow-up summary for the operator.",
         "classification": "unknown",
@@ -1474,6 +1501,114 @@ def _parse_response(raw_text: str) -> dict:
         "batch_disposition": "hold_pending_review",
         "raw_response": raw_text,
     }
+
+
+def _recover_truncated_agent_json(raw_text: str) -> dict | None:
+    """Recover top-level decision fields when Foundry truncates a JSON response.
+
+    The Orchestrator sometimes emits a valid JSON prefix but exhausts output budget
+    while copying large citation/tool arrays. The backend owns those arrays anyway,
+    so recovering complete scalar fields is safer than surfacing raw JSON to the UI.
+    """
+    text = raw_text.strip()
+    if not text.startswith("{"):
+        return None
+
+    recovered: dict[str, object] = {}
+    for field_name in [
+        "incident_id",
+        "title",
+        "classification",
+        "risk_level",
+        "confidence",
+        "confidence_flag",
+        "root_cause",
+        "analysis",
+        "recommendation",
+        "agent_recommendation",
+        "agent_recommendation_rationale",
+        "operator_dialogue",
+        "capa_suggestion",
+        "regulatory_reference",
+        "batch_disposition",
+        "recommendations",
+        "work_order_draft",
+        "audit_entry_draft",
+        "work_order_id",
+        "audit_entry_id",
+    ]:
+        value = _extract_top_level_json_field(text, field_name)
+        if value is not _MISSING_JSON_FIELD:
+            recovered[field_name] = value
+
+    if not any(
+        field_name in recovered
+        for field_name in ("analysis", "recommendation", "agent_recommendation", "risk_level")
+    ):
+        return None
+
+    analysis = str(recovered.get("analysis") or "Structured analysis recovered from a truncated agent response.")
+    root_cause = str(recovered.get("root_cause") or "Could not determine root cause automatically.")
+    classification = str(recovered.get("classification") or "unknown")
+    recommendation = str(
+        recovered.get("recommendation")
+        or recovered.get("agent_recommendation_rationale")
+        or analysis
+    )
+    capa_suggestion = str(recovered.get("capa_suggestion") or "")
+    audit_entry = recovered.get("audit_entry_draft")
+    if not isinstance(audit_entry, dict):
+        audit_entry = {
+            "deviation_type": classification,
+            "description": analysis[:500],
+            "root_cause": root_cause,
+            "capa_actions": capa_suggestion or recommendation[:500],
+        }
+
+    result = {
+        "incident_id": str(recovered.get("incident_id") or ""),
+        "title": str(recovered.get("title") or "Deviation Review Required"),
+        "classification": classification,
+        "risk_level": str(recovered.get("risk_level") or "unknown"),
+        "confidence": recovered.get("confidence") if isinstance(recovered.get("confidence"), (int, float)) else 0.5,
+        "confidence_flag": recovered.get("confidence_flag"),
+        "root_cause": root_cause,
+        "analysis": analysis,
+        "recommendation": recommendation,
+        "agent_recommendation": recovered.get("agent_recommendation"),
+        "agent_recommendation_rationale": str(recovered.get("agent_recommendation_rationale") or ""),
+        "operator_dialogue": str(recovered.get("operator_dialogue") or analysis[:500]),
+        "capa_suggestion": capa_suggestion,
+        "regulatory_reference": str(recovered.get("regulatory_reference") or ""),
+        "batch_disposition": str(recovered.get("batch_disposition") or "hold_pending_review"),
+        "recommendations": recovered.get("recommendations") if isinstance(recovered.get("recommendations"), list) else [],
+        "regulatory_refs": [],
+        "sop_refs": [],
+        "evidence_citations": [],
+        "work_order_draft": recovered.get("work_order_draft") if isinstance(recovered.get("work_order_draft"), dict) else None,
+        "audit_entry_draft": audit_entry,
+        "tool_calls_log": [],
+        "work_order_id": recovered.get("work_order_id") if isinstance(recovered.get("work_order_id"), str) else None,
+        "audit_entry_id": recovered.get("audit_entry_id") if isinstance(recovered.get("audit_entry_id"), str) else None,
+        "execution_error": "Foundry response JSON was truncated; recovered scalar decision fields from the response prefix.",
+        "raw_response": raw_text,
+    }
+    logger.warning("Recovered scalar fields from truncated Foundry JSON response")
+    return result
+
+
+def _extract_top_level_json_field(text: str, field_name: str) -> object:
+    match = re.search(rf'"{re.escape(field_name)}"\s*:', text)
+    if not match:
+        return _MISSING_JSON_FIELD
+
+    decoder = json.JSONDecoder()
+    value_text = text[match.end():].lstrip()
+    try:
+        value, _end = decoder.raw_decode(value_text)
+        return value
+    except json.JSONDecodeError:
+        return _MISSING_JSON_FIELD
 
 
 def _normalize_agent_result(
@@ -1536,7 +1671,23 @@ def _normalize_agent_result(
         else:
             result["agent_recommendation"] = None
     _normalize_agent_recommendation_contract(result)
+    _normalize_risk_level_contract(result, authoritative_research_package or {})
     return result
+
+
+def _normalize_risk_level_contract(result: dict, authoritative_research_package: dict) -> None:
+    if str(result.get("agent_recommendation") or "").strip().upper() != "APPROVE":
+        return
+
+    incident_facts = authoritative_research_package.get("incident_facts")
+    if not isinstance(incident_facts, dict):
+        return
+    if _normalize_text(str(incident_facts.get("severity") or "")) != "critical":
+        return
+
+    risk = _normalize_text(str(result.get("risk_level") or ""))
+    if risk in {"", "unknown", "low", "medium", "high"}:
+        result["risk_level"] = "critical"
 
 
 def _normalize_agent_recommendation_contract(result: dict) -> None:
@@ -1687,6 +1838,35 @@ def _citation_applies_to_equipment(citation: dict, hit: dict, equipment_id: str)
         return current_equipment in explicit_equipment_ids
 
     return True
+
+
+def _citation_applies_to_bpr_reference(citation: dict, hit: dict, bpr_reference: str) -> bool:
+    if str(citation.get("index_name") or "") != "idx-bpr-documents":
+        return True
+    expected = _normalize_document_match_key(bpr_reference)
+    if not expected:
+        return True
+
+    identity = _normalize_document_match_key(
+        " ".join(
+            str(value or "")
+            for value in [
+                citation.get("document_id"),
+                citation.get("document_title"),
+                citation.get("source_blob"),
+                citation.get("section_path"),
+                hit.get("document_id"),
+                hit.get("document_title"),
+                hit.get("source"),
+                hit.get("source_blob"),
+            ]
+        )
+    )
+    return expected in identity
+
+
+def _normalize_document_match_key(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(value or "").lower())
 
 
 def _normalize_authoritative_research_citations(

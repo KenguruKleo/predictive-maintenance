@@ -45,3 +45,6 @@
 | T-055 | [T-055-ai-pipeline-status-contract.md](./T-055-ai-pipeline-status-contract.md) |
 | T-056 | [T-056-electron-desktop-app.md](./T-056-electron-desktop-app.md) |
 | T-057 | [T-057-config-externalization-portability.md](./T-057-config-externalization-portability.md) |
+| T-058 | [T-058-frontend-unit-test-coverage.md](./T-058-frontend-unit-test-coverage.md) |
+| T-059 | [T-059-backend-test-coverage.md](./T-059-backend-test-coverage.md) |
+| T-060 | [T-060-teams-app-integration.md](./T-060-teams-app-integration.md) |

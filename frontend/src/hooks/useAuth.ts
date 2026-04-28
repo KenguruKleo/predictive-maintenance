@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { apiRequest } from "../authConfig";
 import type { AppRole } from "../authRuntime";
 import { clearE2EAuthState, getE2EAuthState, IS_E2E_AUTH } from "../authRuntime";
+import { clearTeamsAuthToken, useTeamsAuth } from "../teamsAuth";
 
 export type { AppRole } from "../authRuntime";
 
@@ -41,6 +42,7 @@ function decodeJwtPayload(token: string): Record<string, unknown> | null {
 
 export function useAuth() {
   const { instance, accounts } = useMsal();
+  const teamsAuth = useTeamsAuth();
   const account = accounts[0] ?? null;
   const accountKey = account?.homeAccountId ?? account?.localAccountId ?? account?.username ?? null;
   const e2eAuthState = useMemo(() => getE2EAuthState(), []);
@@ -74,9 +76,10 @@ export function useAuth() {
     };
   }, [account, accountKey, instance]);
 
-  const rolesHydrated = IS_E2E_AUTH || !account || tokenRoleState.accountKey === accountKey;
+  const rolesHydrated = teamsAuth.isAuthenticated || IS_E2E_AUTH || !account || tokenRoleState.accountKey === accountKey;
 
   const roles = useMemo<AppRole[]>(() => {
+    if (teamsAuth.isAuthenticated) return teamsAuth.roles;
     if (IS_E2E_AUTH) return e2eAuthState.roles;
     if (!account) return [];
     const accessTokenRoles = tokenRoleState.accountKey === accountKey ? tokenRoleState.roles : [];
@@ -85,12 +88,14 @@ export function useAuth() {
     const claims = account.idTokenClaims as Record<string, unknown> | undefined;
     const normalized = normalizeRoles(claims?.roles);
     return normalized;
-  }, [account, accountKey, e2eAuthState.roles, tokenRoleState.accountKey, tokenRoleState.roles]);
+  }, [account, accountKey, e2eAuthState.roles, teamsAuth.isAuthenticated, teamsAuth.roles, tokenRoleState.accountKey, tokenRoleState.roles]);
 
   const displayName = IS_E2E_AUTH
     ? e2eAuthState.displayName
+    : teamsAuth.isAuthenticated
+      ? teamsAuth.displayName
     : account?.name ?? account?.username ?? "User";
-  const email = IS_E2E_AUTH ? e2eAuthState.email : account?.username ?? "";
+  const email = IS_E2E_AUTH ? e2eAuthState.email : teamsAuth.isAuthenticated ? teamsAuth.email : account?.username ?? "";
 
   const hasRole = (role: AppRole) => roles.includes(role);
   const hasAnyRole = (...check: AppRole[]) => check.some((r) => roles.includes(r));
@@ -98,6 +103,11 @@ export function useAuth() {
   const logout = () => {
     if (IS_E2E_AUTH) {
       clearE2EAuthState();
+      window.location.reload();
+      return;
+    }
+    if (teamsAuth.isAuthenticated) {
+      clearTeamsAuthToken();
       window.location.reload();
       return;
     }
