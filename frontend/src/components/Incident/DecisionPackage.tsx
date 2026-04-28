@@ -99,7 +99,10 @@ export default function DecisionPackage({ incident, editableDrafts, onDraftChang
         <div className="decision-section decision-section--primary">
           <h3 className="section-title">AI Recommendation for this Incident</h3>
           {analysis.agent_recommendation && (
-            <AgentRecommendationBadge recommendation={analysis.agent_recommendation} />
+            <AgentRecommendationBadge
+              recommendation={analysis.agent_recommendation}
+              rationale={analysis.agent_recommendation_rationale ?? analysis.recommendation}
+            />
           )}
           <div className="decision-summary-grid">
             <Metric label="Risk" value={analysis.risk_level} />

@@ -2344,6 +2344,13 @@
   font-size: 13px;
   font-weight: 700;
 }
+.agent-rec-badge-rationale {
+  margin: 2px 0 0;
+  color: inherit;
+  font-size: 12px;
+  line-height: 1.45;
+  max-width: 68ch;
+}
 /* When used in DecisionPackage, add bottom spacing before the metric grid */
 .decision-section .agent-rec-badge {
   margin-bottom: var(--space-3);

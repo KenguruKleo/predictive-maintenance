@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _citation_applies_to_equipment,
     _normalize_agent_result,
     _normalize_evidence_citations,
 )
@@ -301,6 +302,143 @@ def test_normalize_agent_result_uses_authoritative_research_package_citations() 
         "sentinel_search_search_bpr_documents",
         "sentinel_search_search_incident_history",
     ]
+    assert normalized["agent_recommendation_rationale"].startswith("REJECT because")
+
+
+def test_citation_applies_to_equipment_filters_other_equipment_specific_sop() -> None:
+    citation = {"index_name": "idx-sop-documents"}
+
+    assert not _citation_applies_to_equipment(
+        citation,
+        {"equipment_ids": ["GR-204"]},
+        "MIX-102",
+    )
+    assert _citation_applies_to_equipment(
+        citation,
+        {"equipment_ids": ["GR-204"]},
+        "GR-204",
+    )
+    assert _citation_applies_to_equipment(citation, {"equipment_ids": []}, "MIX-102")
+
+
+def test_citation_applies_to_equipment_filters_specific_sop_without_equipment_ids() -> None:
+    assert not _citation_applies_to_equipment(
+        {
+            "index_name": "idx-sop-documents",
+            "document_id": "SOP-MAN-GR-001-Granulator-Operation",
+            "document_title": "SOP-MAN-GR-001 · High-Shear Granulator — Operation Procedure",
+            "source_blob": "SOP-MAN-GR-001-Granulator-Operation.md",
+        },
+        {},
+        "MIX-102",
+    )
+    assert _citation_applies_to_equipment(
+        {
+            "index_name": "idx-sop-documents",
+            "document_id": "SOP-MAN-GR-001-Granulator-Operation",
+            "document_title": "SOP-MAN-GR-001 · High-Shear Granulator — Operation Procedure",
+            "source_blob": "SOP-MAN-GR-001-Granulator-Operation.md",
+        },
+        {},
+        "GR-204",
+    )
+    assert _citation_applies_to_equipment(
+        {
+            "index_name": "idx-sop-documents",
+            "document_id": "SOP-DEV-001-Deviation-Management",
+            "document_title": "SOP-DEV-001 — GMP Deviation Management Procedure",
+            "source_blob": "SOP-DEV-001-Deviation-Management.md",
+        },
+        {},
+        "MIX-102",
+    )
+
+
+def test_approve_recommendation_contract_sets_testing_disposition() -> None:
+    normalized = _normalize_agent_result(
+        {
+            "incident_id": "INC-2026-0090",
+            "title": "Spray Rate High",
+            "risk_level": "critical",
+            "confidence": 0.95,
+            "analysis": "Sustained spray-rate excursion with product quality risk.",
+            "recommendation": "Inspect nozzle and conduct granule distribution testing.",
+            "operator_dialogue": "Corrective action and testing are required.",
+            "root_cause": "Potential nozzle or flowmeter issue.",
+            "agent_recommendation": "APPROVE",
+            "batch_disposition": "hold_pending_review",
+            "recommendations": [
+                {
+                    "action": "Conduct granule distribution testing",
+                    "priority": "high",
+                    "owner": "Quality Control",
+                    "deadline_days": 5,
+                }
+            ],
+            "work_order_draft": {
+                "title": "Inspect spray system",
+                "description": "Inspect nozzle and verify flowmeter calibration.",
+                "priority": "high",
+                "estimated_hours": 8,
+            },
+            "audit_entry_draft": {
+                "deviation_type": "process_parameter_excursion",
+                "description": "Sustained spray-rate excursion.",
+                "root_cause": "Potential nozzle or flowmeter issue.",
+                "capa_actions": "Inspect nozzle and conduct granule distribution testing.",
+            },
+            "evidence_citations": [],
+            "tool_calls_log": [],
+        },
+        {},
+        more_info_round=0,
+    )
+
+    assert normalized["agent_recommendation"] == "APPROVE"
+    assert normalized["batch_disposition"] == "conditional_release_pending_testing"
+    assert normalized["work_order_draft"] is not None
+
+
+def test_reject_recommendation_contract_clears_corrective_actions() -> None:
+    normalized = _normalize_agent_result(
+        {
+            "incident_id": "INC-2026-0086",
+            "title": "Impeller Speed Low",
+            "risk_level": "medium",
+            "confidence": 0.85,
+            "analysis": "Short transient excursion with no confirmed product quality impact.",
+            "recommendation": "Investigate calibration and review operational logs.",
+            "operator_dialogue": "Investigate calibration and review operational logs.",
+            "root_cause": "Transient operational anomaly.",
+            "agent_recommendation": "REJECT",
+            "recommendations": [
+                {
+                    "action": "Perform equipment calibration check",
+                    "priority": "medium",
+                    "owner": "Maintenance",
+                    "deadline_days": 7,
+                }
+            ],
+            "work_order_draft": None,
+            "audit_entry_draft": {
+                "deviation_type": "process_parameter_excursion",
+                "description": "Short transient excursion.",
+                "root_cause": "Transient operational anomaly.",
+                "capa_actions": "Conduct equipment calibration check.",
+            },
+            "evidence_citations": [],
+            "tool_calls_log": [],
+        },
+        {},
+        more_info_round=0,
+    )
+
+    assert normalized["recommendations"] == []
+    assert normalized["work_order_draft"] is None
+    assert normalized["work_order_id"] is None
+    assert normalized["agent_recommendation_rationale"].startswith("REJECT because")
+    assert normalized["recommendation"] == normalized["agent_recommendation_rationale"]
+    assert normalized["audit_entry_draft"]["capa_actions"].startswith("No CAPA/work order required")
 
 
 def test_normalize_evidence_citations_builds_historical_incident_link() -> None:

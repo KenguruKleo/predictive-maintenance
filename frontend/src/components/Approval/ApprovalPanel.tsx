@@ -155,10 +155,17 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
 
       {incident.ai_analysis && <ConfidenceBanner analysis={incident.ai_analysis} />}
       {incident.ai_analysis?.agent_recommendation && isPending && (
-        <AgentRecommendationBadge recommendation={incident.ai_analysis.agent_recommendation} />
+        <AgentRecommendationBadge
+          recommendation={incident.ai_analysis.agent_recommendation}
+          rationale={incident.ai_analysis.agent_recommendation_rationale ?? incident.ai_analysis.recommendation}
+        />
       )}
       {incident.ai_analysis?.agent_recommendation && !isPending && !isAwaitingAgents && agentWasOverridden && (
-        <AgentRecommendationBadge recommendation={incident.ai_analysis.agent_recommendation} overridden />
+        <AgentRecommendationBadge
+          recommendation={incident.ai_analysis.agent_recommendation}
+          rationale={incident.ai_analysis.agent_recommendation_rationale ?? incident.ai_analysis.recommendation}
+          overridden
+        />
       )}
 
       {decisionSummary && !isPending && !isAwaitingAgents && (

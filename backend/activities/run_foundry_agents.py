@@ -802,7 +802,7 @@ def _build_prompt(
         (
             "incident_id, title, classification, risk_level, confidence, confidence_flag, "
             "root_cause, analysis, recommendation, agent_recommendation, operator_dialogue, "
-            "capa_suggestion, regulatory_reference, "
+            "agent_recommendation_rationale, capa_suggestion, regulatory_reference, "
             "batch_disposition, recommendations, regulatory_refs, sop_refs, evidence_citations, "
             "audit_entry_draft, work_order_draft, tool_calls_log, "
             "audit_entry_id, work_order_id. Include execution_error only when a tool/documentation "
@@ -899,6 +899,11 @@ def _collect_research_evidence_package(
         or equipment.get("equipment_id")
         or ""
     ).strip()
+    equipment_name = str(equipment.get("name") or equipment.get("equipment_name") or "").strip()
+    equipment_type = str(equipment.get("type") or equipment.get("equipment_type") or "").strip()
+    equipment_tags = " ".join(
+        str(tag) for tag in (equipment.get("tags") or []) if str(tag).strip()
+    )
     parameter = str(alert_payload.get("parameter") or "").strip()
     parameter_terms = parameter.replace("_", " ")
     product = str(
@@ -919,6 +924,11 @@ def _collect_research_evidence_package(
     measured_value = alert_payload.get("measured_value", "")
     duration_seconds = alert_payload.get("duration_seconds", "")
     deviation_type = str(alert_payload.get("deviation_type") or "").replace("_", " ")
+    equipment_terms = " ".join(
+        value
+        for value in [equipment_id, equipment_name, equipment_type, equipment_tags, stage]
+        if value
+    )
 
     eq_filter = None
     if equipment_id:
@@ -950,10 +960,10 @@ def _collect_research_evidence_package(
             " ".join(
                 str(value)
                 for value in [
-                    equipment_id,
+                    equipment_terms,
                     parameter_terms,
                     deviation_type,
-                    "granulator operation GMP deviation investigation",
+                    "operation GMP deviation investigation SOP",
                     lower_limit,
                     upper_limit,
                 ]
@@ -984,9 +994,9 @@ def _collect_research_evidence_package(
             " ".join(
                 str(value)
                 for value in [
-                    equipment_id,
+                    equipment_terms,
                     parameter_terms,
-                    "operational limits troubleshooting bearing VFD speed regulation",
+                    "operational limits troubleshooting maintenance calibration current speed control",
                     measured_value,
                 ]
                 if value not in (None, "")
@@ -1069,6 +1079,8 @@ def _collect_research_evidence_package(
             if not citation:
                 continue
             if _citation_points_to_incident(citation, current_incident_id):
+                continue
+            if not _citation_applies_to_equipment(citation, hit, equipment_id):
                 continue
             citation_key = (
                 str(citation.get("index_name") or ""),
@@ -1523,7 +1535,158 @@ def _normalize_agent_result(
             result["agent_recommendation"] = "REJECT"
         else:
             result["agent_recommendation"] = None
+    _normalize_agent_recommendation_contract(result)
     return result
+
+
+def _normalize_agent_recommendation_contract(result: dict) -> None:
+    verdict = str(result.get("agent_recommendation") or "").strip().upper()
+    if verdict not in {"APPROVE", "REJECT"}:
+        result["agent_recommendation_rationale"] = ""
+        return
+
+    rationale = _build_agent_recommendation_rationale(result, verdict)
+    result["agent_recommendation_rationale"] = rationale
+
+    if verdict != "REJECT":
+        _normalize_approve_batch_disposition(result)
+        return
+
+    had_corrective_actions = bool(result.get("recommendations") or result.get("work_order_draft"))
+    result["work_order_draft"] = None
+    result["work_order_id"] = None
+    result["recommendations"] = []
+
+    if had_corrective_actions or _looks_like_corrective_action_text(result.get("recommendation")):
+        result["recommendation"] = rationale
+        result["operator_dialogue"] = _shorten_text(rationale, 800)
+    if _looks_like_corrective_action_text(result.get("capa_suggestion")):
+        result["capa_suggestion"] = "No CAPA/work order required; document the event and continue routine trend monitoring."
+
+    audit_entry_draft = result.get("audit_entry_draft")
+    if isinstance(audit_entry_draft, dict) and _looks_like_corrective_action_text(
+        audit_entry_draft.get("capa_actions")
+    ):
+        audit_entry_draft["capa_actions"] = (
+            "No CAPA/work order required; document the event and continue routine trend monitoring."
+        )
+
+
+def _build_agent_recommendation_rationale(result: dict, verdict: str) -> str:
+    analysis = _shorten_text(str(result.get("analysis") or "").strip(), 280)
+    recommendation = _shorten_text(str(result.get("recommendation") or "").strip(), 220)
+    root_cause = _shorten_text(str(result.get("root_cause") or "").strip(), 180)
+
+    if verdict == "APPROVE":
+        reason = recommendation or analysis or root_cause
+        return f"APPROVE because corrective action is warranted: {reason}" if reason else "APPROVE because corrective action is warranted by the available evidence."
+
+    reason = analysis or recommendation or root_cause
+    return f"REJECT because no formal CAPA/work order is warranted: {reason}" if reason else "REJECT because the available evidence does not support a formal CAPA/work order."
+
+
+def _normalize_approve_batch_disposition(result: dict) -> None:
+    disposition = _normalize_text(str(result.get("batch_disposition") or ""))
+    if disposition not in {"hold_pending_review", "hold pending review", "under_review", "under review"}:
+        return
+    if _approval_requires_testing(result):
+        result["batch_disposition"] = "conditional_release_pending_testing"
+
+
+def _approval_requires_testing(result: dict) -> bool:
+    values: list[object] = [
+        result.get("recommendation"),
+        result.get("analysis"),
+        result.get("operator_dialogue"),
+        result.get("capa_suggestion"),
+    ]
+    audit_entry_draft = result.get("audit_entry_draft")
+    if isinstance(audit_entry_draft, dict):
+        values.extend(audit_entry_draft.values())
+    work_order_draft = result.get("work_order_draft")
+    if isinstance(work_order_draft, dict):
+        values.extend(work_order_draft.values())
+    for item in result.get("recommendations") or []:
+        if isinstance(item, dict):
+            values.extend(item.values())
+
+    text = _normalize_text(" ".join(str(value or "") for value in values))
+    testing_markers = [
+        "test",
+        "testing",
+        "qc",
+        "quality control",
+        "quality testing",
+        "granule distribution",
+        "moisture",
+        "psd",
+        "particle size",
+    ]
+    return any(marker in text for marker in testing_markers)
+
+
+def _looks_like_corrective_action_text(value: object) -> bool:
+    text = _normalize_text(str(value or ""))
+    if not text:
+        return False
+    no_action_markers = ["no corrective action", "no capa", "no formal capa", "no action required"]
+    if any(marker in text for marker in no_action_markers):
+        return False
+    action_markers = [
+        "calibrat",
+        "inspect",
+        "investigat",
+        "repair",
+        "replace",
+        "clean",
+        "work order",
+        "corrective",
+        "conduct",
+        "perform",
+    ]
+    return any(marker in text for marker in action_markers)
+
+
+def _citation_applies_to_equipment(citation: dict, hit: dict, equipment_id: str) -> bool:
+    if not equipment_id:
+        return True
+    index_name = str(citation.get("index_name") or "")
+    if index_name not in {"idx-sop-documents", "idx-equipment-manuals"}:
+        return True
+
+    equipment_ids = {
+        str(value).strip().upper()
+        for value in (hit.get("equipment_ids") or [])
+        if str(value).strip()
+    }
+    current_equipment = equipment_id.strip().upper()
+    if equipment_ids:
+        return current_equipment in equipment_ids
+
+    # Older or partially populated indexes may not return equipment_ids for SOPs.
+    # Keep global procedures, but reject equipment-specific SOP/manual documents
+    # whose identity points at a different equipment family.
+    document_identity = " ".join(
+        str(value or "")
+        for value in [
+            citation.get("document_id"),
+            citation.get("document_title"),
+            citation.get("source_blob"),
+            citation.get("section_path"),
+        ]
+    ).upper()
+    current_prefix = current_equipment.split("-", 1)[0]
+    specific_sop_match = re.search(r"\bSOP-MAN-([A-Z]+)-", document_identity)
+    if specific_sop_match:
+        return specific_sop_match.group(1) == current_prefix
+
+    explicit_equipment_ids = set(
+        re.findall(r"\b(?:GR|MIX|DRY|COMP|PKG|FBD|BLD)-\d{3,4}\b", document_identity)
+    )
+    if explicit_equipment_ids:
+        return current_equipment in explicit_equipment_ids
+
+    return True
 
 
 def _normalize_authoritative_research_citations(

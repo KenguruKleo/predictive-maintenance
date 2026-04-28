@@ -43,6 +43,7 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "must call `research_agent`" in prompt
     assert "Do not write or simulate `tool_calls_log`" in prompt
     assert "Do not invent citations" in prompt
+    assert "agent_recommendation_rationale" in prompt
     assert "Copy the\n  full array intact" in prompt
 
 
@@ -61,5 +62,6 @@ def test_foundry_agent_schemas_require_canonical_research_evidence() -> None:
         "index_name",
         "chunk_index",
         "score",
+        "agent_recommendation_rationale",
     ]:
         assert f'"{field}"' in source

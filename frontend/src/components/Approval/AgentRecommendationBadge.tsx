@@ -1,9 +1,10 @@
 interface Props {
   recommendation: "APPROVE" | "REJECT";
+  rationale?: string;
   overridden?: boolean;
 }
 
-export default function AgentRecommendationBadge({ recommendation, overridden }: Props) {
+export default function AgentRecommendationBadge({ recommendation, rationale, overridden }: Props) {
   const isApprove = recommendation === "APPROVE";
   const colorClass = overridden ? "overridden" : isApprove ? "approve" : "reject";
   return (
@@ -18,6 +19,7 @@ export default function AgentRecommendationBadge({ recommendation, overridden }:
             ? "✓ APPROVE — incident confirmed, action required"
             : "✕ REJECT — transient / no action required"}
         </strong>
+        {rationale && <p className="agent-rec-badge-rationale">{rationale}</p>}
       </div>
     </div>
   );

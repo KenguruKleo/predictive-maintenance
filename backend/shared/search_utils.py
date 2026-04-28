@@ -12,7 +12,6 @@ All 5 indexes share the same field schema:
 """
 
 import os
-from functools import lru_cache
 from typing import Any
 
 from azure.core.credentials import AzureKeyCredential
@@ -113,7 +112,7 @@ def search_index(
         select=[
             "id", "document_id", "document_title", "document_type",
             "chunk_index", "section_heading", "section_key", "section_path",
-            "text", "keywords", "source_blob",
+            "text", "keywords", "equipment_ids", "source_blob",
         ],
     )
 
@@ -128,6 +127,7 @@ def search_index(
             "section_path": r.get("section_path", ""),
             "text": r.get("text", ""),
             "keywords": r.get("keywords", []),
+            "equipment_ids": r.get("equipment_ids", []),
             "source": r.get("source_blob", ""),
             "score": r.get("@search.score", 0.0),
         }

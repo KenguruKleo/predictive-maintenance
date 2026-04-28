@@ -103,6 +103,7 @@ export interface AiAnalysis {
   work_order_draft?: Record<string, unknown>;
   audit_entry_draft?: Record<string, unknown>;
   agent_recommendation?: "APPROVE" | "REJECT";
+  agent_recommendation_rationale?: string;
 }
 
 export interface DocumentDraft {
