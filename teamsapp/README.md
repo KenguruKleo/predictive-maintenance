@@ -11,6 +11,8 @@ This folder contains the Microsoft Teams app package for bringing Sentinel Intel
 
 The zip contains only `manifest.json`, `color.png`, and `outline.png`. Teams does not host the app UI; it loads the HTTPS URL from the manifest.
 
+For tagged releases, GitHub Actions now builds this package in a separate workflow on every `release-*` tag and uploads `sentinel-intelligence-teams.zip` to the matching GitHub Release assets.
+
 ## Install In Teams
 
 1. Open Microsoft Teams.

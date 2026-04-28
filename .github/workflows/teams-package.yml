@@ -1,0 +1,74 @@
+name: Teams App Package
+
+on:
+  push:
+    tags: ['release-*']
+
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  teams-package:
+    name: Build Teams app package
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Generate Teams app icons
+        run: node teamsapp/scripts/generate-icons.mjs
+
+      - name: Verify Teams package inputs
+        run: |
+          set -euo pipefail
+          cd teamsapp
+          for file in manifest.json color.png outline.png; do
+            if [ ! -f "$file" ]; then
+              echo "Missing Teams package input: $file"
+              exit 1
+            fi
+          done
+
+      - name: Build Teams app package
+        run: |
+          set -euo pipefail
+          mkdir -p teamsapp/dist
+          cd teamsapp
+          zip -j dist/sentinel-intelligence-teams.zip manifest.json color.png outline.png
+
+      - name: List Teams app artifact
+        run: ls -lh teamsapp/dist
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sentinel-intelligence-teams-${{ github.sha }}
+          path: teamsapp/dist/sentinel-intelligence-teams.zip
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish asset to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/release-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --notes "Sentinel Intelligence release artifacts." \
+              || gh release view "$tag" >/dev/null 2>&1
+          fi
+          gh release upload "$tag" teamsapp/dist/sentinel-intelligence-teams.zip --clobber

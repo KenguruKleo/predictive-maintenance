@@ -4,6 +4,10 @@ on:
   push:
     tags: ['release-*']
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 permissions:
   contents: write
 
@@ -68,7 +72,8 @@ jobs:
           set -euo pipefail
           tag="${GITHUB_REF_NAME}"
           if ! gh release view "$tag" >/dev/null 2>&1; then
-            gh release create "$tag" --title "$tag" --notes "Sentinel Intelligence macOS desktop build."
+            gh release create "$tag" --title "$tag" --notes "Sentinel Intelligence release artifacts." \
+              || gh release view "$tag" >/dev/null 2>&1
           fi
           shopt -s nullglob
           files=(frontend/release/*.dmg frontend/release/*.zip frontend/release/*.blockmap frontend/release/latest-mac.yml)
