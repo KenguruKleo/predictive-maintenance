@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
   "manifestVersion": "1.17",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "id": "8a8fb4c0-5b99-4d4f-8a1b-d59f4991cb74",
   "developer": {
     "name": "Sentinel Intelligence",
@@ -19,7 +19,7 @@
   },
   "description": {
     "short": "Sentinel Intelligence operator console for Teams.",
-    "full": "Microsoft Teams app package for Sentinel Intelligence, bringing the governed deviation and CAPA operator console into Teams. Teams SSO, proactive notifications, and approval actions are planned as the production integration path."
+    "full": "Microsoft Teams app package for Sentinel Intelligence, bringing the governed deviation and CAPA operator console into Teams. The app uses Teams single sign-on for the operator console and keeps proactive notifications and approval actions on the production integration path."
   },
   "accentColor": "#2563EB",
   "staticTabs": [

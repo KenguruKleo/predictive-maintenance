@@ -47,6 +47,14 @@ export function isLikelyTeamsHost(): boolean {
     || params.has("channelId");
 }
 
+export function isLikelyTeamsWebHost(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const params = new URLSearchParams(window.location.search);
+  return params.get("hostClientType") === "web"
+    || /^https:\/\/teams\.microsoft\.com\//i.test(document.referrer);
+}
+
 export async function initializeTeamsRuntime(): Promise<TeamsRuntimeState> {
   if (!isLikelyTeamsHost()) {
     return { isTeams: false, context: null, error: null };
@@ -82,6 +90,26 @@ export async function getTeamsSsoToken(): Promise<string> {
   return authentication.getAuthToken();
 }
 
+export async function authenticateWithTeamsPopup(url: string): Promise<string> {
+  const runtime = await initializeTeamsRuntime();
+  if (!runtime.isTeams) {
+    throw new Error(runtime.error ?? "This page is not running inside Microsoft Teams");
+  }
+
+  return authentication.authenticate({
+    url,
+    width: 600,
+    height: 680,
+  });
+}
+
+export async function isTeamsWebHost(): Promise<boolean> {
+  if (isLikelyTeamsWebHost()) return true;
+
+  const runtime = await initializeTeamsRuntime();
+  return runtime.context?.app.host.clientType === "web";
+}
+
 export async function openAppInBrowser(): Promise<void> {
   const url = window.location.origin;
   const runtime = await initializeTeamsRuntime();
@@ -96,6 +124,9 @@ export async function openAppInBrowser(): Promise<void> {
 
 export function getTeamsAuthErrorMessage(error: unknown): string {
   const raw = error instanceof Error ? error.message : String(error);
+  if (/AADSTS500011|invalid_resource|resource principal .*not found|tenant named/i.test(raw)) {
+    return "Teams SSO cannot find the Sentinel API in this Teams tenant. Use the Microsoft account sign-in fallback for testing, or install/consent Sentinel in the same Entra tenant as Teams.";
+  }
   if (/consent/i.test(raw)) {
     return "Teams needs admin or user consent before Sentinel can use single sign-on.";
   }

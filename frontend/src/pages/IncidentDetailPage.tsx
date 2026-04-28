@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useIncident, useIncidentEvents } from "../hooks/useIncidents";
 import { useAuth } from "../hooks/useAuth";
+import { getApiErrorMessage, getApiErrorStatus } from "../api/client";
 import IncidentInfo from "../components/Incident/IncidentInfo";
 import ParameterExcursion from "../components/Incident/ParameterExcursion";
 import DecisionPackage from "../components/Incident/DecisionPackage";
@@ -41,8 +42,20 @@ export default function IncidentDetailPage() {
   const [draftState, setDraftState] = useState<{ workOrder: WorkOrderDraft; auditEntry: AuditEntryDraft } | null>(null);
 
   if (isLoading) return <div className="loading">Loading incident...</div>;
-  if (error || !incident)
-    return <div className="error-banner">Incident not found.</div>;
+  if (error) {
+    const status = getApiErrorStatus(error);
+    if (status === 401) {
+      return <div className="error-banner">Session expired. Redirecting to sign-in...</div>;
+    }
+    if (status === 403) {
+      return <div className="error-banner">You do not have access to this incident.</div>;
+    }
+    if (status === 404) {
+      return <div className="error-banner">Incident not found.</div>;
+    }
+    return <div className="error-banner">Could not load incident: {getApiErrorMessage(error)}</div>;
+  }
+  if (!incident) return <div className="error-banner">Incident not found.</div>;
 
   const activeDecisionRole = getActiveDecisionRole(
     incident.workflow_state?.target_role,

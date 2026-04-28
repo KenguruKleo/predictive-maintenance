@@ -46,6 +46,17 @@ _API_AUDIENCE = os.getenv(
     "ENTRA_API_AUDIENCE",
     f"api://{_API_CLIENT_ID}",
 )
+_VALID_AUDIENCES = list(
+    dict.fromkeys(
+        audience
+        for audience in (
+            _API_AUDIENCE,
+            f"api://{_API_CLIENT_ID}",
+            _API_CLIENT_ID,
+        )
+        if audience
+    )
+)
 _JWKS_URI = (
     f"https://login.microsoftonline.com/{_TENANT_ID}/discovery/v2.0/keys"
 )
@@ -98,9 +109,10 @@ def get_caller_roles(req: func.HttpRequest) -> list[str]:
     Extract role claims from the incoming request.
 
     Returns a list of role strings from the Entra ID app roles claim,
-    e.g. ['Operator', 'QAManager'].  Returns [] if no valid token is present.
+    e.g. ['Operator', 'QAManager']. Returns [] if no token is present.
 
     Raises AuthError(401) if a Bearer token is provided but fails validation.
+    Raises AuthError(403) if the token is valid but has no Sentinel app roles.
     """
     if USE_LOCAL_MOCK_AUTH:
         mock_role = req.headers.get("X-Mock-Role", "")
@@ -112,7 +124,10 @@ def get_caller_roles(req: func.HttpRequest) -> list[str]:
 
     token = auth_header[len("Bearer "):]
     payload = _verify_and_decode_payload(token)
-    return [str(role) for role in payload.get("roles", []) if str(role).strip()]
+    roles = [str(role) for role in payload.get("roles", []) if str(role).strip()]
+    if not roles:
+        raise AuthError(403, "No Sentinel app role assigned")
+    return roles
 
 
 def get_caller_id(req: func.HttpRequest) -> str:
@@ -194,7 +209,7 @@ def _verify_and_decode_payload(token: str) -> dict:
             token,
             public_key,
             algorithms=["RS256"],
-            audience=_API_AUDIENCE,
+            audience=_VALID_AUDIENCES,
             issuer=_VALID_ISSUERS,
             options={"verify_iss": True, "require": ["exp", "aud"]},
         )

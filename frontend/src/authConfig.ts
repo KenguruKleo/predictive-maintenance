@@ -18,6 +18,16 @@ const SPA_CLIENT_ID =
 const API_CLIENT_ID =
   import.meta.env.VITE_ENTRA_API_CLIENT_ID ?? "38843d08-f211-4445-bcef-a07d383f2ee6";
 const IS_DESKTOP_RUNTIME = typeof window !== "undefined" && Boolean(window.sentinelDesktop);
+const IS_EMBEDDED_RUNTIME = (() => {
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+})();
+const IS_AUTH_POPUP_RUNTIME = window.location.pathname.endsWith("/auth-popup.html");
+const SHOULD_SHARE_POPUP_CACHE = IS_DESKTOP_RUNTIME || IS_EMBEDDED_RUNTIME || IS_AUTH_POPUP_RUNTIME;
+export const popupRedirectUri = `${window.location.origin}/auth-popup.html`;
 
 export const msalConfig: Configuration = {
   auth: {
@@ -27,7 +37,7 @@ export const msalConfig: Configuration = {
     postLogoutRedirectUri: window.location.origin,
   },
   cache: {
-    cacheLocation: IS_DESKTOP_RUNTIME
+    cacheLocation: SHOULD_SHARE_POPUP_CACHE
       ? BrowserCacheLocation.LocalStorage
       : BrowserCacheLocation.SessionStorage,
   },
@@ -38,6 +48,11 @@ export const msalConfig: Configuration = {
  *  delegated (oauth2PermissionScopes) configured in Entra ID. */
 export const loginRequest: RedirectRequest = {
   scopes: ["openid", "profile", "email"],
+};
+
+export const popupLoginRequest: PopupRequest = {
+  scopes: loginRequest.scopes,
+  redirectUri: popupRedirectUri,
 };
 
 /** Scopes acquired silently when calling the backend API.

@@ -259,6 +259,18 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 
 ---
 
+## Validation & testing coverage
+
+- We have **full testing coverage of both application layers**: frontend flows and backend workflow/API behavior were tested separately, not only as a single demo path
+- Frontend validation covers the operator, manager, auditor, and admin surfaces, including rendering of AI decisions, evidence blocks, notifications, status transitions, and role-based UX
+- Backend validation covers ingestion, orchestration, approval flow, execution artifacts, idempotency, validation errors, telemetry, and contract normalization for the decision package
+- **Model behavior is tested as a separate track**, independent from UI and API checks: we verify not just that the system responds, but that the AI recommendation is reasonable, explainable, and consistent with the retrieved evidence
+- For this track we use **7 dedicated test scenarios** that cover approve / reject paths, low-risk transient events, critical deviations, evidence gaps, duplicates, and invalid payload handling
+- Across these scenarios we have already run **100+ simulations and response reviews**, analyzing recommendation quality, rationale clarity, evidence relevance, citation correctness, and output stability
+- This is important to state in the final video: the demo is not based on one lucky run, but on repeated validation of the product, the workflow, and the model decision behavior
+
+---
+
 ## Video script (by seconds, aligned with the new tempo)
 
 | Time | What is on the screen | What are we saying?

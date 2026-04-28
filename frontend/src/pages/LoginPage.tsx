@@ -1,6 +1,12 @@
 import { useMsal } from "@azure/msal-react";
-import type { RedirectRequest } from "@azure/msal-browser";
+import type { AccountInfo, RedirectRequest } from "@azure/msal-browser";
 import { useEffect, useState } from "react";
+import { popupRedirectUri } from "../authConfig";
+import {
+  AUTH_POPUP_RESULT_KEY,
+  parseAuthPopupResult,
+  type AuthPopupResult,
+} from "../authPopupBridge";
 import { clearTeamsAuthToken, setTeamsAuthToken } from "../teamsAuth";
 import {
   getTeamsAuthErrorMessage,
@@ -21,6 +27,34 @@ function isEmbeddedFrame(): boolean {
   } catch {
     return true;
   }
+}
+
+function openCenteredPopup(url: string): Window | null {
+  const width = 520;
+  const height = 680;
+  const left = Math.max(0, window.screenX + (window.outerWidth - width) / 2);
+  const top = Math.max(0, window.screenY + (window.outerHeight - height) / 2);
+  return window.open(
+    url,
+    "sentinel-microsoft-signin",
+    `popup=yes,width=${width},height=${height},left=${Math.round(left)},top=${Math.round(top)}`,
+  );
+}
+
+function isAuthPopupMessage(event: MessageEvent): event is MessageEvent<{
+  source: "sentinel-auth-popup";
+  nonce: string;
+  type: "success" | "error";
+  homeAccountId?: string;
+  error?: string;
+  createdAt: number;
+}> {
+  return event.origin === window.location.origin
+    && event.data?.source === "sentinel-auth-popup";
+}
+
+function createNonce(): string {
+  return window.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
 
 export default function LoginPage({ loginRequest }: LoginPageProps) {
@@ -67,10 +101,7 @@ export default function LoginPage({ loginRequest }: LoginPageProps) {
 
     try {
       if (isEmbeddedFrame()) {
-        const result = await instance.loginPopup({ scopes: loginRequest.scopes });
-        if (result.account) {
-          instance.setActiveAccount(result.account);
-        }
+        await handleMicrosoftFallbackLogin();
       } else {
         await instance.loginRedirect(loginRequest);
       }
@@ -84,6 +115,110 @@ export default function LoginPage({ loginRequest }: LoginPageProps) {
     openAppInBrowser().catch((error) => {
       setAuthError(error instanceof Error ? error.message : String(error));
     });
+  };
+
+  const handleMicrosoftFallbackLogin = async () => {
+    setAuthError(null);
+    setIsSigningIn(true);
+
+    try {
+      if (isTeamsHost) {
+        await openAppInBrowser();
+        setAuthError("Teams cannot complete the sandbox Microsoft popup inside this tenant. I opened Sentinel in the browser so you can sign in with the sandbox account there.");
+        return;
+      }
+
+      let completedAccount: AccountInfo | null = null;
+
+      await new Promise<AccountInfo>((resolve, reject) => {
+        const nonce = createNonce();
+        localStorage.removeItem(AUTH_POPUP_RESULT_KEY);
+
+        const popupUrl = `${popupRedirectUri}?start=1&prompt=select_account&nonce=${encodeURIComponent(nonce)}`;
+        const completeFromResult = (result: AuthPopupResult) => {
+          if (result.nonce !== nonce) return;
+
+          cleanup();
+          popupWindow?.close();
+
+          if (result.type === "error") {
+            reject(new Error(result.error || "Microsoft sign-in failed."));
+            return;
+          }
+
+          const accounts = instance.getAllAccounts();
+          const account = accounts.find(
+            (candidate) => candidate.homeAccountId === result.homeAccountId,
+          ) ?? accounts[0];
+
+          if (!account) {
+            reject(new Error("Microsoft sign-in completed, but no account was found in the local session."));
+            return;
+          }
+
+          instance.setActiveAccount(account);
+          completedAccount = account;
+          resolve(account);
+        };
+
+        let popupWindow: Window | null = null;
+
+        const popup = openCenteredPopup(popupUrl);
+        if (!popup) {
+          reject(new Error("Microsoft sign-in popup was blocked by the browser."));
+          return;
+        }
+        popupWindow = popup;
+
+        const timeoutId = window.setTimeout(() => {
+          cleanup();
+          popupWindow?.close();
+          reject(new Error("Microsoft sign-in timed out. Close the popup and try again."));
+        }, 120_000);
+
+        const resultCheckId = window.setInterval(() => {
+          const result = parseAuthPopupResult(localStorage.getItem(AUTH_POPUP_RESULT_KEY), nonce);
+          if (result) {
+            complete(result);
+          }
+        }, 500);
+
+        function cleanup() {
+          window.clearTimeout(timeoutId);
+          window.clearInterval(resultCheckId);
+          window.removeEventListener("message", handleMessage);
+          window.removeEventListener("storage", handleStorage);
+        }
+
+        function complete(result: AuthPopupResult) {
+          completeFromResult(result);
+        }
+
+        function handleMessage(event: MessageEvent) {
+          if (!isAuthPopupMessage(event)) return;
+          complete(event.data);
+        }
+
+        function handleStorage(event: StorageEvent) {
+          if (event.key !== AUTH_POPUP_RESULT_KEY) return;
+          const result = parseAuthPopupResult(event.newValue, nonce);
+          if (result) {
+            complete(result);
+          }
+        }
+
+        window.addEventListener("message", handleMessage);
+        window.addEventListener("storage", handleStorage);
+      });
+
+      if (completedAccount && isTeamsHost) {
+        window.location.reload();
+      }
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setIsSigningIn(false);
+    }
   };
 
   return (
@@ -119,9 +254,19 @@ export default function LoginPage({ loginRequest }: LoginPageProps) {
           <div className="login-error" role="alert">
             <p>{authError}</p>
             {isTeamsHost && (
-              <button className="login-secondary-button" type="button" onClick={handleOpenInBrowser}>
-                Open in browser
-              </button>
+              <>
+                <button
+                  className="login-secondary-button"
+                  type="button"
+                  onClick={handleMicrosoftFallbackLogin}
+                  disabled={isSigningIn}
+                >
+                  {isTeamsHost ? "Open browser sign-in" : "Sign in with Microsoft account"}
+                </button>
+                <button className="login-secondary-button" type="button" onClick={handleOpenInBrowser}>
+                  Open in browser
+                </button>
+              </>
             )}
           </div>
         )}
