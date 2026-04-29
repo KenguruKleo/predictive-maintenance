@@ -212,9 +212,10 @@ EVIDENCE_SYNTHESIS_SCHEMA = {
                 "properties": {
                     "source_id": {"type": "string"},
                     "source_type": {"type": "string"},
+                    "source_quote": {"type": "string"},
                     "fact": {"type": "string"},
                 },
-                "required": ["source_id", "source_type", "fact"],
+                "required": ["source_id", "source_type", "source_quote", "fact"],
                 "additionalProperties": False,
             },
         },

@@ -70,7 +70,11 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "Do not infer a fact from silence" in prompt
     assert "explicitly supports the requested attribute" in prompt
     assert "Negative support also requires explicit evidence" in prompt
+    assert "explicit support requires source wording" in prompt
+    assert "list of other actions is not evidence" in prompt
     assert "operator_dialogue` must include the checked count" in prompt
+    assert "source_quote" in prompt
+    assert "must not add a negative or absence claim" in prompt
     assert "balanced evidence map for the initial decision" in prompt
     assert "Do not reduce the brief to historical precedent alone" in prompt
     assert "historical approvals alone" in prompt
@@ -100,6 +104,7 @@ def test_evidence_synthesizer_agent_schema_is_registered() -> None:
         "answerability",
         "direct_answer",
         "operator_dialogue",
+        "source_quote",
         "checked_evidence_count",
         "explicit_support_count",
         "unknown_count",

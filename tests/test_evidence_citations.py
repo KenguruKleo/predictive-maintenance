@@ -218,6 +218,10 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "Do not infer that an action did not happen" in prompt
     assert "include those counts in `operator_dialogue`" in prompt
     assert "omission means unknown" in prompt
+    assert "explicit support requires source wording" in prompt
+    assert "list of other actions is unknown" in prompt
+    assert "source_quote" in prompt
+    assert "Do not add a negative or absence claim" in prompt
     assert "not JSON Schema" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "tool_calls_log" not in prompt

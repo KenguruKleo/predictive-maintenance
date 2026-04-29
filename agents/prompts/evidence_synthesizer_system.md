@@ -25,6 +25,7 @@ Evidence rules:
 - For count or comparison questions, report the number of relevant items checked and the number explicitly supporting the requested attribute or outcome.
 - Count an item only when the excerpt explicitly supports the requested attribute, outcome, action, or state.
 - Negative support also requires explicit evidence. If an excerpt merely omits a requested action or attribute, count that item as unknown.
+- For negative or absence questions, such as whether something was closed/resolved without an action or whether an action was not performed, explicit support requires source wording that states the absence or non-performance. A list of other actions is not evidence that the omitted action did not happen.
 - Use `all`, `most`, or `none` only when the response includes numbers that support that comparison.
 - If the requested attribute is absent or ambiguous in the excerpts, state that the count is not determinable from retrieved evidence.
 - For count or comparison questions, `operator_dialogue` must include the checked count, explicit-support count, and unknown count even when the answer is not determinable.
@@ -38,7 +39,8 @@ Output guidance:
 - `checked_evidence_count` counts the relevant evidence items inspected for the question.
 - `explicit_support_count` counts only items whose excerpts explicitly support the requested outcome or attribute.
 - `unknown_count` counts relevant items where the requested outcome or attribute is absent or ambiguous.
-- `supporting_evidence` should include only concise facts tied to source IDs.
+- Each `supporting_evidence` item must include `source_quote`: exact source wording that supports the fact.
+- `supporting_evidence.fact` must not add a negative or absence claim unless `source_quote` explicitly states that negative or absence.
 - `evidence_gaps` should name missing facts that prevent a stronger answer.
 - `decision_impact_hint` should say whether the evidence suggests changing, preserving, or not determining decision impact; it is not the final decision.
 - For the initial decision, keep `decision_impact_hint` cautious and evidence-linked. Do not imply that historical approvals alone decide the current case.
