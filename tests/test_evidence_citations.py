@@ -222,7 +222,7 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "concrete and operational" in prompt
     assert "cautious approach" in prompt
     assert "Do not infer that an action did not happen" in prompt
-    assert "include those counts in `operator_dialogue`" in prompt
+    assert "Include checked/support/unknown counts in `operator_dialogue` only when" in prompt
     assert "omission means unknown" in prompt
     assert "explicit support requires source wording" in prompt
     assert "list of other actions is unknown" in prompt
@@ -231,6 +231,39 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "not JSON Schema" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "tool_calls_log" not in prompt
+
+
+def test_evidence_synthesis_prompt_supports_cross_round_change_control_without_count_leakage() -> None:
+    prompt = _build_evidence_synthesis_prompt(
+        incident_id="INC-2026-0118",
+        latest_operator_question=(
+            "What changed after my batch disposition question? "
+            "Compare recommendation, root cause, risk, and evidence gaps."
+        ),
+        previous_ai_result={
+            "recommendation": "Inspect and recalibrate the spray rate control system.",
+            "root_cause": "Potential equipment calibration issue.",
+            "risk_level": "critical",
+            "batch_disposition": "hold_pending_review",
+            "operator_dialogue": "Prior follow-up answer.",
+        },
+        research_package={
+            "follow_up_context": {"latest_question": "What changed?"},
+            "historical_incidents": [
+                {
+                    "incident_id": "INC-2026-0053",
+                    "evidence_excerpt": "Recommendation: inspect and recalibrate the flowmeter.",
+                }
+            ],
+        },
+    )
+
+    assert "### Previous Recommendation Snapshot" in prompt
+    assert "Inspect and recalibrate the spray rate control system" in prompt
+    assert "state each requested field as changed, unchanged, or not determinable" in prompt
+    assert "do not treat unchanged fields as evidence items" in prompt
+    assert "do not produce support-count totals unless the operator explicitly asks for counts" in prompt
+    assert "answer every requested part explicitly" in prompt
 
 
 def test_normalize_evidence_synthesis_unwraps_schema_shaped_response() -> None:

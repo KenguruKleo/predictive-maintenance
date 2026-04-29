@@ -77,7 +77,13 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "Negative support also requires explicit evidence" in prompt
     assert "explicit support requires source wording" in prompt
     assert "list of other actions is not evidence" in prompt
+    assert "count or quantified comparison questions" in prompt
     assert "operator_dialogue` must include the checked count" in prompt
+    assert "Do not mention checked/support/unknown counts" in prompt
+    assert "change-control questions" in prompt
+    assert "changed, unchanged, or not determinable" in prompt
+    assert "Do not treat unchanged fields as evidence items" in prompt
+    assert "answer every requested part explicitly" in prompt
     assert "source_quote" in prompt
     assert "must not add a negative or absence claim" in prompt
     assert "balanced evidence map for the initial decision" in prompt

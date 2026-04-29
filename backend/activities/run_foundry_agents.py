@@ -182,6 +182,7 @@ def run_foundry_agents(input_data: dict) -> dict:
         incident_id=incident_id,
         more_info_round=more_info_round,
         context_data=context_data,
+        previous_ai_result=previous_ai_result,
     )
     orchestrator_research_package = _build_orchestrator_research_package(research_package)
 
@@ -675,6 +676,7 @@ def _add_evidence_synthesis(
     incident_id: str,
     more_info_round: int,
     context_data: dict,
+    previous_ai_result: dict | None = None,
 ) -> dict:
     if not agent_id:
         return research_package
@@ -685,6 +687,7 @@ def _add_evidence_synthesis(
         incident_id=incident_id,
         latest_operator_question=latest_operator_question,
         research_package=research_package,
+        previous_ai_result=previous_ai_result or {},
     )
     _log_trace_text(
         incident_id=incident_id,
@@ -733,18 +736,32 @@ def _build_evidence_synthesis_prompt(
     incident_id: str,
     latest_operator_question: str,
     research_package: dict,
+    previous_ai_result: dict | None = None,
 ) -> str:
     synthesis_evidence = _compact_evidence_for_synthesis(research_package)
+    previous_snapshot = _compact_previous_recommendation_snapshot(previous_ai_result or {})
     question = latest_operator_question or "No operator follow-up question. Summarize evidence for the initial decision."
-    return "\n".join(
+    parts = [
+        f"## Evidence Synthesis Request - Incident {incident_id}",
+        "Use only the provided evidence package excerpt. Do not call tools or use model memory.",
+        "Return one JSON object matching your configured response schema.",
+        "",
+        "### Latest Operator Question",
+        question,
+        "",
+    ]
+    if previous_snapshot:
+        parts.extend(
+            [
+                "### Previous Recommendation Snapshot",
+                "```json",
+                json.dumps(previous_snapshot, indent=2, default=str),
+                "```",
+                "",
+            ]
+        )
+    parts.extend(
         [
-            f"## Evidence Synthesis Request - Incident {incident_id}",
-            "Use only the provided evidence package excerpt. Do not call tools or use model memory.",
-            "Return one JSON object matching your configured response schema.",
-            "",
-            "### Latest Operator Question",
-            question,
-            "",
             "### Evidence Package Excerpt",
             "```json",
             json.dumps(synthesis_evidence, indent=2, default=str),
@@ -758,8 +775,11 @@ def _build_evidence_synthesis_prompt(
             "- For initial decisions, keep `operator_dialogue` concrete and operational: name the current deviation, why it matters, and the likely next action.",
             "- Do not use meta phrases such as 'decision impact', 'cautious approach', or 'evidence suggests' in operator-facing text.",
             "- Distinguish explicit support from unknown or missing facts.",
-            "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
-            "- For count/comparison questions, include those counts in `operator_dialogue` in plain language.",
+            "- For count or quantified comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
+            "- Include checked/support/unknown counts in `operator_dialogue` only when the operator explicitly asks for a count, total, how many, or quantified comparison.",
+            "- For change-control questions such as what changed, did the recommendation change, or compare recommendation/root cause/risk/disposition, use the Previous Recommendation Snapshot and state each requested field as changed, unchanged, or not determinable.",
+            "- For change-control questions, do not treat unchanged fields as evidence items and do not produce support-count totals unless the operator explicitly asks for counts.",
+            "- For multi-part questions, answer every requested part explicitly; if priorities or 2-3 next steps are requested, preserve that structure concisely.",
             "- Do not infer that an action did not happen merely because an excerpt does not mention it.",
             "- Negative support also requires explicit evidence; omission means unknown, not proof.",
             "- For negative or absence questions, explicit support requires source wording that states the absence or non-performance; a list of other actions is unknown, not proof that an omitted action did not happen.",
@@ -774,6 +794,28 @@ def _build_evidence_synthesis_prompt(
             "",
             "Return JSON only.",
         ]
+    )
+    return "\n".join(parts)
+
+
+def _compact_previous_recommendation_snapshot(previous_ai_result: dict) -> dict:
+    if not isinstance(previous_ai_result, dict):
+        return {}
+    return _pick_present(
+        {
+            "recommendation": previous_ai_result.get("recommendation"),
+            "root_cause": previous_ai_result.get("root_cause"),
+            "risk_level": previous_ai_result.get("risk_level"),
+            "batch_disposition": previous_ai_result.get("batch_disposition"),
+            "operator_dialogue": previous_ai_result.get("operator_dialogue"),
+        },
+        [
+            "recommendation",
+            "root_cause",
+            "risk_level",
+            "batch_disposition",
+            "operator_dialogue",
+        ],
     )
 
 
