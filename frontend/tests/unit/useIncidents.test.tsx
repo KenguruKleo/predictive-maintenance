@@ -6,6 +6,7 @@ import type { DecisionPayload } from "../../src/types/approval";
 import type { Incident, IncidentListResponse } from "../../src/types/incident";
 import {
   useIncident,
+  useIncidentEvents,
   useIncidents,
   useSubmitDecision,
 } from "../../src/hooks/useIncidents";
@@ -133,7 +134,7 @@ describe("useIncidents optimistic updates", () => {
     });
   });
 
-  it("keeps more_info server-confirmed without optimistic awaiting_agents transition", async () => {
+  it("optimistically shows more_info status and operator question", async () => {
     const queryClient = createQueryClient();
     const wrapper = createWrapper(queryClient);
     const baseIncident = makeIncident();
@@ -149,16 +150,40 @@ describe("useIncidents optimistic updates", () => {
       role: "operator",
       question: "Need another SOP excerpt.",
     };
+    const awaitingIncident = makeIncident({
+      status: "awaiting_agents",
+      lastDecision: {
+        action: "more_info",
+        user_id: "operator.user",
+        role: "operator",
+        question: "Need another SOP excerpt.",
+        operator_agrees_with_agent: null,
+      },
+    });
+    const serverEvent = {
+      id: "inc-1-decision-1",
+      incident_id: baseIncident.id,
+      timestamp: "2026-04-28T10:01:00Z",
+      actor: "operator.user",
+      actor_type: "human" as const,
+      action: "more_info",
+      category: "status" as const,
+      details: "Need another SOP excerpt.",
+      status: "awaiting_agents",
+    };
 
     mockGetIncidents.mockResolvedValue(baseList);
     mockGetIncident.mockResolvedValue(baseIncident);
+    mockGetIncidentEvents.mockResolvedValue([]);
 
     const listHook = renderHook(() => useIncidents({}), { wrapper });
     const detailHook = renderHook(() => useIncident(baseIncident.id), { wrapper });
+    const eventsHook = renderHook(() => useIncidentEvents(baseIncident.id), { wrapper });
     const decisionHook = renderHook(() => useSubmitDecision(baseIncident.id), { wrapper });
 
     await waitFor(() => {
       expect(listHook.result.current.data?.items[0].status).toBe("pending_approval");
+      expect(eventsHook.result.current.data).toEqual([]);
     });
 
     let resolveMutation: (() => void) | undefined;
@@ -172,14 +197,34 @@ describe("useIncidents optimistic updates", () => {
     });
 
     await waitFor(() => {
-      expect(listHook.result.current.data?.items[0].status).toBe("pending_approval");
-      expect(detailHook.result.current.data?.status).toBe("pending_approval");
-      expect(detailHook.result.current.data?.lastDecision).toBeUndefined();
+      expect(listHook.result.current.data?.items[0].status).toBe("awaiting_agents");
+      expect(detailHook.result.current.data?.status).toBe("awaiting_agents");
+      expect(detailHook.result.current.data?.lastDecision?.action).toBe("more_info");
+      expect(detailHook.result.current.data?.lastDecision?.question).toBe("Need another SOP excerpt.");
+      expect(eventsHook.result.current.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: "more_info",
+            actor_type: "human",
+            details: "Need another SOP excerpt.",
+            status: "awaiting_agents",
+          }),
+        ]),
+      );
     });
 
+    mockGetIncidents.mockResolvedValue({ ...baseList, items: [awaitingIncident] });
+    mockGetIncident.mockResolvedValue(awaitingIncident);
+    mockGetIncidentEvents.mockResolvedValue([serverEvent]);
+
     resolveMutation?.();
-    await act(async () => {
-      await mutationPromise;
+
+    await waitFor(() => {
+      expect(decisionHook.result.current.isSuccess).toBe(true);
+      expect(eventsHook.result.current.data).toEqual([serverEvent]);
+      expect(
+        queryClient.getQueryData<Record<string, unknown>>(["incident-optimistic-decisions"]),
+      ).toEqual({});
     });
   });
 
@@ -216,7 +261,7 @@ describe("useIncidents optimistic updates", () => {
     let rejectMutation: ((error?: unknown) => void) | undefined;
     const mutationPromise = new Promise<void>((_resolve, reject) => {
       rejectMutation = reject;
-    }).catch(() => undefined);
+    });
     mockSubmitDecision.mockReturnValueOnce(mutationPromise);
 
     act(() => {
@@ -231,7 +276,7 @@ describe("useIncidents optimistic updates", () => {
 
     rejectMutation?.(new Error("decision failed"));
     await act(async () => {
-      await mutationPromise;
+      await mutationPromise.catch(() => undefined);
     });
 
     await waitFor(() => {
@@ -239,6 +284,80 @@ describe("useIncidents optimistic updates", () => {
       expect(listHook.result.current.data?.items[0].lastDecision).toBeUndefined();
       expect(detailHook.result.current.data?.status).toBe("pending_approval");
       expect(detailHook.result.current.data?.lastDecision).toBeUndefined();
+    });
+  });
+
+  it("rolls back optimistic more_info status and question when the mutation fails", async () => {
+    const queryClient = createQueryClient();
+    const wrapper = createWrapper(queryClient);
+    const baseIncident = makeIncident();
+    const baseList: IncidentListResponse = {
+      items: [baseIncident],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    };
+    const moreInfoPayload: DecisionPayload = {
+      action: "more_info",
+      user_id: "operator.user",
+      role: "operator",
+      question: "Can we compare this to the previous batch excursion?",
+    };
+
+    mockGetIncidents.mockResolvedValue(baseList);
+    mockGetIncident.mockResolvedValue(baseIncident);
+    mockGetIncidentEvents.mockResolvedValue([]);
+
+    const listHook = renderHook(() => useIncidents({}), { wrapper });
+    const detailHook = renderHook(() => useIncident(baseIncident.id), { wrapper });
+    const eventsHook = renderHook(() => useIncidentEvents(baseIncident.id), { wrapper });
+    const decisionHook = renderHook(() => useSubmitDecision(baseIncident.id), { wrapper });
+
+    await waitFor(() => {
+      expect(listHook.result.current.data?.items[0].status).toBe("pending_approval");
+      expect(detailHook.result.current.data?.status).toBe("pending_approval");
+      expect(eventsHook.result.current.data).toEqual([]);
+    });
+
+    let rejectMutation: ((error?: unknown) => void) | undefined;
+    const mutationPromise = new Promise<void>((_resolve, reject) => {
+      rejectMutation = reject;
+    });
+    mockSubmitDecision.mockReturnValueOnce(mutationPromise);
+
+    act(() => {
+      void decisionHook.result.current.mutateAsync(moreInfoPayload).catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(listHook.result.current.data?.items[0].status).toBe("awaiting_agents");
+      expect(detailHook.result.current.data?.status).toBe("awaiting_agents");
+      expect(detailHook.result.current.data?.lastDecision?.question).toBe(
+        "Can we compare this to the previous batch excursion?",
+      );
+      expect(eventsHook.result.current.data).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            action: "more_info",
+            details: "Can we compare this to the previous batch excursion?",
+          }),
+        ]),
+      );
+    });
+
+    rejectMutation?.(new Error("follow-up rejected by policy"));
+    await act(async () => {
+      await mutationPromise.catch(() => undefined);
+    });
+
+    await waitFor(() => {
+      expect(listHook.result.current.data?.items[0].status).toBe("pending_approval");
+      expect(detailHook.result.current.data?.status).toBe("pending_approval");
+      expect(detailHook.result.current.data?.lastDecision).toBeUndefined();
+      expect(eventsHook.result.current.data).toEqual([]);
+      expect(
+        queryClient.getQueryData<Record<string, unknown>>(["incident-optimistic-decisions"]),
+      ).toEqual({});
     });
   });
 });

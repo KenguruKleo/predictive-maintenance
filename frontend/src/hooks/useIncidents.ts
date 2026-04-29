@@ -9,6 +9,7 @@ import {
 import { ACTIVE_INCIDENT_STATUSES } from "../types/incident";
 import type {
   Incident,
+  IncidentEvent,
   IncidentFilters,
   IncidentListResponse,
   IncidentStatus,
@@ -23,6 +24,7 @@ interface OptimisticIncidentDecision {
   status: IncidentStatus;
   lastDecision: Incident["lastDecision"];
   updated_at: string;
+  events?: IncidentEvent[];
   rejectionReason?: string;
   operatorWorkOrderDraft?: Incident["operatorWorkOrderDraft"];
   operatorAuditEntryDraft?: Incident["operatorAuditEntryDraft"];
@@ -48,6 +50,7 @@ function buildOptimisticIncidentDecision(
       ? (payload.action === "approved") === (agentRecommendation === "APPROVE")
       : null;
 
+  const updatedAt = new Date().toISOString();
   return {
     incidentId,
     status: getOptimisticIncidentStatus(payload.action),
@@ -60,11 +63,39 @@ function buildOptimisticIncidentDecision(
       agent_recommendation: agentRecommendation,
       operator_agrees_with_agent: operatorAgreesWithAgent,
     },
-    updated_at: new Date().toISOString(),
+    updated_at: updatedAt,
+    events: buildOptimisticIncidentEvents(incidentId, payload, updatedAt),
     rejectionReason: payload.action === "rejected" ? payload.reason : undefined,
     operatorWorkOrderDraft: payload.work_order_draft as Incident["operatorWorkOrderDraft"],
     operatorAuditEntryDraft: payload.audit_entry_draft as Incident["operatorAuditEntryDraft"],
   };
+}
+
+function buildOptimisticIncidentEvents(
+  incidentId: string,
+  payload: DecisionPayload,
+  timestamp: string,
+): IncidentEvent[] | undefined {
+  if (payload.action !== "more_info" || !payload.question?.trim()) {
+    return undefined;
+  }
+
+  const eventToken = globalThis.crypto?.randomUUID?.() ??
+    `${Date.parse(timestamp)}-${Math.random().toString(36).slice(2)}`;
+
+  return [
+    {
+      id: `${incidentId}-optimistic-more-info-${eventToken}`,
+      incident_id: incidentId,
+      timestamp,
+      actor: payload.user_id ?? "Operator",
+      actor_type: "human",
+      action: "more_info",
+      category: "status",
+      details: payload.question.trim(),
+      status: "awaiting_agents",
+    },
+  ];
 }
 
 function getOptimisticIncidentStatus(action: DecisionPayload["action"]): IncidentStatus {
@@ -109,6 +140,30 @@ function applyOptimisticDecisionsToIncidentList(
       applyOptimisticDecisionToIncident(incident, optimisticDecisions[incident.id]),
     ),
   };
+}
+
+function applyOptimisticDecisionToIncidentEvents(
+  data: IncidentEvent[] | undefined,
+  optimisticDecision?: OptimisticIncidentDecision,
+): IncidentEvent[] | undefined {
+  const optimisticEvents = optimisticDecision?.events;
+  if (!optimisticEvents?.length) return data;
+
+  const events = data ?? [];
+  const missingEvents = optimisticEvents.filter(
+    (optimisticEvent) =>
+      !events.some((event) => isSameFollowUpEvent(event, optimisticEvent)),
+  );
+
+  return missingEvents.length ? [...events, ...missingEvents] : events;
+}
+
+function isSameFollowUpEvent(event: IncidentEvent, optimisticEvent: IncidentEvent) {
+  if (event.id === optimisticEvent.id) return true;
+  if (event.actor_type !== "human") return false;
+  if (event.action !== "more_info" && event.action !== "operator_question") return false;
+
+  return event.details.trim() === optimisticEvent.details.trim();
 }
 
 function setOptimisticIncidentDecision(
@@ -196,11 +251,20 @@ export function useIncident(id: string) {
 }
 
 export function useIncidentEvents(id: string) {
-  return useQuery({
+  const optimisticDecisions = useOptimisticIncidentDecisions();
+  const eventsQuery = useQuery({
     queryKey: ["incident-events", id],
     queryFn: () => getIncidentEvents(id),
     enabled: !!id,
   });
+
+  return {
+    ...eventsQuery,
+    data: applyOptimisticDecisionToIncidentEvents(
+      eventsQuery.data,
+      id ? optimisticDecisions.data[id] : undefined,
+    ),
+  };
 }
 
 export function useIncidentTelemetry(
@@ -231,14 +295,11 @@ export function useSubmitDecision(incidentId: string) {
         OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
       )?.[incidentId];
 
-      // Keep more_info server-confirmed to avoid status flicker on policy rejections.
-      if (payload.action !== "more_info") {
-        setOptimisticIncidentDecision(
-          queryClient,
-          incidentId,
-          buildOptimisticIncidentDecision(incidentId, payload),
-        );
-      }
+      setOptimisticIncidentDecision(
+        queryClient,
+        incidentId,
+        buildOptimisticIncidentDecision(incidentId, payload),
+      );
 
       return { previousOptimisticDecision };
     },
