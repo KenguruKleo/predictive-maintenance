@@ -50,6 +50,9 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "Operator dialogue rules" in prompt
     assert "Evidence Synthesizer owns compact evidence briefs" in prompt
     assert "answerability, count/comparison" in prompt
+    assert "write `operator_dialogue` yourself" in prompt
+    assert "Do not copy" in prompt
+    assert "cautious approach" in prompt
     assert "use that synthesized answer as the basis" in prompt
     assert "Do not recompute count/comparison synthesis from scratch" in prompt
     assert "state missing evidence plainly" in prompt
@@ -78,6 +81,8 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "balanced evidence map for the initial decision" in prompt
     assert "Do not reduce the brief to historical precedent alone" in prompt
     assert "historical approvals alone" in prompt
+    assert "concrete and operational" in prompt
+    assert "cautious approach" in prompt
     assert "Do not return JSON Schema wrapper keys" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "Return JSON only" in prompt

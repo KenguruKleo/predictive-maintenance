@@ -755,6 +755,8 @@ def _build_evidence_synthesis_prompt(
             "- Answer the latest question first when there is one.",
             "- When there is no operator follow-up question, summarize current incident facts, applicable document/equipment constraints, historical calibration signals, and evidence gaps.",
             "- Do not reduce an initial-decision brief to historical precedent alone.",
+            "- For initial decisions, keep `operator_dialogue` concrete and operational: name the current deviation, why it matters, and the likely next action.",
+            "- Do not use meta phrases such as 'decision impact', 'cautious approach', or 'evidence suggests' in operator-facing text.",
             "- Distinguish explicit support from unknown or missing facts.",
             "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
             "- For count/comparison questions, include those counts in `operator_dialogue` in plain language.",
@@ -765,7 +767,7 @@ def _build_evidence_synthesis_prompt(
             "- Do not add a negative or absence claim to `supporting_evidence.fact` unless `source_quote` explicitly states that negative or absence.",
             "- Use `all`, `most`, or `none` only with numbers that support the comparison.",
             "- If requested facts are absent or ambiguous, say the count is not determinable from retrieved evidence.",
-            "- Do not make the final GMP approval/rejection decision; provide only a cautious evidence-linked decision impact hint.",
+            "- Do not make the final GMP approval/rejection decision; provide only a concrete evidence-linked decision impact hint.",
             "- Do not imply that historical approvals alone decide the current case.",
             "- Keep `operator_dialogue` under 120 words.",
             "- Return the data object itself, not JSON Schema. Do not include `type`, `properties`, `required`, or `additionalProperties`.",
@@ -1386,6 +1388,9 @@ def _build_prompt(
             "The backend will carry forward the full canonical package. If the package is absent, "
             "copy only real Research Agent citations/tool calls and preserve canonical fields. "
             "You, the Orchestrator, must produce the final structured analysis and decision. "
+            "For initial decisions, write your own concrete operator_dialogue from the final decision; "
+            "do not copy evidence_synthesis.operator_dialogue verbatim or use meta phrases like "
+            "decision impact, cautious approach, or evidence suggests. "
             "Draft audit_entry_draft and, for APPROVE only, work_order_draft directly in the final JSON; "
             "leave audit_entry_id and work_order_id null. For source alerts with severity=critical, "
             "keep risk_level=critical when agent_recommendation=APPROVE unless the evidence supports "

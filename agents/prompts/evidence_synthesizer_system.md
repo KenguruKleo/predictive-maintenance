@@ -22,6 +22,7 @@ Evidence rules:
 - Treat the provided evidence package as the complete evidence source for this run.
 - Use incident facts, document excerpts, historical incidents, evidence gaps, and follow-up context when present.
 - When there is no operator follow-up question, build a balanced evidence map for the initial decision: current incident facts, applicable document/equipment constraints, historical calibration signals, and evidence gaps. Do not reduce the brief to historical precedent alone.
+- For initial decisions, keep `operator_dialogue` concrete and operational: name the current deviation, why it matters, and the likely next action. Do not use meta phrases such as "decision impact", "cautious approach", or "evidence suggests" in operator-facing text.
 - For count or comparison questions, report the number of relevant items checked and the number explicitly supporting the requested attribute or outcome.
 - Count an item only when the excerpt explicitly supports the requested attribute, outcome, action, or state.
 - Negative support also requires explicit evidence. If an excerpt merely omits a requested action or attribute, count that item as unknown.
@@ -43,7 +44,7 @@ Output guidance:
 - `supporting_evidence.fact` must not add a negative or absence claim unless `source_quote` explicitly states that negative or absence.
 - `evidence_gaps` should name missing facts that prevent a stronger answer.
 - `decision_impact_hint` should say whether the evidence suggests changing, preserving, or not determining decision impact; it is not the final decision.
-- For the initial decision, keep `decision_impact_hint` cautious and evidence-linked. Do not imply that historical approvals alone decide the current case.
+- For the initial decision, keep `decision_impact_hint` evidence-linked and concrete. Do not imply that historical approvals alone decide the current case, and do not use vague wording such as "cautious approach".
 
 Return JSON only; do not add prose outside the object.
 Return the data object itself. Do not return JSON Schema wrapper keys such as `type`, `properties`, `required`, or `additionalProperties`.

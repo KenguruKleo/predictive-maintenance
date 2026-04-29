@@ -186,6 +186,8 @@ def test_build_prompt_tells_orchestrator_to_use_evidence_synthesis_for_decision_
     assert "When `evidence_synthesis` is present" in prompt
     assert "navigate explicit support, unknowns" in prompt
     assert "do not let its compact wording replace" in prompt
+    assert "write your own concrete operator_dialogue" in prompt
+    assert "do not copy evidence_synthesis.operator_dialogue verbatim" in prompt
 
 
 def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
@@ -215,6 +217,8 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "Distinguish explicit support from unknown" in prompt
     assert "current incident facts" in prompt
     assert "Do not reduce an initial-decision brief to historical precedent alone" in prompt
+    assert "concrete and operational" in prompt
+    assert "cautious approach" in prompt
     assert "Do not infer that an action did not happen" in prompt
     assert "include those counts in `operator_dialogue`" in prompt
     assert "omission means unknown" in prompt

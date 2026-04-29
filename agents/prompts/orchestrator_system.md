@@ -67,8 +67,11 @@ Decision rules:
 
 Operator dialogue rules:
 
-- For initial decisions, write `operator_dialogue` as a concise decision explanation grounded
-  in the canonical Research Evidence Package.
+- For initial decisions, write `operator_dialogue` yourself as a concise final decision
+  explanation grounded in the canonical Research Evidence Package. Do not copy
+  `evidence_synthesis.operator_dialogue` verbatim. Name the current deviation, why it
+  matters, and the likely next action in concrete operational language. Do not use meta
+  phrases such as "decision impact", "cautious approach", or "evidence suggests".
 - For follow-up questions, when `evidence_synthesis.operator_dialogue` or
   `evidence_synthesis.direct_answer` is present, use that synthesized answer as the basis for
   `operator_dialogue`. Do not recompute count/comparison synthesis from scratch or contradict
