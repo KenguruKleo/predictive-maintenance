@@ -35,6 +35,7 @@ OPENAI_ENDPOINT = os.getenv(
 OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY", "")
 EMBEDDING_DEPLOYMENT = os.getenv("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
 EMBEDDING_DIMENSIONS = int(os.getenv("AZURE_OPENAI_EMBEDDING_DIMENSIONS", "1536"))
+RAG_ENFORCE_SAFETY_FILTER = os.getenv("RAG_ENFORCE_SAFETY_FILTER", "true").lower() == "true"
 
 DEFAULT_TOP_K = 5
 
@@ -84,6 +85,15 @@ def embed(text: str) -> list[float]:
     return response.data[0].embedding
 
 
+def _build_effective_filter(filter_expr: str | None) -> str | None:
+    if not RAG_ENFORCE_SAFETY_FILTER:
+        return filter_expr
+    safety_filter = "allowed_for_rag eq true"
+    if filter_expr:
+        return f"({filter_expr}) and ({safety_filter})"
+    return safety_filter
+
+
 def search_index(
     index_name: str,
     query: str,
@@ -104,17 +114,36 @@ def search_index(
     )
 
     client = _get_search_client(index_name)
-    results = client.search(
-        search_text=query,
-        vector_queries=[vector_query],
-        filter=filter_expr,
-        top=top_k,
-        select=[
-            "id", "document_id", "document_title", "document_type",
-            "chunk_index", "section_heading", "section_key", "section_path",
-            "text", "keywords", "equipment_ids", "source_blob",
-        ],
-    )
+    effective_filter = _build_effective_filter(filter_expr)
+
+    try:
+        results = client.search(
+            search_text=query,
+            vector_queries=[vector_query],
+            filter=effective_filter,
+            top=top_k,
+            select=[
+                "id", "document_id", "document_title", "document_type",
+                "chunk_index", "section_heading", "section_key", "section_path",
+                "text", "keywords", "equipment_ids", "source_blob",
+            ],
+        )
+    except Exception:
+        # Backward compatibility for environments where indexes were not yet migrated
+        # with the `allowed_for_rag` field.
+        if effective_filter == filter_expr:
+            raise
+        results = client.search(
+            search_text=query,
+            vector_queries=[vector_query],
+            filter=filter_expr,
+            top=top_k,
+            select=[
+                "id", "document_id", "document_title", "document_type",
+                "chunk_index", "section_heading", "section_key", "section_path",
+                "text", "keywords", "equipment_ids", "source_blob",
+            ],
+        )
 
     return [
         {

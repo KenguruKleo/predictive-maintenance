@@ -32,7 +32,7 @@ from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
 from shared.signalr_client import notify_incident_status_changed_sync
 from utils.auth import AuthError, get_caller_id, get_caller_roles, require_any_role
-from utils.validation import sanitize_string_fields
+from utils.validation import normalize_free_text, sanitize_string_fields
 
 logger = logging.getLogger(__name__)
 
@@ -101,7 +101,10 @@ async def http_decision(
             f"'action' must be one of: {', '.join(sorted(VALID_ACTIONS))}",
         )
 
-    if action == "more_info" and not body.get("question"):
+    reason_text = normalize_free_text(body.get("reason", ""))
+    question_text = normalize_free_text(body.get("question", ""))
+
+    if action == "more_info" and not question_text:
         return _error(400, "'question' is required when action=more_info")
 
     # Parse optional operator-confirmed draft fields
@@ -172,8 +175,8 @@ async def http_decision(
         "action": action,
         "user_id": caller_id,
         "role": workflow_role,
-        "reason": body.get("reason", ""),
-        "question": body.get("question", ""),
+        "reason": reason_text,
+        "question": question_text,
         "agent_recommendation": agent_rec,
         "operator_agrees_with_agent": operator_agrees,
         "work_order_draft": work_order_draft,

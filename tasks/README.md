@@ -48,3 +48,4 @@
 | T-058 | [T-058-frontend-unit-test-coverage.md](./T-058-frontend-unit-test-coverage.md) |
 | T-059 | [T-059-backend-test-coverage.md](./T-059-backend-test-coverage.md) |
 | T-060 | [T-060-teams-app-integration.md](./T-060-teams-app-integration.md) |
+| T-061 | [T-061-operator-followup-and-document-safety.md](./T-061-operator-followup-and-document-safety.md) |

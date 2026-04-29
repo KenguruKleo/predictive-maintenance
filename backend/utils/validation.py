@@ -33,19 +33,58 @@ ALLOWED_DEVIATION_TYPES = {
 
 # Max length for string fields — prevents oversized payloads
 MAX_STRING_LENGTH = 500
+_CONTROL_CHAR_PATTERN = re.compile(r"[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]")
 
 # ---------------------------------------------------------------------------
 # Prompt injection patterns to strip / block
 # ---------------------------------------------------------------------------
 
 _INJECTION_PATTERNS = re.compile(
-    r"(ignore\s+(previous|all|above)\s+instructions?"
+    r"(ignore\s+(?:(?:all|previous|above)\s+){0,3}instructions?"
     r"|you\s+are\s+now|new\s+system\s+prompt"
     r"|disregard\s+(all|previous)"
     r"|act\s+as\s+(?:a\s+)?(?:DAN|jailbreak)"
     r"|<\s*(?:system|user|assistant)\s*>)",
     re.IGNORECASE,
 )
+
+_INJECTION_COMMAND_TOKENS = {
+    "ignore", "forget", "disregard", "override", "bypass", "disable", "reveal", "leak",
+}
+_INJECTION_TARGET_TOKENS = {
+    "instruction", "instructions", "system", "prompt", "guardrail", "guardrails", "policy",
+    "policies", "rule", "rules", "limitation", "limitations",
+}
+_ROLE_SWITCH_TOKENS = {"switch", "change", "become", "act", "pretend"}
+_UNSAFE_ROLE_TOKENS = {"unrestricted", "admin", "root", "developer", "dan"}
+
+
+def has_prompt_injection_signals(value: str) -> bool:
+    """Detect likely prompt-injection intent using rule-based signals, with regex as fallback."""
+    normalized = normalize_free_text(value).lower()
+    if not normalized:
+        return False
+
+    # Keep regex as a fallback for known direct signatures.
+    if _INJECTION_PATTERNS.search(normalized):
+        return True
+
+    tokens = set(re.findall(r"[a-z0-9_]+", normalized))
+    has_command = bool(tokens & _INJECTION_COMMAND_TOKENS)
+    has_target = bool(tokens & _INJECTION_TARGET_TOKENS)
+    if has_command and has_target:
+        return True
+
+    # Role/persona hijack without explicit regex pattern.
+    if "role" in tokens and bool(tokens & _ROLE_SWITCH_TOKENS) and bool(tokens & _UNSAFE_ROLE_TOKENS):
+        return True
+
+    # Common obfuscation attempts.
+    if ("base64" in tokens or "encoded" in tokens) and ("decode" in tokens or "decrypt" in tokens):
+        if has_target or "prompt" in tokens:
+            return True
+
+    return False
 
 
 def validate_alert_payload(body: Any) -> None:
@@ -99,11 +138,32 @@ def sanitize_string_fields(body: dict) -> None:
     """
     string_fields = [
         "equipment_id", "deviation_type", "parameter", "unit",
-        "detected_by", "batch_id", "alert_id",
+        "detected_by", "batch_id", "alert_id", "reason", "question",
     ]
     for field in string_fields:
         value = body.get(field)
-        if isinstance(value, str) and _INJECTION_PATTERNS.search(value):
+        if not isinstance(value, str):
+            continue
+        normalized = normalize_free_text(value)
+        if len(normalized) > MAX_STRING_LENGTH:
+            raise ValueError(
+                f"Field '{field}' exceeds maximum length of {MAX_STRING_LENGTH}"
+            )
+        if _CONTROL_CHAR_PATTERN.search(value):
+            raise ValueError(
+                f"Potentially unsafe control characters detected in field '{field}'. Request rejected."
+            )
+        if has_prompt_injection_signals(normalized):
             raise ValueError(
                 f"Potentially unsafe content detected in field '{field}'. Request rejected."
             )
+
+
+def normalize_free_text(value: Any) -> str:
+    """Normalize user-provided free-text fields before persistence and search use."""
+    if value is None:
+        return ""
+    text = str(value)
+    text = _CONTROL_CHAR_PATTERN.sub(" ", text)
+    text = re.sub(r"\s+", " ", text).strip()
+    return text

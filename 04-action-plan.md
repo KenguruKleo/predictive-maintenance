@@ -97,6 +97,7 @@ T-002 close-out beat should now explicitly mention controlled tool invocation: p
 | T-038 | **[Security layer](./tasks/T-038-security.md)** — Managed Identities for all Functions, Key Vault managed identity auth, retention policy (21 CFR Part 11), data classification tags | Gap #2, §8.15 | 🟡 MEDIUM | 🔜 TODO |
 | T-039 | **[Reliability layer](./tasks/T-039-reliability.md)** — fallback mode (degraded manual CAPA), circuit breaker for Foundry calls, latency SLO alerts, chaos experiments baseline | Gap #3, §8.17 | 🟡 MEDIUM | 🔜 TODO |
 | T-040 | **[RAI layer](./tasks/T-040-rai.md)** — prompt injection guard (Content Safety Prompt Shield), model versioning + rollback via Foundry governed deployment, formal eval pipeline (groundedness/coherence/relevance), low-confidence escalation UI state | Gap #4, §8.18 | 🟡 MEDIUM | 🔜 TODO |
+| T-061 | **[Operator follow-up + document safety guardrails](./tasks/T-061-operator-followup-and-document-safety.md)** — protect `more_info.question` input path and document channel (ingest + retrieval + generation safety filters), including trust metadata and blocked-content audit trace | Gap #2, Gap #4 | 🟡 MEDIUM | 🟡 IN PROGRESS |
 
 | ID | Task | WAR Gap | Priority | Status |
 |---|---|---|---|---|

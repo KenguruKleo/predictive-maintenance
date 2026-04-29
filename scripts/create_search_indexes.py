@@ -24,6 +24,7 @@ import os
 import re
 import sys
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 
 from azure.core.credentials import AzureKeyCredential
@@ -54,6 +55,7 @@ sys.path.insert(0, str(ROOT / "backend"))
 
 from shared.history_index import build_history_source_documents
 from shared.history_index import is_historical_incident_eligible
+from utils.validation import has_prompt_injection_signals
 
 SEARCH_ENDPOINT = os.getenv(
     "AZURE_SEARCH_ENDPOINT",
@@ -83,6 +85,15 @@ BPR_MAX_CHUNK = 1200   # allow larger chunks to keep tables intact
 
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.*\S)\s*$")
 SECTION_KEY_RE = re.compile(r"(?<!\w)§?\s*(\d+(?:\.\d+)*)(?!\w)")
+
+SECRET_PATTERN = re.compile(
+    r"(api[_-]?key|secret|token|password|connection\s*string|BEGIN\s+PRIVATE\s+KEY)",
+    re.IGNORECASE,
+)
+PII_PATTERN = re.compile(
+    r"([A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}|\b\d{3}[-.\s]?\d{2}[-.\s]?\d{4}\b)",
+    re.IGNORECASE,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +171,27 @@ def build_index(name: str) -> SearchIndex:
         ),
         SearchableField(name="keywords", type=SearchFieldDataType.String),
         SimpleField(name="source_blob", type=SearchFieldDataType.String),
+        SimpleField(
+            name="trust_level",
+            type=SearchFieldDataType.String,
+            filterable=True,
+            facetable=True,
+        ),
+        SimpleField(
+            name="allowed_for_rag",
+            type=SearchFieldDataType.Boolean,
+            filterable=True,
+            facetable=True,
+        ),
+        SimpleField(
+            name="safety_flags",
+            type=SearchFieldDataType.Collection(SearchFieldDataType.String),
+            filterable=True,
+            facetable=True,
+        ),
+        SimpleField(name="contains_sensitive_data", type=SearchFieldDataType.Boolean, filterable=True),
+        SimpleField(name="scanned_at", type=SearchFieldDataType.String, filterable=True),
+        SimpleField(name="scanner_version", type=SearchFieldDataType.String, filterable=True),
     ]
 
     vector_search = VectorSearch(
@@ -481,6 +513,38 @@ def extract_document_type(index_name: str) -> str:
     }.get(index_name, "document")
 
 
+def classify_text_safety(text: str) -> dict[str, object]:
+    """Assign trust/safety metadata for a chunk during ingestion."""
+    flags: list[str] = []
+    if has_prompt_injection_signals(text):
+        flags.append("prompt_injection_like")
+    if SECRET_PATTERN.search(text):
+        flags.append("secret_pattern_detected")
+    if PII_PATTERN.search(text):
+        flags.append("pii_detected")
+
+    contains_sensitive_data = any(
+        flag in {"secret_pattern_detected", "pii_detected"}
+        for flag in flags
+    )
+    blocked = any(flag in {"prompt_injection_like", "secret_pattern_detected"} for flag in flags)
+
+    trust_level = "trusted"
+    if blocked:
+        trust_level = "untrusted"
+    elif flags:
+        trust_level = "review_needed"
+
+    return {
+        "trust_level": trust_level,
+        "allowed_for_rag": not blocked,
+        "safety_flags": flags,
+        "contains_sensitive_data": contains_sensitive_data,
+        "scanner_version": "mvp-safety-v1",
+        "scanned_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 # ---------------------------------------------------------------------------
 # Main pipeline
 # ---------------------------------------------------------------------------
@@ -561,6 +625,7 @@ def process_index(
 
             chunk_text_str = chunk["text"]
             embedding = get_embedding(openai_client, chunk_text_str)
+            safety = classify_text_safety(chunk_text_str)
 
             batch.append({
                 "id": f"{doc_id}-chunk-{i:03d}",
@@ -576,6 +641,12 @@ def process_index(
                 "equipment_ids": equipment_ids,
                 "keywords": "",
                 "source_blob": filename,
+                "trust_level": safety["trust_level"],
+                "allowed_for_rag": safety["allowed_for_rag"],
+                "safety_flags": safety["safety_flags"],
+                "contains_sensitive_data": safety["contains_sensitive_data"],
+                "scanned_at": safety["scanned_at"],
+                "scanner_version": safety["scanner_version"],
             })
             total_chunks += 1
 
