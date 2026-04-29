@@ -6,12 +6,52 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _collect_research_evidence_package,
     _citation_applies_to_bpr_reference,
     _citation_applies_to_equipment,
     _normalize_agent_result,
     _normalize_evidence_citations,
 )
 from shared.agent_telemetry import _trace_enabled
+
+
+def test_collect_research_evidence_package_uses_latest_operator_question_in_queries(monkeypatch) -> None:
+    from activities import run_foundry_agents as module
+
+    calls: list[tuple[str, str, str | None]] = []
+
+    def fake_search_index(index_name: str, query: str, top_k: int = 0, filter_expr: str | None = None):
+        calls.append((index_name, query, filter_expr))
+        return []
+
+    monkeypatch.setattr(module, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(module, "search_index", fake_search_index)
+
+    package, rag_context = _collect_research_evidence_package(
+        {
+            "alert_payload": {
+                "equipment_id": "GR-204",
+                "parameter": "spray_rate",
+                "deviation_type": "process_parameter_excursion",
+                "measured_value": 138,
+                "lower_limit": 90,
+                "upper_limit": 130,
+            },
+            "equipment": {"id": "GR-204", "name": "Granulator GR-204", "type": "granulator"},
+            "batch": {"product": "Metformin 500mg", "stage": "granulation", "bpr_reference": "BPR-MET-500-v3.2"},
+            "operator_questions": [
+                {"round": 1, "question": "Earlier question that should not drive the latest search.", "asked_by": "operator"},
+                {"round": 2, "question": "Can you check the impeller seal cleaning SOP and any newer maintenance manual note?", "asked_by": "operator"},
+            ],
+        },
+        current_incident_id="INC-2026-9999",
+    )
+
+    assert len(calls) == 5
+    assert all("impeller seal cleaning sop" in query.lower() for _, query, _ in calls)
+    assert all("earlier question" not in query.lower() for _, query, _ in calls)
+    assert "included in backend retrieval" in package["context_summary"].lower()
+    assert rag_context["idx-sop-documents"] == []
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:

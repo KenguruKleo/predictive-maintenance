@@ -23,6 +23,9 @@
 
 **Currently working:** T-027 (Execution Agent — placeholder impl, full Foundry Agent spec pending) · T-039 (Reliability hardening) · T-040 (RAI observability)
 
+T-002 close-out beat should now explicitly mention controlled tool invocation: pre-approval AI prepares drafts only, while backend write actions to QMS/CMMS execute only after human approval. Expand this later with prompt-protection messaging.
+`more_info` follow-up retrieval now reuses the latest operator question in backend Azure AI Search queries, so clarification rounds can surface newly requested SOP/manual/BPR evidence without reopening pre-approval tool writes.
+
 > **ADR-002 - Foundry Connected Agents:** Research Agent + Document Agent are implemented as sub-agents of Foundry Orchestrator Agent.
 > Durable calls one activity `run_foundry_agents` — Foundry manages the Research → Document pipeline natively.
 > `more_info` loop: Durable accumulates `operator_questions`, runs `run_foundry_agents` again. Foundry manages internal iterations.

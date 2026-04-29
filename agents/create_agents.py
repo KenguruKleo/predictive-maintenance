@@ -4,9 +4,10 @@ create_agents.py — Provision Foundry agents for Sentinel Intelligence (T-025, 
 Run once (or with --update) to create/update Research, Document, and Orchestrator agents
 in Azure AI Foundry Agent Service.
 
-Uses OpenApiTool so Foundry calls our REST endpoints server-side (no client-side approval
-needed — works natively in Foundry Playground, unlike McpTool which always requires approval
-and the Playground has no UI for that).
+Uses OpenApiTool so Foundry calls our read-only REST endpoints server-side (no client-side
+approval needed — works natively in Foundry Playground, unlike McpTool which always requires
+approval and the Playground has no UI for that). Write-side QMS/CMMS persistence remains in the
+post-approval backend execution path.
 
 Usage:
     cd /workspace/predictive-maintenance
@@ -795,29 +796,11 @@ def main(update: bool = False) -> dict:
 
     document_tools: list[ToolDefinition] = []
 
-    # OpenApiTool: qms (create audit entries)
-    if mcp_qms_url:
-        qms_spec = _build_qms_spec(mcp_qms_url)
-        qms_tool = OpenApiTool(
-            name="sentinel_qms",
-            description="Create GMP-compliant deviation audit entries in the Quality Management System.",
-            spec=qms_spec,
-            auth=anon_auth,
+    if mcp_qms_url or mcp_cmms_url:
+        print(
+            "  + Write-side QMS/CMMS tools remain detached from the Document Agent; "
+            "backend persists audit/work-order records only after human approval."
         )
-        document_tools = document_tools + qms_tool.definitions  # type: ignore[operator]
-        print(f"  + OpenAPI sentinel-qms: {mcp_qms_url}")
-
-    # OpenApiTool: cmms (create work orders)
-    if mcp_cmms_url:
-        cmms_spec = _build_cmms_spec(mcp_cmms_url)
-        cmms_tool = OpenApiTool(
-            name="sentinel_cmms",
-            description="Create corrective maintenance work orders in the CMMS.",
-            spec=cmms_spec,
-            auth=anon_auth,
-        )
-        document_tools = document_tools + cmms_tool.definitions  # type: ignore[operator]
-        print(f"  + OpenAPI sentinel-cmms: {mcp_cmms_url}")
 
     document_agent = _create_or_update(
         client, "sentinel-document-agent", DOCUMENT_MODEL, DOCUMENT_PROMPT,

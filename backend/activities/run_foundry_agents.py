@@ -896,6 +896,12 @@ def _collect_research_evidence_package(
     alert_payload = context_data.get("alert_payload") or {}
     equipment = context_data.get("equipment") or {}
     batch = context_data.get("batch") or {}
+    latest_operator_question = _get_latest_operator_question(
+        context_data.get("operator_questions") or []
+    )
+    follow_up_search_terms = re.sub(r"\s+", " ", latest_operator_question).strip()
+    if len(follow_up_search_terms) > 240:
+        follow_up_search_terms = follow_up_search_terms[:240].rsplit(" ", 1)[0].strip()
 
     equipment_id = str(
         alert_payload.get("equipment_id")
@@ -952,6 +958,7 @@ def _collect_research_evidence_package(
                     "Product NOR Product PAR validated range",
                     lower_limit,
                     upper_limit,
+                    follow_up_search_terms,
                 ]
                 if value not in (None, "")
             ),
@@ -970,6 +977,7 @@ def _collect_research_evidence_package(
                     "operation GMP deviation investigation SOP",
                     lower_limit,
                     upper_limit,
+                    follow_up_search_terms,
                 ]
                 if value not in (None, "")
             ),
@@ -986,6 +994,7 @@ def _collect_research_evidence_package(
                     parameter_terms,
                     "process parameter excursion documented investigated product quality impact CAPA",
                     duration_seconds,
+                    follow_up_search_terms,
                 ]
                 if value not in (None, "")
             ),
@@ -1002,6 +1011,7 @@ def _collect_research_evidence_package(
                     parameter_terms,
                     "operational limits troubleshooting maintenance calibration current speed control",
                     measured_value,
+                    follow_up_search_terms,
                 ]
                 if value not in (None, "")
             ),
@@ -1021,6 +1031,7 @@ def _collect_research_evidence_package(
                     lower_limit,
                     upper_limit,
                     "human decision approved rejected",
+                    follow_up_search_terms,
                 ]
                 if value not in (None, "")
             ),
@@ -1150,6 +1161,11 @@ def _collect_research_evidence_package(
         context_summary = "No canonical evidence retrieved; see evidence_gaps."
     else:
         context_summary = "No research evidence was requested."
+
+    if follow_up_search_terms:
+        context_summary = (
+            f"{context_summary} Latest operator follow-up question was included in backend retrieval."
+        )
 
     package = {
         "tool_calls_log": tool_calls_log,

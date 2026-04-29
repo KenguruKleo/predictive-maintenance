@@ -52,7 +52,9 @@ Alert feedback loop to SCADA/MES when Reject (T-053)
 orchestrators → auto-requeue to Service Bus without losing business context
 
 [06:30–07:15]  IMPACT + CLOSE
-KPI + three-state confidence gate differentiator + GxP audit trail + closing
+KPI + three-state confidence gate differentiator + GxP audit trail
+               + controlled tool invocation: write-side QMS/CMMS actions execute only after human approval
+               + closing
 
 [07:15–07:45]  OPTIONAL ADD-ON — DESKTOP OPERATIONS SURFACE
                Show the Electron app running on the desktop
@@ -73,6 +75,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - **AI vs Human agreement** (T-054) — `AgentRecommendationBadge` and `AiVsHumanBadge` everywhere: in the list of incidents, in Recent Decisions, in CSV export. Governance becomes measurable
 - **Closed-loop actionability** — decision package shows batch disposition, CAPA actions, work order draft and audit entry draft even before the execution step
 - **Post-approval execution visibility** — after Approve the CAPA plan goes into execution: the system creates a work order task and an audit record, and this transition is visible both in the incident itself and in the **Workflow Pipeline** on the main screen
+- **Controlled tool invocation** — before approval the AI only prepares drafts; write-side QMS/CMMS actions are executed only after explicit human approval in the backend path. This gives us a clean bridge to the future prompt/tool protection story
 - **RBAC** — different roles are seen by different surfaces: Operator, QA Manager, Auditor, IT Admin
 - **Three-state confidence gate** — NORMAL / LOW_CONFIDENCE (banner + mandatory comment) / BLOCKED (empty forms + manual fill)
 - **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views, plus Electron native badge/OS notifications for desktop operators
@@ -202,6 +205,7 @@ KPI + three-state confidence gate differentiator + GxP audit trail + closing
 - Verify one incident has clear **Verified** and **Unresolved** evidence rows
 - Verify `INC-2026-0001` has `ai_analysis.work_order_draft` and `ai_analysis.audit_entry_draft` populated — inits the editable forms
 - Verify after approving `INC-2026-0001` the incident shows execution events for work order + audit creation and appears in the Workflow Pipeline `Execution` stage
+- Verify the closing script explicitly mentions that QMS/CMMS write actions are backend-controlled and happen only after Approve
 - Verify `INC-2026-0010` is in BLOCKED state with confidence ≤ 0.35 — forms empty, Approve disabled
 - Verify one incident is in `escalated` state (`INC-2026-0007`)
 - Verify one rejected incident (`INC-2026-0042`) clearly shows preserved AI recommendation plus required `Closure Reason` / override rationale

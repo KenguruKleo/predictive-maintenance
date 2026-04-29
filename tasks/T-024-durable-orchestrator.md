@@ -171,6 +171,7 @@ async def service_bus_start_orchestrator(msg, client):
 - [x] Escalation ownership is now preserved across the `more_info` loop: once a timeout hands review to QA, follow-up rounds stay QA-owned instead of drifting back to the operator lane
 - [x] `notify_operator.py` now keeps QA-owned follow-ups in `escalated` / `awaiting_qa_manager_decision` semantics so downstream notifications and SignalR delivery continue targeting QA correctly
 - [x] Focused helper coverage was added in `tests/test_incident_orchestrator_roles.py`; `python -m pytest tests/test_http_decision.py tests/test_incident_orchestrator_roles.py tests/test_notifications_api.py` passes locally
+- [x] Backend evidence retrieval now incorporates the latest operator follow-up question during `more_info` rounds, so clarification requests can widen Azure AI Search retrieval without re-enabling pre-approval tool writes
 
 ## Definition of Done
 
