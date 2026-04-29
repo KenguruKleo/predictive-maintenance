@@ -62,6 +62,8 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "not as a" in prompt
     assert "replacement for the canonical Research Evidence Package" in prompt
     assert "full incident, document" in prompt
+    assert "Do not turn Synthesizer unknowns into decision facts" in prompt
+    assert "analysis, rationale, recommendation, CAPA" in prompt
     assert "Identify the question shape" not in prompt
 
 

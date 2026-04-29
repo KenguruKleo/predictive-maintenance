@@ -188,6 +188,8 @@ def test_build_prompt_tells_orchestrator_to_use_evidence_synthesis_for_decision_
     assert "do not let its compact wording replace" in prompt
     assert "write your own concrete operator_dialogue" in prompt
     assert "do not copy evidence_synthesis.operator_dialogue verbatim" in prompt
+    assert "Do not turn Synthesizer unknowns into decision facts" in prompt
+    assert "analysis, rationale, recommendation, CAPA" in prompt
 
 
 def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:

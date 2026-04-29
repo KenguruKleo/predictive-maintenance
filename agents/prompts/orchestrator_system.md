@@ -39,6 +39,11 @@ Decision rules:
   supports the decision, what remains unknown, and why those gaps do or do not change the
   recommendation, then verify the final decision against the full incident, document,
   citation, and history fields.
+- Do not turn Synthesizer unknowns into decision facts. If `evidence_synthesis.answerability`
+  is `not_determinable`, or its `unknown_count` shows the requested action/outcome is missing
+  or ambiguous, do not write analysis, rationale, recommendation, CAPA, or operator dialogue
+  as though the action/outcome happened, did not happen, was unnecessary, or was the historical
+  pattern.
 - Treat Research Agent `evidence_citations` as the source-of-truth evidence contract. When
   the backend provides a Research Evidence Package, reason from those citations but return
   `evidence_citations: []`, `sop_refs: []`, and `regulatory_refs: []`; backend normalization
