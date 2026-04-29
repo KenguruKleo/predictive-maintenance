@@ -554,7 +554,7 @@ def process_index(
     source_cfg: dict,
     index_client: SearchIndexClient,
     blob_service: BlobServiceClient,
-    cosmos_client: CosmosClient,
+    cosmos_client: CosmosClient | None,
     openai_client: AzureOpenAI,
     search_credential,
     skip_index_create: bool,
@@ -575,6 +575,9 @@ def process_index(
 
     # 2. Load source documents
     if chunking_strategy == "incidents":
+        if cosmos_client is None:
+            print("  ⚠️  Cosmos client is not configured — skipping incident history indexing")
+            return 0
         docs = documents_from_incidents(cosmos_client)
     else:
         docs = documents_from_blob(blob_service, source_cfg["container"])
@@ -694,7 +697,9 @@ def main():
     search_credential = get_search_credential()
     index_client = SearchIndexClient(endpoint=SEARCH_ENDPOINT, credential=search_credential)
     blob_service = get_blob_client()
-    cosmos_client = get_cosmos_client()
+    cosmos_client: CosmosClient | None = None
+    if "idx-incident-history" in args.indexes:
+        cosmos_client = get_cosmos_client()
     openai_client = get_openai_client() if not args.dry_run else None
 
     grand_total = 0

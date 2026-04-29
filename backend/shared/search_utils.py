@@ -116,33 +116,36 @@ def search_index(
     client = _get_search_client(index_name)
     effective_filter = _build_effective_filter(filter_expr)
 
+    select_fields = [
+        "id", "document_id", "document_title", "document_type",
+        "chunk_index", "section_heading", "section_key", "section_path",
+        "text", "keywords", "equipment_ids", "source_blob",
+    ]
+
     try:
-        results = client.search(
-            search_text=query,
-            vector_queries=[vector_query],
-            filter=effective_filter,
-            top=top_k,
-            select=[
-                "id", "document_id", "document_title", "document_type",
-                "chunk_index", "section_heading", "section_key", "section_path",
-                "text", "keywords", "equipment_ids", "source_blob",
-            ],
+        results = list(
+            client.search(
+                search_text=query,
+                vector_queries=[vector_query],
+                filter=effective_filter,
+                top=top_k,
+                select=select_fields,
+            )
         )
     except Exception:
         # Backward compatibility for environments where indexes were not yet migrated
-        # with the `allowed_for_rag` field.
+        # with the `allowed_for_rag` field. Materialize results inside the try block
+        # because Azure Search raises filter errors during iterator consumption.
         if effective_filter == filter_expr:
             raise
-        results = client.search(
-            search_text=query,
-            vector_queries=[vector_query],
-            filter=filter_expr,
-            top=top_k,
-            select=[
-                "id", "document_id", "document_title", "document_type",
-                "chunk_index", "section_heading", "section_key", "section_path",
-                "text", "keywords", "equipment_ids", "source_blob",
-            ],
+        results = list(
+            client.search(
+                search_text=query,
+                vector_queries=[vector_query],
+                filter=filter_expr,
+                top=top_k,
+                select=select_fields,
+            )
         )
 
     return [

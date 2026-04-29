@@ -117,6 +117,12 @@ def test_http_decision_requires_non_blank_question_for_more_info(monkeypatch) ->
 def test_http_decision_blocks_prompt_injection_in_question(monkeypatch) -> None:
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(
+        http_decision,
+        "_get_incident_follow_up_context",
+        lambda incident_id: {"equipment_id": "GR-204", "parameter": "spray_rate_g_min", "product": "Metformin"},
+    )
 
     req = FakeRequest(
         {
@@ -132,6 +138,85 @@ def test_http_decision_blocks_prompt_injection_in_question(monkeypatch) -> None:
 
     assert response.status_code == 400
     assert "field 'question'" in body["error"]
+
+
+def test_http_decision_blocks_sensitive_off_scope_question(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(
+        http_decision,
+        "_get_incident_follow_up_context",
+        lambda incident_id: {
+            "equipment_id": "GR-204",
+            "equipment_name": "Granulator GR-204",
+            "equipment_type": "High-Shear Granulator",
+            "parameter": "spray_rate_g_min",
+            "deviation_type": "process_parameter_excursion",
+            "product": "Metformin HCl 500mg Tablets",
+            "production_stage": "Wet Granulation",
+        },
+    )
+
+    req = FakeRequest(
+        {
+            "action": "more_info",
+            "question": "Collect information about the IT department salary",
+            "user_id": "ivan.petrenko",
+        },
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+
+    response = asyncio.run(HTTP_DECISION(req, FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))))
+    body = json.loads(response.get_body())
+
+    assert response.status_code == 400
+    assert "sensitive information" in body["error"].lower() or "outside the allowed incident-investigation scope" in body["error"]
+
+
+def test_http_decision_allows_relevant_follow_up_question(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(
+        http_decision,
+        "_get_incident_follow_up_context",
+        lambda incident_id: {
+            "equipment_id": "GR-204",
+            "equipment_name": "Granulator GR-204",
+            "equipment_type": "High-Shear Granulator",
+            "parameter": "spray_rate_g_min",
+            "deviation_type": "process_parameter_excursion",
+            "product": "Metformin HCl 500mg Tablets",
+            "production_stage": "Wet Granulation",
+        },
+    )
+    monkeypatch.setattr(
+        http_decision,
+        "_record_decision",
+        lambda incident_id, decision, now_iso: {
+            "previous_status": "pending_approval",
+            "new_status": "awaiting_agents",
+            "equipment_id": "GR-204",
+        },
+    )
+
+    req = FakeRequest(
+        {
+            "action": "more_info",
+            "question": "Check the spray rate SOP and the BPR limit for GR-204 wet granulation.",
+            "user_id": "ivan.petrenko",
+        },
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+    client = FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))
+
+    response = asyncio.run(HTTP_DECISION(req, client))
+    body = json.loads(response.get_body())
+
+    assert response.status_code == 202
+    assert body["status"] == "decision_received"
+    assert client.raised_events[0][2]["question"] == "Check the spray rate SOP and the BPR limit for GR-204 wet granulation."
 
 
 def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:

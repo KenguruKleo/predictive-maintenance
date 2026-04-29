@@ -57,6 +57,19 @@ _INJECTION_TARGET_TOKENS = {
 }
 _ROLE_SWITCH_TOKENS = {"switch", "change", "become", "act", "pretend"}
 _UNSAFE_ROLE_TOKENS = {"unrestricted", "admin", "root", "developer", "dan"}
+_SENSITIVE_TOPIC_TOKENS = {
+    "salary", "salaries", "payroll", "compensation", "bonus", "bonuses", "wage", "wages",
+    "hr", "humanresources", "human_resources", "personal", "personnel",
+    "ssn", "passport", "bank", "iban", "tax", "medical", "diagnosis",
+}
+_UNRELATED_DEPARTMENT_TOKENS = {
+    "it", "finance", "accounting", "legal", "marketing", "sales", "recruiting",
+}
+_DOMAIN_TOPIC_TOKENS = {
+    "equipment", "batch", "deviation", "incident", "granulation", "granulator", "spray",
+    "impeller", "chopper", "temperature", "parameter", "limit", "calibration", "maintenance",
+    "manual", "sop", "bpr", "gmp", "capa", "quality", "product", "process", "operator",
+}
 
 
 def has_prompt_injection_signals(value: str) -> bool:
@@ -167,3 +180,59 @@ def normalize_free_text(value: Any) -> str:
     text = _CONTROL_CHAR_PATTERN.sub(" ", text)
     text = re.sub(r"\s+", " ", text).strip()
     return text
+
+
+def validate_follow_up_question_scope(question: str, incident_context: dict[str, Any] | None = None) -> None:
+    """Reject sensitive or clearly off-scope follow-up questions before entering the AI loop."""
+    normalized = normalize_free_text(question).lower()
+    if not normalized:
+        return
+
+    tokens = set(re.findall(r"[a-z0-9_]+", normalized))
+    if not tokens:
+        return
+
+    if tokens & _SENSITIVE_TOPIC_TOKENS:
+        raise ValueError(
+            "Question is outside the allowed incident-investigation scope and may request sensitive information."
+        )
+
+    incident_context = incident_context or {}
+    incident_terms = _extract_incident_context_terms(incident_context)
+    has_domain_terms = bool(tokens & _DOMAIN_TOPIC_TOKENS)
+    has_context_overlap = bool(tokens & incident_terms)
+    has_unrelated_department = bool(tokens & _UNRELATED_DEPARTMENT_TOKENS)
+
+    if has_unrelated_department and not has_context_overlap:
+        raise ValueError(
+            "Question is outside the allowed incident-investigation scope for this incident."
+        )
+
+    if not has_domain_terms and not has_context_overlap:
+        raise ValueError(
+            "Question must be relevant to the incident, equipment, batch, or manufacturing evidence."
+        )
+
+
+def _extract_incident_context_terms(incident_context: dict[str, Any]) -> set[str]:
+    values: list[str] = []
+    for key in (
+        "equipment_id",
+        "equipment_name",
+        "equipment_type",
+        "parameter",
+        "deviation_type",
+        "batch_id",
+        "product",
+        "production_stage",
+    ):
+        value = incident_context.get(key)
+        if value:
+            values.append(str(value))
+
+    token_set: set[str] = set()
+    for value in values:
+        for token in re.findall(r"[a-z0-9_]+", value.lower().replace("-", " ")):
+            if len(token) >= 2:
+                token_set.add(token)
+    return token_set

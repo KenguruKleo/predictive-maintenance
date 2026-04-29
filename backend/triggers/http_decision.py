@@ -32,7 +32,7 @@ from shared.cosmos_client import get_cosmos_client
 from shared.incident_store import get_incident_by_id, patch_incident_by_id
 from shared.signalr_client import notify_incident_status_changed_sync
 from utils.auth import AuthError, get_caller_id, get_caller_roles, require_any_role
-from utils.validation import normalize_free_text, sanitize_string_fields
+from utils.validation import normalize_free_text, sanitize_string_fields, validate_follow_up_question_scope
 
 logger = logging.getLogger(__name__)
 
@@ -143,6 +143,18 @@ async def http_decision(
             f"Access denied. Incident is currently awaiting {workflow_role} decision.",
         )
 
+    if action == "more_info":
+        try:
+            incident_context = _get_incident_follow_up_context(incident_id)
+            validate_follow_up_question_scope(question_text, incident_context)
+        except CosmosResourceNotFoundError:
+            return _error(404, f"Incident '{incident_id}' not found")
+        except ValueError as exc:
+            return _error(400, str(exc))
+        except Exception as exc:  # noqa: BLE001
+            logger.exception("Failed to validate follow-up question scope for %s: %s", incident_id, exc)
+            return _error(500, "Failed to validate follow-up question scope")
+
     instance_id = f"durable-{incident_id}"
 
     # Verify the orchestrator instance exists and is waiting
@@ -243,6 +255,24 @@ def _get_target_workflow_role(incident_id: str) -> str:
     if current_step == "awaiting_qa_manager_decision" or incident_status == "escalated":
         return "qa-manager"
     return "operator"
+
+
+def _get_incident_follow_up_context(incident_id: str) -> dict:
+    client = get_cosmos_client()
+    db = client.get_database_client(DB_NAME)
+    incident = get_incident_by_id(db, incident_id)
+    alert_payload = incident.get("alert_payload") or {}
+
+    return {
+        "equipment_id": incident.get("equipment_id") or alert_payload.get("equipment_id"),
+        "equipment_name": incident.get("equipment_name"),
+        "equipment_type": incident.get("equipment_type"),
+        "parameter": incident.get("parameter") or alert_payload.get("parameter"),
+        "deviation_type": incident.get("deviation_type") or alert_payload.get("deviation_type"),
+        "batch_id": incident.get("batch_id") or alert_payload.get("batch_id"),
+        "product": incident.get("product"),
+        "production_stage": incident.get("production_stage"),
+    }
 
 
 def _record_decision(incident_id: str, decision: dict, now_iso: str) -> dict:

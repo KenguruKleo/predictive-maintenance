@@ -41,6 +41,7 @@ This task extends existing controls (backend-controlled retrieval + post-approva
 - [x] Enforce length and normalization bounds for `question` (strip control chars, collapse whitespace, max length).
 - [x] Add allow/deny checks for obvious prompt-injection patterns in follow-up inputs.
 - [x] Add unit tests for valid/invalid `question` payloads in decision endpoints.
+- [x] Block clearly off-scope or sensitive follow-up requests (for example salary / HR / unrelated department data) before they enter the AI loop.
 
 ### B. Document ingestion protection
 - [x] Add a document pre-index sanitizer in ingestion scripts/pipeline (`scripts/upload_documents.py` and related ingestion path):
@@ -83,6 +84,7 @@ This task extends existing controls (backend-controlled retrieval + post-approva
 - Added focused tests for blank question rejection and injection pattern rejection (`tests/test_http_decision.py`).
 - Added trust/safety metadata to Search index schema + ingestion pipeline (`scripts/create_search_indexes.py`): `trust_level`, `allowed_for_rag`, `safety_flags`, `contains_sensitive_data`, `scanned_at`, `scanner_version`.
 - Added retrieval-time safety filter (`allowed_for_rag eq true`) with backward-compatible fallback in `backend/shared/search_utils.py`.
+- Added incident-scoped follow-up guard in `http_decision`: sensitive/off-topic questions are now rejected before `more_info` can trigger another analysis round.
 
 ---
 
