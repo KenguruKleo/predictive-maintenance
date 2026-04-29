@@ -88,6 +88,22 @@ def _get_followup_review_role(active_review_role: str, decision: dict) -> str:
     return "qa-manager" if decision_role == "qa-manager" else "operator"
 
 
+def _can_run_more_info(action: str, more_info_rounds: int, max_rounds: int = MAX_MORE_INFO_ROUNDS) -> bool:
+    return action == "more_info" and more_info_rounds < max_rounds
+
+
+def _build_more_info_limit_notice(ai_result: dict, max_rounds: int = MAX_MORE_INFO_ROUNDS) -> dict:
+    notice = dict(ai_result or {})
+    message = (
+        f"The More Info limit has been reached ({max_rounds} rounds). "
+        "No additional AI analysis was run. Please approve or reject the current recommendation, "
+        "or restart the incident review if a new investigation round is required."
+    )
+    notice["operator_dialogue"] = message
+    notice["analysis"] = message
+    return notice
+
+
 @bp.orchestration_trigger(context_name="context")
 def incident_orchestrator(context: df.DurableOrchestrationContext):
     """Main stateful workflow triggered by a Service Bus message."""
@@ -165,7 +181,7 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
 
         action: str = decision.get("action", "rejected")
 
-        if action == "more_info" and more_info_rounds < MAX_MORE_INFO_ROUNDS:
+        if _can_run_more_info(action, more_info_rounds):
             active_review_role = _get_followup_review_role(active_review_role, decision)
             more_info_rounds += 1
             context_data["operator_questions"].append(
@@ -201,7 +217,23 @@ def incident_orchestrator(context: df.DurableOrchestrationContext):
             )
             continue  # loop back to wait for next decision
 
-        # approved / rejected / more_info limit reached → exit loop
+        if action == "more_info":
+            yield context.call_activity(
+                "notify_operator",
+                {
+                    "incident_id": incident_id,
+                    "ai_result": _build_more_info_limit_notice(ai_result),
+                    "role": active_review_role,
+                    "assigned_to": decision.get("user_id", ""),
+                    "response_round": more_info_rounds,
+                    "batch_id": context_data.get("batch", {}).get("id") or input_data.get("batch_id", ""),
+                    "product": context_data.get("product", ""),
+                    "production_stage": context_data.get("production_stage", ""),
+                },
+            )
+            continue
+
+        # approved / rejected → exit loop
         break
 
     # ── Step 5: Execute or close ───────────────────────────────────────────

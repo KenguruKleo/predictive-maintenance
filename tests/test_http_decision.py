@@ -118,6 +118,7 @@ def test_http_decision_blocks_prompt_injection_in_question(monkeypatch) -> None:
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(http_decision, "_get_more_info_decision_count", lambda incident_id: 0)
     monkeypatch.setattr(
         http_decision,
         "_get_incident_follow_up_context",
@@ -144,6 +145,7 @@ def test_http_decision_blocks_sensitive_off_scope_question(monkeypatch) -> None:
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(http_decision, "_get_more_info_decision_count", lambda incident_id: 0)
     monkeypatch.setattr(
         http_decision,
         "_get_incident_follow_up_context",
@@ -178,6 +180,7 @@ def test_http_decision_allows_relevant_follow_up_question(monkeypatch) -> None:
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(http_decision, "_get_more_info_decision_count", lambda incident_id: 0)
     monkeypatch.setattr(
         http_decision,
         "_get_incident_follow_up_context",
@@ -223,6 +226,7 @@ def test_http_decision_allows_manufacturing_investigation_follow_up_without_equi
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
     monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
     monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(http_decision, "_get_more_info_decision_count", lambda incident_id: 0)
     monkeypatch.setattr(
         http_decision,
         "_get_incident_follow_up_context",
@@ -266,6 +270,48 @@ def test_http_decision_allows_manufacturing_investigation_follow_up_without_equi
     assert response.status_code == 202
     assert body["status"] == "decision_received"
     assert client.raised_events[0][2]["question"] == question
+
+
+def test_http_decision_rejects_more_info_after_round_limit(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(http_decision, "_get_more_info_decision_count", lambda incident_id: http_decision.MAX_MORE_INFO_ROUNDS)
+    monkeypatch.setattr(
+        http_decision,
+        "_get_incident_follow_up_context",
+        lambda incident_id: {
+            "equipment_id": "GR-204",
+            "equipment_name": "Granulator GR-204",
+            "equipment_type": "High-Shear Granulator",
+            "parameter": "spray_rate_g_min",
+            "deviation_type": "process_parameter_excursion",
+            "product": "Metformin HCl 500mg Tablets",
+            "production_stage": "Wet Granulation",
+        },
+    )
+    monkeypatch.setattr(
+        http_decision,
+        "_record_decision",
+        lambda incident_id, decision, now_iso: (_ for _ in ()).throw(AssertionError("decision should not persist")),
+    )
+
+    req = FakeRequest(
+        {
+            "action": "more_info",
+            "question": "For GR-204 spray-rate deviation, can we ask another follow-up?",
+            "user_id": "ivan.petrenko",
+        },
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+    client = FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))
+
+    response = asyncio.run(HTTP_DECISION(req, client))
+    body = json.loads(response.get_body())
+
+    assert response.status_code == 409
+    assert "More Info limit reached" in body["error"]
+    assert client.raised_events == []
 
 
 def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:

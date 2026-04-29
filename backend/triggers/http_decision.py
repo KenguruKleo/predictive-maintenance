@@ -38,6 +38,7 @@ logger = logging.getLogger(__name__)
 
 VALID_ACTIONS = {"approved", "rejected", "more_info"}
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
+MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
 ALLOWED_ROLES = ["Operator", "QAManager"]
 
 WORKFLOW_ROLE_BY_APP_ROLE = {
@@ -147,6 +148,7 @@ async def http_decision(
         try:
             incident_context = _get_incident_follow_up_context(incident_id)
             validate_follow_up_question_scope(question_text, incident_context)
+            more_info_count = _get_more_info_decision_count(incident_id)
         except CosmosResourceNotFoundError:
             return _error(404, f"Incident '{incident_id}' not found")
         except ValueError as exc:
@@ -154,6 +156,14 @@ async def http_decision(
         except Exception as exc:  # noqa: BLE001
             logger.exception("Failed to validate follow-up question scope for %s: %s", incident_id, exc)
             return _error(500, "Failed to validate follow-up question scope")
+        if more_info_count >= MAX_MORE_INFO_ROUNDS:
+            return _error(
+                409,
+                (
+                    f"More Info limit reached ({MAX_MORE_INFO_ROUNDS} rounds). "
+                    "Please approve or reject the current recommendation."
+                ),
+            )
 
     instance_id = f"durable-{incident_id}"
 
@@ -273,6 +283,20 @@ def _get_incident_follow_up_context(incident_id: str) -> dict:
         "product": incident.get("product"),
         "production_stage": incident.get("production_stage"),
     }
+
+
+def _get_more_info_decision_count(incident_id: str) -> int:
+    client = get_cosmos_client()
+    db = client.get_database_client(DB_NAME)
+    events = db.get_container_client("incident_events")
+    rows = list(
+        events.query_items(
+            "SELECT VALUE COUNT(1) FROM c WHERE c.incidentId = @incident_id AND c.action = 'more_info'",
+            parameters=[{"name": "@incident_id", "value": incident_id}],
+            enable_cross_partition_query=True,
+        )
+    )
+    return int(rows[0] or 0) if rows else 0
 
 
 def _record_decision(incident_id: str, decision: dict, now_iso: str) -> dict:
