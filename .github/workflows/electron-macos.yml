@@ -59,7 +59,6 @@ jobs:
             frontend/release/*.dmg
             frontend/release/*.zip
             frontend/release/*.blockmap
-            frontend/release/latest-mac.yml
           if-no-files-found: error
           retention-days: 14
 
@@ -76,5 +75,5 @@ jobs:
               || gh release view "$tag" >/dev/null 2>&1
           fi
           shopt -s nullglob
-          files=(frontend/release/*.dmg frontend/release/*.zip frontend/release/*.blockmap frontend/release/latest-mac.yml)
+          files=(frontend/release/*.dmg frontend/release/*.zip frontend/release/*.blockmap)
           gh release upload "$tag" "${files[@]}" --clobber
