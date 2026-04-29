@@ -756,10 +756,12 @@ def _build_evidence_synthesis_prompt(
             "- Distinguish explicit support from unknown or missing facts.",
             "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
             "- Do not infer that an action did not happen merely because an excerpt does not mention it.",
+            "- Negative support also requires explicit evidence; omission means unknown, not proof.",
             "- Use `all`, `most`, or `none` only with numbers that support the comparison.",
             "- If requested facts are absent or ambiguous, say the count is not determinable from retrieved evidence.",
             "- Do not make the final GMP approval/rejection decision; provide only a decision impact hint.",
             "- Keep `operator_dialogue` under 120 words.",
+            "- Return the data object itself, not JSON Schema. Do not include `type`, `properties`, `required`, or `additionalProperties`.",
             "",
             "Return JSON only.",
         ]
@@ -929,6 +931,8 @@ def _compact_citations_for_prompt(value: object, *, limit: int) -> list[dict]:
 def _normalize_evidence_synthesis(raw_synthesis: dict, latest_operator_question: str) -> dict:
     if not isinstance(raw_synthesis, dict):
         return {}
+    if isinstance(raw_synthesis.get("properties"), dict):
+        raw_synthesis = raw_synthesis["properties"]
 
     def _as_int(value: object) -> int:
         if value in (None, ""):

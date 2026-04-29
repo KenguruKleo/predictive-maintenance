@@ -16,6 +16,7 @@ from activities.run_foundry_agents import (
     _citation_applies_to_equipment,
     _normalize_agent_result,
     _normalize_evidence_citations,
+    _normalize_evidence_synthesis,
 )
 from shared.agent_telemetry import _trace_enabled
 
@@ -212,8 +213,41 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "Evidence Synthesis Request" in prompt
     assert "Distinguish explicit support from unknown" in prompt
     assert "Do not infer that an action did not happen" in prompt
+    assert "omission means unknown" in prompt
+    assert "not JSON Schema" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "tool_calls_log" not in prompt
+
+
+def test_normalize_evidence_synthesis_unwraps_schema_shaped_response() -> None:
+    synthesis = _normalize_evidence_synthesis(
+        {
+            "type": "object",
+            "properties": {
+                "latest_question": "How many cases explicitly support the requested outcome?",
+                "question_focus": "Historical comparison",
+                "answerability": "partially_answered",
+                "direct_answer": "One of two cases explicitly supports the requested outcome.",
+                "operator_dialogue": "One of two reviewed cases explicitly supports the requested outcome; the other is unknown.",
+                "checked_evidence_count": "2",
+                "explicit_support_count": "1",
+                "contradiction_count": 0,
+                "unknown_count": "1",
+                "supporting_evidence": [{"source_id": "INC-1", "source_type": "historical", "fact": "Explicitly supported."}],
+                "evidence_gaps": ["Second excerpt does not state the requested outcome."],
+                "decision_impact_hint": "Do not change decision from this evidence alone.",
+                "reasoning_summary": "One supported, one unknown.",
+            },
+        },
+        "Fallback question",
+    )
+
+    assert synthesis["latest_question"] == "How many cases explicitly support the requested outcome?"
+    assert synthesis["answerability"] == "partially_answered"
+    assert synthesis["checked_evidence_count"] == 2
+    assert synthesis["explicit_support_count"] == 1
+    assert synthesis["unknown_count"] == 1
+    assert synthesis["operator_dialogue"].startswith("One of two reviewed cases")
 
 
 def test_orchestrator_research_package_prefers_compact_synthesis() -> None:
