@@ -23,6 +23,7 @@ After running, copy the printed IDs into local.settings.json / Azure App Setting
 import argparse
 import os
 import sys
+import time
 from pathlib import Path
 
 from azure.ai.agents import AgentsClient
@@ -33,6 +34,7 @@ from azure.ai.agents.models import (
     ResponseFormatJsonSchemaType,
     ToolDefinition,
 )
+from azure.core.exceptions import HttpResponseError
 from azure.identity import AzureCliCredential, DefaultAzureCredential
 from dotenv import load_dotenv
 
@@ -74,6 +76,12 @@ ORCHESTRATOR_MODEL = _resolve_agent_model(
 )
 TEMPERATURE = 0.2  # Low temp for deterministic structured JSON output
 TOP_P = 0.9         # Slightly constrained nucleus sampling
+_TRANSIENT_FOUNDRY_STATUS_CODES = frozenset({408, 409, 429, 500, 502, 503, 504})
+_FOUNDRY_RETRY_ATTEMPTS = max(1, int(os.getenv("FOUNDRY_AGENT_RETRY_ATTEMPTS", "4")))
+_FOUNDRY_RETRY_BASE_SECONDS = max(
+    0.0,
+    float(os.getenv("FOUNDRY_AGENT_RETRY_BASE_SECONDS", "2")),
+)
 
 CANONICAL_EVIDENCE_CITATION_SCHEMA = {
     "type": "object",
@@ -618,8 +626,55 @@ def _build_client() -> AgentsClient:
     return AgentsClient(endpoint=endpoint, credential=credential)
 
 
+def _http_status_code(exc: HttpResponseError) -> int | None:
+    status = getattr(exc, "status_code", None)
+    if status is not None:
+        return int(status)
+    response = getattr(exc, "response", None)
+    if response is None:
+        return None
+    response_status = getattr(response, "status_code", None)
+    if response_status is None:
+        return None
+    return int(response_status)
+
+
+def _is_transient_foundry_error(exc: HttpResponseError) -> bool:
+    status = _http_status_code(exc)
+    if status in _TRANSIENT_FOUNDRY_STATUS_CODES:
+        return True
+    message = str(exc).lower()
+    return status is None and "server had an error processing your request" in message
+
+
+def _call_foundry_with_retry(operation_name: str, func, *args, **kwargs):
+    last_error: HttpResponseError | None = None
+    for attempt in range(1, _FOUNDRY_RETRY_ATTEMPTS + 1):
+        try:
+            return func(*args, **kwargs)
+        except HttpResponseError as exc:
+            last_error = exc
+            if not _is_transient_foundry_error(exc) or attempt >= _FOUNDRY_RETRY_ATTEMPTS:
+                raise
+
+            delay_seconds = _FOUNDRY_RETRY_BASE_SECONDS * (2 ** (attempt - 1))
+            status = _http_status_code(exc)
+            print(
+                f"  WARN: transient Foundry error during {operation_name} "
+                f"(status={status or 'unknown'}, attempt {attempt}/{_FOUNDRY_RETRY_ATTEMPTS}). "
+                f"Retrying in {delay_seconds:.1f}s...",
+                file=sys.stderr,
+            )
+            if delay_seconds > 0:
+                time.sleep(delay_seconds)
+
+    if last_error is not None:
+        raise last_error
+    raise RuntimeError(f"Foundry operation {operation_name} did not return a result")
+
+
 def _find_existing(client: AgentsClient, name: str):
-    for agent in client.list_agents():
+    for agent in _call_foundry_with_retry("list_agents", client.list_agents):
         if agent.name == name:
             return agent
     return None
@@ -650,10 +705,19 @@ def _create_or_update(
         kwargs["response_format"] = response_format
 
     if existing and update:
-        agent = client.update_agent(agent_id=existing.id, **kwargs)
+        agent = _call_foundry_with_retry(
+            f"update_agent:{name}",
+            client.update_agent,
+            agent_id=existing.id,
+            **kwargs,
+        )
         print(f"  Updated '{name}' (id={agent.id})")
     else:
-        agent = client.create_agent(**kwargs)
+        agent = _call_foundry_with_retry(
+            f"create_agent:{name}",
+            client.create_agent,
+            **kwargs,
+        )
         print(f"  Created '{name}' (id={agent.id})")
     return agent
 
