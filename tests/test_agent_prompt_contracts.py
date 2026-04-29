@@ -47,14 +47,19 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "backend provides a Research Evidence Package" in prompt
     assert "Backend normalization restores the canonical package" in prompt
     assert "severity: critical" in prompt
-    assert "Follow-up dialogue rules" in prompt
-    assert "Answer that concrete question first" in prompt
-    assert "Never hide an evidence gap behind a generic phrase" in prompt
-    assert "For count or comparison questions" in prompt
-    assert "absence of a detail in an excerpt is unknown" in prompt
-    assert "is not determinable from retrieved evidence" in prompt
+    assert "Operator dialogue rules" in prompt
+    assert "Evidence Synthesizer owns compact evidence briefs" in prompt
+    assert "answerability, count/comparison" in prompt
+    assert "use that synthesized answer as the basis" in prompt
+    assert "Do not recompute count/comparison synthesis from scratch" in prompt
+    assert "state missing evidence plainly" in prompt
     assert "evidence_synthesis" in prompt
-    assert "explicit evidence supports the decision" in prompt
+    assert "explicit evidence" in prompt
+    assert "supports the decision" in prompt
+    assert "not as a" in prompt
+    assert "replacement for the canonical Research Evidence Package" in prompt
+    assert "full incident, document" in prompt
+    assert "Identify the question shape" not in prompt
 
 
 def test_evidence_synthesizer_prompt_contract() -> None:
@@ -66,6 +71,9 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "explicitly supports the requested attribute" in prompt
     assert "Negative support also requires explicit evidence" in prompt
     assert "operator_dialogue` must include the checked count" in prompt
+    assert "balanced evidence map for the initial decision" in prompt
+    assert "Do not reduce the brief to historical precedent alone" in prompt
+    assert "historical approvals alone" in prompt
     assert "Do not return JSON Schema wrapper keys" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "Return JSON only" in prompt

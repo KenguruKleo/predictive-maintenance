@@ -753,6 +753,8 @@ def _build_evidence_synthesis_prompt(
             "### Synthesis Requirements",
             "- Produce a compact evidence brief for the Orchestrator and operator-facing follow-up answer.",
             "- Answer the latest question first when there is one.",
+            "- When there is no operator follow-up question, summarize current incident facts, applicable document/equipment constraints, historical calibration signals, and evidence gaps.",
+            "- Do not reduce an initial-decision brief to historical precedent alone.",
             "- Distinguish explicit support from unknown or missing facts.",
             "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
             "- For count/comparison questions, include those counts in `operator_dialogue` in plain language.",
@@ -760,7 +762,8 @@ def _build_evidence_synthesis_prompt(
             "- Negative support also requires explicit evidence; omission means unknown, not proof.",
             "- Use `all`, `most`, or `none` only with numbers that support the comparison.",
             "- If requested facts are absent or ambiguous, say the count is not determinable from retrieved evidence.",
-            "- Do not make the final GMP approval/rejection decision; provide only a decision impact hint.",
+            "- Do not make the final GMP approval/rejection decision; provide only a cautious evidence-linked decision impact hint.",
+            "- Do not imply that historical approvals alone decide the current case.",
             "- Keep `operator_dialogue` under 120 words.",
             "- Return the data object itself, not JSON Schema. Do not include `type`, `properties`, `required`, or `additionalProperties`.",
             "",
@@ -808,40 +811,11 @@ def _build_orchestrator_research_package(research_package: dict) -> dict:
     if not isinstance(research_package.get("evidence_synthesis"), dict):
         return research_package
 
-    return _pick_present(
-        {
-            "evidence_synthesis": research_package.get("evidence_synthesis"),
-            "follow_up_context": research_package.get("follow_up_context"),
-            "incident_facts": research_package.get("incident_facts"),
-            "equipment_facts": research_package.get("equipment_facts"),
-            "batch_facts": research_package.get("batch_facts"),
-            "bpr_constraints": _compact_prompt_mapping(research_package.get("bpr_constraints")),
-            "historical_incidents": _compact_historical_for_prompt(
-                research_package.get("historical_incidents"),
-                limit=8,
-            ),
-            "historical_pattern_summary": research_package.get("historical_pattern_summary"),
-            "evidence_citations": _compact_citations_for_prompt(
-                research_package.get("evidence_citations"),
-                limit=16,
-            ),
-            "evidence_gaps": research_package.get("evidence_gaps"),
-            "context_summary": research_package.get("context_summary"),
-        },
-        [
-            "evidence_synthesis",
-            "follow_up_context",
-            "incident_facts",
-            "equipment_facts",
-            "batch_facts",
-            "bpr_constraints",
-            "historical_incidents",
-            "historical_pattern_summary",
-            "evidence_citations",
-            "evidence_gaps",
-            "context_summary",
-        ],
-    )
+    synthesis = research_package["evidence_synthesis"]
+    return {
+        "evidence_synthesis": synthesis,
+        **{key: value for key, value in research_package.items() if key != "evidence_synthesis"},
+    }
 
 
 def _compact_prompt_mapping(value: object) -> dict | None:
@@ -1334,8 +1308,10 @@ def _build_prompt(
             "This package was retrieved directly from Sentinel DB/Search before this Orchestrator run.",
             (
                 "Use its `evidence_citations` as the source of truth for your reasoning. "
-                "When `evidence_synthesis` is present, treat it as the compact model-owned "
-                "brief for the latest question and preserve its explicit-support vs unknown distinctions. "
+                "When `evidence_synthesis` is present, use it as a model-owned evidence map, "
+                "not as a replacement for the canonical package. Preserve its explicit-support "
+                "vs unknown distinctions, then verify the final decision against the full incident, "
+                "document, citation, and history fields below. "
                 "The backend will attach the canonical citations and tool log after your decision, "
                 "so do not echo the large evidence/tool arrays in your final JSON."
             ),
@@ -1351,15 +1327,12 @@ def _build_prompt(
             "Treat this as the primary user intent for `operator_dialogue`.",
             f"Question: {latest_operator_question}",
             "Answer contract for `operator_dialogue`:",
-            "- Start by answering the concrete question the operator asked, not by restating the recommendation.",
-            "- Use the Research Evidence Package to say what evidence was checked and what it did or did not show.",
-            "- When `evidence_synthesis` is present, preserve its checked/support/unknown counts and evidence gaps.",
-            "- For count/comparison wording such as 'how many', 'most', or 'similar cases', include explicit supported counts from the evidence.",
-            "- Count an outcome or attribute only when cited evidence explicitly supports it; absence of a detail in an excerpt is unknown, not proof it did not happen.",
-            "- Do not say 'all', 'most', or 'none' unless the cited evidence supports that exact comparison.",
-            "- If the retrieved evidence is insufficient to answer any part, say that explicitly and name the missing fact.",
-            "- Then say whether recommendation, root cause, risk, or batch disposition changed or stayed the same, and why.",
-            "- Keep the response source-agnostic: work with any future evidence source added to the package.",
+            "- When `evidence_synthesis.operator_dialogue` or `evidence_synthesis.direct_answer` is present, use it as the evidence answer basis.",
+            "- Do not recompute count/comparison synthesis from scratch or contradict `evidence_synthesis` checked/support/unknown counts and evidence gaps.",
+            "- Add only the decision impact you own: whether recommendation, root cause, risk, or batch disposition changed or stayed the same, and why.",
+            "- If `evidence_synthesis` is absent, answer the concrete question directly from the canonical Research Evidence Package and name missing evidence plainly.",
+            "- Do not start with a generic recommendation summary unless the operator asked only for the recommendation.",
+            "- Keep the response source-agnostic and under 120 words.",
         ]
 
     if operator_questions:
@@ -1399,8 +1372,9 @@ def _build_prompt(
             "The summaries above are only routing context for your final decision. "
             "Use the Research Evidence Package above as the single source of evidence for SOPs, "
             "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
-            "When `evidence_synthesis` is present, use it to explain the final decision in terms of "
-            "explicit support, unknowns, evidence gaps, and decision impact. "
+            "When `evidence_synthesis` is present, use it to navigate explicit support, unknowns, "
+            "evidence gaps, and decision impact, but do not let its compact wording replace the "
+            "full canonical evidence package. "
             "When the prompt contains a Research Evidence Package, that package is the Research "
             "output for this run; do not call connected agents or external tools. "
             "Do not simulate tool_calls_log or invent citations from model memory. "
@@ -1428,7 +1402,7 @@ def _build_prompt(
         "When the Research Evidence Package is present, return compact empty arrays for evidence_citations, sop_refs, regulatory_refs, and tool_calls_log; backend normalization restores them. Do not call connected agents or external tools.",
         "If Research Agent did not return real canonical SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
         "For REJECT decisions, work_order_draft and work_order_id must be null.",
-        "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer the latest follow-up question directly before summarizing decision impact.",
+        "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words. For follow-ups, use evidence_synthesis as the answer basis when present, then summarize decision impact; if synthesis is absent, answer directly from the canonical package.",
     ]
 
     return "\n".join(lines)

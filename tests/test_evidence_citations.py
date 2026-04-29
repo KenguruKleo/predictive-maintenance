@@ -159,11 +159,11 @@ def test_build_prompt_adds_latest_followup_answer_task() -> None:
 
     assert "### Latest Operator Question - Answer Task" in prompt
     assert "Were similar incidents closed without replacement work orders?" in prompt
-    assert "Start by answering the concrete question" in prompt
-    assert "include explicit supported counts" in prompt
-    assert "absence of a detail in an excerpt is unknown" in prompt
-    assert "Do not say 'all', 'most', or 'none'" in prompt
-    assert "If the retrieved evidence is insufficient" in prompt
+    assert "use it as the evidence answer basis" in prompt
+    assert "Do not recompute count/comparison synthesis from scratch" in prompt
+    assert "checked/support/unknown counts and evidence gaps" in prompt
+    assert "If `evidence_synthesis` is absent" in prompt
+    assert "Do not start with a generic recommendation summary" in prompt
 
 
 def test_build_prompt_tells_orchestrator_to_use_evidence_synthesis_for_decision_explanation() -> None:
@@ -184,7 +184,8 @@ def test_build_prompt_tells_orchestrator_to_use_evidence_synthesis_for_decision_
     )
 
     assert "When `evidence_synthesis` is present" in prompt
-    assert "explicit support, unknowns, evidence gaps, and decision impact" in prompt
+    assert "navigate explicit support, unknowns" in prompt
+    assert "do not let its compact wording replace" in prompt
 
 
 def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
@@ -212,6 +213,8 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
 
     assert "Evidence Synthesis Request" in prompt
     assert "Distinguish explicit support from unknown" in prompt
+    assert "current incident facts" in prompt
+    assert "Do not reduce an initial-decision brief to historical precedent alone" in prompt
     assert "Do not infer that an action did not happen" in prompt
     assert "include those counts in `operator_dialogue`" in prompt
     assert "omission means unknown" in prompt
@@ -251,7 +254,7 @@ def test_normalize_evidence_synthesis_unwraps_schema_shaped_response() -> None:
     assert synthesis["operator_dialogue"].startswith("One of two reviewed cases")
 
 
-def test_orchestrator_research_package_prefers_compact_synthesis() -> None:
+def test_orchestrator_research_package_frontloads_synthesis_without_dropping_evidence() -> None:
     package = _build_orchestrator_research_package(
         {
             "tool_calls_log": [{"tool": "search", "args": {}, "status": "success"}],
@@ -281,13 +284,10 @@ def test_orchestrator_research_package_prefers_compact_synthesis() -> None:
         }
     )
 
-    assert "evidence_synthesis" in package
-    assert "tool_calls_log" not in package
-    assert package["historical_incidents"][0] == {
-        "incident_id": "INC-2026-0028",
-        "evidence_excerpt": "Recommendation: inspect tubing and nozzle for blockages.",
-    }
-    assert "large_field" not in package["evidence_citations"][0]
+    assert next(iter(package)) == "evidence_synthesis"
+    assert package["tool_calls_log"] == [{"tool": "search", "args": {}, "status": "success"}]
+    assert package["historical_incidents"][0]["extra"] == "drop me"
+    assert package["evidence_citations"][0]["large_field"] == "drop me"
 
 
 def test_apply_synthesized_operator_dialogue_uses_model_owned_followup_answer(monkeypatch) -> None:
