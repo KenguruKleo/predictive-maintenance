@@ -133,7 +133,7 @@ describe("useIncidents optimistic updates", () => {
     });
   });
 
-  it("maps more_info decisions to awaiting_agents during the optimistic phase", async () => {
+  it("keeps more_info server-confirmed without optimistic awaiting_agents transition", async () => {
     const queryClient = createQueryClient();
     const wrapper = createWrapper(queryClient);
     const baseIncident = makeIncident();
@@ -172,9 +172,9 @@ describe("useIncidents optimistic updates", () => {
     });
 
     await waitFor(() => {
-      expect(listHook.result.current.data?.items[0].status).toBe("awaiting_agents");
-      expect(detailHook.result.current.data?.status).toBe("awaiting_agents");
-      expect(detailHook.result.current.data?.lastDecision?.action).toBe("more_info");
+      expect(listHook.result.current.data?.items[0].status).toBe("pending_approval");
+      expect(detailHook.result.current.data?.status).toBe("pending_approval");
+      expect(detailHook.result.current.data?.lastDecision).toBeUndefined();
     });
 
     resolveMutation?.();

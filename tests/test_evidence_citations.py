@@ -542,6 +542,30 @@ def test_reject_recommendation_contract_clears_corrective_actions() -> None:
     assert normalized["audit_entry_draft"]["capa_actions"].startswith("No CAPA/work order required")
 
 
+def test_low_confidence_normalization_relabels_risk_without_dropping_recommendation() -> None:
+    normalized = _normalize_agent_result(
+        {
+            "incident_id": "INC-2026-0115",
+            "title": "Spray Rate High",
+            "risk_level": "critical",
+            "confidence": 0.5,
+            "analysis": "The spray rate exceeded the validated range, but evidence is incomplete.",
+            "recommendation": "Hold the batch pending operator review.",
+            "operator_dialogue": "Recommendation remains approve with manual review.",
+            "root_cause": "Evidence gap prevents a grounded final decision.",
+            "batch_disposition": "hold_pending_review",
+            "evidence_citations": [],
+            "tool_calls_log": [],
+        },
+        {},
+        more_info_round=0,
+    )
+
+    assert normalized["agent_recommendation"] == "APPROVE"
+    assert normalized["risk_level"] == "LOW_CONFIDENCE"
+    assert normalized["confidence_flag"] == "LOW_CONFIDENCE"
+
+
 def test_normalize_evidence_citations_builds_historical_incident_link() -> None:
     citations = _normalize_evidence_citations(
         {

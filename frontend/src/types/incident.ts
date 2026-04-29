@@ -80,6 +80,7 @@ export interface CapaStep {
 export interface AiAnalysis {
   risk_level: RiskLevel;
   confidence: number;
+  confidence_flag?: "LOW_CONFIDENCE" | "PARSE_ERROR" | "BLOCKED" | (string & {}) | null;
   deviation_classification?: string;
   classification?: string;
   root_cause_hypothesis?: string;

@@ -1688,6 +1688,7 @@ def _normalize_agent_result(
             result["agent_recommendation"] = None
     _normalize_agent_recommendation_contract(result)
     _normalize_risk_level_contract(result, authoritative_research_package or {})
+    _normalize_low_confidence_contract(result)
     return result
 
 
@@ -1704,6 +1705,28 @@ def _normalize_risk_level_contract(result: dict, authoritative_research_package:
     risk = _normalize_text(str(result.get("risk_level") or ""))
     if risk in {"", "unknown", "low", "medium", "high"}:
         result["risk_level"] = "critical"
+
+
+def _normalize_low_confidence_contract(result: dict) -> None:
+    risk = _normalize_text(str(result.get("risk_level") or ""))
+    flag = _normalize_text(str(result.get("confidence_flag") or ""))
+    confidence = result.get("confidence")
+
+    if flag not in {"", "low_confidence"}:
+        return
+    if risk == "blocked":
+        return
+
+    if flag == "low_confidence" or risk == "low_confidence":
+        is_low_confidence = True
+    else:
+        is_low_confidence = isinstance(confidence, (int, float)) and confidence < CONFIDENCE_THRESHOLD
+
+    if not is_low_confidence:
+        return
+
+    result["confidence_flag"] = "LOW_CONFIDENCE"
+    result["risk_level"] = "LOW_CONFIDENCE"
 
 
 def _normalize_agent_recommendation_contract(result: dict) -> None:

@@ -14,6 +14,9 @@ interface ChatMsg {
 interface Props {
   events: IncidentEvent[];
   onSend?: (message: string) => void;
+  draftMessage?: string;
+  onDraftChange?: (message: string) => void;
+  errorMessage?: string | null;
   readOnly?: boolean;
   showComposer?: boolean;
   title?: string;
@@ -36,6 +39,9 @@ function sortNewestFirst<T extends { timestamp: string }>(items: T[]): T[] {
 export default function AgentChat({
   events,
   onSend,
+  draftMessage = "",
+  onDraftChange,
+  errorMessage = null,
   readOnly,
   showComposer = false,
   title = "Agent Conversation",
@@ -67,7 +73,6 @@ export default function AgentChat({
     const val = input.value.trim();
     if (!val || !onSend) return;
     onSend(val);
-    input.value = "";
   };
 
   return (
@@ -84,7 +89,14 @@ export default function AgentChat({
             placeholder="Ask a detailed question..."
             autoComplete="off"
             rows={4}
+            value={draftMessage}
+            onChange={(event) => onDraftChange?.(event.target.value)}
           />
+          {errorMessage && (
+            <p className="chat-input-error" role="alert">
+              {errorMessage}
+            </p>
+          )}
           <button type="submit" className="btn btn--primary chat-send">
             Send question
           </button>

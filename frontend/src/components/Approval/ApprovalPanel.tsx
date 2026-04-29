@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { Incident, IncidentEvent } from "../../types/incident";
 import type { AuditEntryDraft, DecisionPayload, WorkOrderDraft } from "../../types/approval";
 import { useSubmitDecision } from "../../hooks/useIncidents";
+import { getApiErrorMessage } from "../../api/client";
 import ConfidenceBanner from "./ConfidenceBanner";
 import AgentRecommendationBadge from "./AgentRecommendationBadge";
 import RejectModal from "./RejectModal";
@@ -18,6 +19,8 @@ interface Props {
 export default function ApprovalPanel({ incident, events, canMakeDecision, draftState }: Props) {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [questionComposerIncidentId, setQuestionComposerIncidentId] = useState<string | null>(null);
+  const [questionDraft, setQuestionDraft] = useState("");
+  const [followUpError, setFollowUpError] = useState<string | null>(null);
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
@@ -84,15 +87,16 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
 
   const submitDecisionOnce = (
     payload: DecisionPayload,
-    options?: { onSuccess?: () => void },
+    options?: { onSuccess?: () => void; onError?: (error: unknown) => void },
   ) => {
     if (!lockDecision()) return;
     decision.mutate(payload, {
       onSuccess: () => {
         options?.onSuccess?.();
       },
-      onError: () => {
+      onError: (error) => {
         releaseDecisionLock();
+        options?.onError?.(error);
       },
     });
   };
@@ -117,17 +121,24 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   };
 
   const handleAskAgent = (question: string) => {
+    setFollowUpError(null);
     submitDecisionOnce(
       { action: "more_info", question },
       {
         onSuccess: () => {
+          setQuestionDraft("");
+          setFollowUpError(null);
           setQuestionComposerIncidentId(null);
+        },
+        onError: (error) => {
+          setFollowUpError(getApiErrorMessage(error));
         },
       },
     );
   };
 
   const handleNeedMoreInfo = () => {
+    setFollowUpError(null);
     setQuestionComposerIncidentId(incident.id);
   };
 
@@ -251,6 +262,14 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
         <AgentChat
           events={events}
           onSend={canMakeDecision && isPending && !isDecisionPending ? handleAskAgent : undefined}
+          draftMessage={questionDraft}
+          onDraftChange={(value) => {
+            setQuestionDraft(value);
+            if (followUpError) {
+              setFollowUpError(null);
+            }
+          }}
+          errorMessage={followUpError}
           readOnly={!canMakeDecision || !isPending || isDecisionPending}
           showComposer={canMakeDecision && isPending && showQuestionComposer && !isDecisionPending}
           title="Conversation transcript"

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Incident } from "../../types/incident";
+import { isLowConfidenceAnalysis } from "../../utils/analysis";
 import SeverityBadge from "../IncidentList/SeverityBadge";
 import StatusBadge from "../IncidentList/StatusBadge";
 
@@ -29,7 +30,7 @@ export default function EscalationQueue({ incidents }: Props) {
           {inc.title && <div className="escalation-title">{inc.title}</div>}
           {inc.ai_analysis && (
             <div className="escalation-reason">
-              {inc.ai_analysis.risk_level === "LOW_CONFIDENCE"
+              {isLowConfidenceAnalysis(inc.ai_analysis)
                 ? `LOW CONFIDENCE (${Math.round(inc.ai_analysis.confidence * 100)}%)`
                 : "Timeout escalation"}
             </div>

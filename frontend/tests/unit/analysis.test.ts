@@ -7,6 +7,7 @@ import {
   getClassification,
   getConfidencePct,
   getDisplayLabel,
+  isLowConfidenceAnalysis,
   getRecommendation,
   getRootCause,
   labelize,
@@ -36,6 +37,28 @@ describe("analysis utils", () => {
     expect(getRecommendation(analysis)).toBe("Short transient excursion.");
     expect(getConfidencePct(analysis)).toBe(82);
     expect(getConfidencePct({ ...analysis, confidence: 82 })).toBe(82);
+  });
+
+  it("treats confidence_flag as a low-confidence fallback contract", () => {
+    expect(isLowConfidenceAnalysis({
+      risk_level: "critical",
+      confidence: 0.5,
+      confidence_flag: "LOW_CONFIDENCE",
+      evidence_citations: [],
+    })).toBe(true);
+
+    expect(isLowConfidenceAnalysis({
+      risk_level: "LOW_CONFIDENCE",
+      confidence: 0.5,
+      evidence_citations: [],
+    })).toBe(true);
+
+    expect(isLowConfidenceAnalysis({
+      risk_level: "critical",
+      confidence: 0.5,
+      confidence_flag: "PARSE_ERROR",
+      evidence_citations: [],
+    })).toBe(false);
   });
 
   it("builds CAPA action strings from structured recommendations or suggestion text", () => {

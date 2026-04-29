@@ -5,6 +5,7 @@ import {
   getConfidencePct,
   getRecommendation,
   getRootCause,
+  isLowConfidenceAnalysis,
   labelize,
 } from "../../utils/analysis";
 
@@ -21,7 +22,9 @@ interface Props {
 }
 
 export default function AiAnalysis({ analysis }: Props) {
-  const normalizedRisk = (analysis.risk_level ?? "").toUpperCase() as keyof typeof RISK_CONFIG;
+  const normalizedRisk = (isLowConfidenceAnalysis(analysis)
+    ? "LOW_CONFIDENCE"
+    : (analysis.risk_level ?? "").toUpperCase()) as keyof typeof RISK_CONFIG;
   const risk = RISK_CONFIG[normalizedRisk] ?? { icon: "ℹ️", className: "risk--low" };
   const confPct = getConfidencePct(analysis);
   const classification = getClassification(analysis);

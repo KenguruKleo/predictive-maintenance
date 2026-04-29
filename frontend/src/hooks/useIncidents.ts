@@ -231,11 +231,14 @@ export function useSubmitDecision(incidentId: string) {
         OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
       )?.[incidentId];
 
-      setOptimisticIncidentDecision(
-        queryClient,
-        incidentId,
-        buildOptimisticIncidentDecision(incidentId, payload),
-      );
+      // Keep more_info server-confirmed to avoid status flicker on policy rejections.
+      if (payload.action !== "more_info") {
+        setOptimisticIncidentDecision(
+          queryClient,
+          incidentId,
+          buildOptimisticIncidentDecision(incidentId, payload),
+        );
+      }
 
       return { previousOptimisticDecision };
     },

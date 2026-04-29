@@ -2599,6 +2599,17 @@
   box-shadow: 0 0 0 2px rgba(0, 82, 204, 0.2);
 }
 
+.chat-input-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--status-rejected-fg);
+  background: var(--status-rejected-bg);
+  color: var(--status-rejected-fg);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .chat-send {
   align-self: flex-end;
   padding: 7px 14px;

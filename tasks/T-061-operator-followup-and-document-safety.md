@@ -85,6 +85,7 @@ This task extends existing controls (backend-controlled retrieval + post-approva
 - Added trust/safety metadata to Search index schema + ingestion pipeline (`scripts/create_search_indexes.py`): `trust_level`, `allowed_for_rag`, `safety_flags`, `contains_sensitive_data`, `scanned_at`, `scanner_version`.
 - Added retrieval-time safety filter (`allowed_for_rag eq true`) with backward-compatible fallback in `backend/shared/search_utils.py`.
 - Added incident-scoped follow-up guard in `http_decision`: sensitive/off-topic questions are now rejected before `more_info` can trigger another analysis round.
+- Improved approval-panel UX for blocked follow-up questions in frontend: keep question draft on failure, show inline actionable error near composer, and avoid optimistic `awaiting_agents` state transition for `more_info` until server confirmation.
 
 ---
 

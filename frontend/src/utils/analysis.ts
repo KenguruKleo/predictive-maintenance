@@ -30,6 +30,13 @@ export function getConfidencePct(analysis?: AiAnalysis): number {
   return Math.round(confidence * (confidence <= 1 ? 100 : 1));
 }
 
+export function isLowConfidenceAnalysis(analysis?: AiAnalysis | null): boolean {
+  if (!analysis) return false;
+  const riskLevel = String(analysis.risk_level ?? "").toUpperCase();
+  const confidenceFlag = String(analysis.confidence_flag ?? "").toUpperCase();
+  return riskLevel === "LOW_CONFIDENCE" || confidenceFlag === "LOW_CONFIDENCE";
+}
+
 export function getCapaActions(analysis?: AiAnalysis): string[] {
   if (!analysis) return [];
   if (Array.isArray(analysis.recommendations) && analysis.recommendations.length > 0) {

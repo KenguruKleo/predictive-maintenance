@@ -1,11 +1,12 @@
 import type { AiAnalysis } from "../../types/incident";
+import { isLowConfidenceAnalysis } from "../../utils/analysis";
 
 interface Props {
   analysis: AiAnalysis;
 }
 
 export default function ConfidenceBanner({ analysis }: Props) {
-  if (analysis.risk_level !== "LOW_CONFIDENCE") return null;
+  if (!isLowConfidenceAnalysis(analysis)) return null;
   const pct = Math.round(analysis.confidence * 100);
 
   return (
