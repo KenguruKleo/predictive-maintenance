@@ -240,6 +240,7 @@ Hallucination Controls:
 - Grounded generation only (RAG, not free generation)
 - Source verification: the agent must confirm that the source exists in Azure AI Search
 - Separate document/citation verification layer: after the agent output, the backend independently checks `document_id`, title, link, section claim, excerpt anchor
+- Evidence Synthesizer Agent: before final generation, retrieved evidence is compacted into explicit-support / unknown / evidence-gap counts so explanations do not infer facts from silence
 - If there is a document match, but the section claim is not confirmed by the authoritative chunk, the system shows the citation as `unresolved`, but does not raise the unverified section in the summary fields
 - Structured output schema (JSON with mandatory evidence fields)
 

@@ -110,8 +110,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
 
 DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o"
+DEFAULT_EVIDENCE_SYNTHESIZER_AGENT_MODEL = "gpt-4o"
 DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
 DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
+EVIDENCE_SYNTHESIZER_AGENT_NAME = "sentinel-evidence-synthesizer-agent"
 
 bp = df.Blueprint()
 
@@ -170,17 +172,31 @@ def run_foundry_agents(input_data: dict) -> dict:
     # reflects when the incident actually entered Foundry, not when it was queued.
     _write_analysis_started_event(incident_id, more_info_round)
 
+    evidence_synthesizer_agent_id = _resolve_optional_foundry_agent_id(
+        "EVIDENCE_SYNTHESIZER_AGENT_ID",
+        EVIDENCE_SYNTHESIZER_AGENT_NAME,
+    )
+    research_package = _add_evidence_synthesis(
+        research_package,
+        evidence_synthesizer_agent_id,
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        context_data=context_data,
+    )
+    orchestrator_research_package = _build_orchestrator_research_package(research_package)
+
     prompt = _build_prompt(
         incident_id,
         context_data,
         more_info_round,
         previous_ai_result,
-        research_package=research_package,
+        research_package=orchestrator_research_package,
     )
     _log_orchestrator_prompt_trace(
         incident_id=incident_id,
         more_info_round=more_info_round,
         orchestrator_agent_id=orchestrator_agent_id,
+        evidence_synthesizer_agent_id=evidence_synthesizer_agent_id,
         prompt=prompt,
         context_data=context_data,
     )
@@ -215,15 +231,22 @@ def run_foundry_agents(input_data: dict) -> dict:
             operator_questions=context_data.get("operator_questions", []),
             authoritative_research_package=research_package,
         )
-        result = _revise_followup_operator_dialogue_with_model(
+        result, applied_synthesized_dialogue = _apply_synthesized_operator_dialogue(
             result,
-            orchestrator_agent_id,
+            research_package,
             incident_id=incident_id,
             more_info_round=more_info_round,
-            context_data=context_data,
-            research_package=research_package,
-            previous_ai_result=previous_ai_result,
         )
+        if not applied_synthesized_dialogue:
+            result = _revise_followup_operator_dialogue_with_model(
+                result,
+                orchestrator_agent_id,
+                incident_id=incident_id,
+                more_info_round=more_info_round,
+                context_data=context_data,
+                research_package=research_package,
+                previous_ai_result=previous_ai_result,
+            )
     finally:
         # Always release the Foundry slot so the next waiting incident can proceed.
         _set_foundry_active(_incidents_container, incident_id, _equipment_id, False)
@@ -563,7 +586,7 @@ def _call_orchestrator_agent(
                         "prompt_tokens": getattr(_run_usage, "prompt_tokens", None),
                         "completion_tokens": getattr(_run_usage, "completion_tokens", None),
                         "total_tokens": getattr(_run_usage, "total_tokens", None),
-                        "model": "orchestrator",
+                        "model": trace_label,
                     }
                 _log_trace_json(
                     incident_id=incident_id,
@@ -576,6 +599,7 @@ def _call_orchestrator_agent(
                         "usage": _usage_payload or None,
                         "messages": _serialize_thread_messages(message_items),
                     },
+                    metadata={"agent_id": agent_id, "agent_name": trace_label},
                 )
 
                 # list_messages returns newest-first; first AGENT message is the answer.
@@ -610,6 +634,7 @@ def _call_orchestrator_agent(
                         "thread_id": run.thread_id,
                         "run_id": run.id,
                         "agent_id": agent_id,
+                        "agent_name": trace_label,
                     },
                 )
                 parsed = _parse_response(raw_text)
@@ -622,6 +647,7 @@ def _call_orchestrator_agent(
                         "thread_id": run.thread_id,
                         "run_id": run.id,
                         "agent_id": agent_id,
+                        "agent_name": trace_label,
                     },
                 )
                 return parsed
@@ -640,6 +666,343 @@ def _agent_trace_kind(base_kind: str, trace_label: str) -> str:
     if trace_label == "orchestrator":
         return base_kind
     return f"{trace_label}_{base_kind}"
+
+
+def _add_evidence_synthesis(
+    research_package: dict,
+    agent_id: str,
+    *,
+    incident_id: str,
+    more_info_round: int,
+    context_data: dict,
+) -> dict:
+    if not agent_id:
+        return research_package
+
+    operator_questions = context_data.get("operator_questions", [])
+    latest_operator_question = _get_latest_operator_question(operator_questions)
+    synthesis_prompt = _build_evidence_synthesis_prompt(
+        incident_id=incident_id,
+        latest_operator_question=latest_operator_question,
+        research_package=research_package,
+    )
+    _log_trace_text(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="evidence_synthesizer_prompt",
+        text=synthesis_prompt,
+        metadata={"agent_id": agent_id, "agent_name": "evidence_synthesizer"},
+    )
+
+    try:
+        raw_synthesis = _call_orchestrator_agent(
+            synthesis_prompt,
+            agent_id,
+            incident_id=incident_id,
+            more_info_round=more_info_round,
+            trace_label="evidence_synthesizer",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Evidence synthesis failed for incident %s round=%d: %s",
+            incident_id,
+            more_info_round,
+            exc,
+            exc_info=True,
+        )
+        return research_package
+
+    synthesis = _normalize_evidence_synthesis(raw_synthesis, latest_operator_question)
+    if not synthesis:
+        return research_package
+
+    updated = dict(research_package)
+    updated["evidence_synthesis"] = synthesis
+    _log_trace_json(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="evidence_synthesis_result",
+        payload=synthesis,
+        metadata={"agent_id": agent_id, "agent_name": "evidence_synthesizer"},
+    )
+    return updated
+
+
+def _build_evidence_synthesis_prompt(
+    *,
+    incident_id: str,
+    latest_operator_question: str,
+    research_package: dict,
+) -> str:
+    synthesis_evidence = _compact_evidence_for_synthesis(research_package)
+    question = latest_operator_question or "No operator follow-up question. Summarize evidence for the initial decision."
+    return "\n".join(
+        [
+            f"## Evidence Synthesis Request - Incident {incident_id}",
+            "Use only the provided evidence package excerpt. Do not call tools or use model memory.",
+            "Return one JSON object matching your configured response schema.",
+            "",
+            "### Latest Operator Question",
+            question,
+            "",
+            "### Evidence Package Excerpt",
+            "```json",
+            json.dumps(synthesis_evidence, indent=2, default=str),
+            "```",
+            "",
+            "### Synthesis Requirements",
+            "- Produce a compact evidence brief for the Orchestrator and operator-facing follow-up answer.",
+            "- Answer the latest question first when there is one.",
+            "- Distinguish explicit support from unknown or missing facts.",
+            "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
+            "- Do not infer that an action did not happen merely because an excerpt does not mention it.",
+            "- Use `all`, `most`, or `none` only with numbers that support the comparison.",
+            "- If requested facts are absent or ambiguous, say the count is not determinable from retrieved evidence.",
+            "- Do not make the final GMP approval/rejection decision; provide only a decision impact hint.",
+            "- Keep `operator_dialogue` under 120 words.",
+            "",
+            "Return JSON only.",
+        ]
+    )
+
+
+def _compact_evidence_for_synthesis(research_package: dict) -> dict:
+    return _pick_present(
+        {
+            "follow_up_context": research_package.get("follow_up_context"),
+            "incident_facts": research_package.get("incident_facts"),
+            "equipment_facts": research_package.get("equipment_facts"),
+            "batch_facts": research_package.get("batch_facts"),
+            "bpr_constraints": _compact_prompt_mapping(research_package.get("bpr_constraints")),
+            "historical_incidents": _compact_historical_for_prompt(
+                research_package.get("historical_incidents"),
+                limit=8,
+            ),
+            "historical_pattern_summary": research_package.get("historical_pattern_summary"),
+            "evidence_citations": _compact_citations_for_prompt(
+                research_package.get("evidence_citations"),
+                limit=16,
+            ),
+            "evidence_gaps": research_package.get("evidence_gaps"),
+            "context_summary": research_package.get("context_summary"),
+        },
+        [
+            "follow_up_context",
+            "incident_facts",
+            "equipment_facts",
+            "batch_facts",
+            "bpr_constraints",
+            "historical_incidents",
+            "historical_pattern_summary",
+            "evidence_citations",
+            "evidence_gaps",
+            "context_summary",
+        ],
+    )
+
+
+def _build_orchestrator_research_package(research_package: dict) -> dict:
+    if not isinstance(research_package.get("evidence_synthesis"), dict):
+        return research_package
+
+    return _pick_present(
+        {
+            "evidence_synthesis": research_package.get("evidence_synthesis"),
+            "follow_up_context": research_package.get("follow_up_context"),
+            "incident_facts": research_package.get("incident_facts"),
+            "equipment_facts": research_package.get("equipment_facts"),
+            "batch_facts": research_package.get("batch_facts"),
+            "bpr_constraints": _compact_prompt_mapping(research_package.get("bpr_constraints")),
+            "historical_incidents": _compact_historical_for_prompt(
+                research_package.get("historical_incidents"),
+                limit=8,
+            ),
+            "historical_pattern_summary": research_package.get("historical_pattern_summary"),
+            "evidence_citations": _compact_citations_for_prompt(
+                research_package.get("evidence_citations"),
+                limit=16,
+            ),
+            "evidence_gaps": research_package.get("evidence_gaps"),
+            "context_summary": research_package.get("context_summary"),
+        },
+        [
+            "evidence_synthesis",
+            "follow_up_context",
+            "incident_facts",
+            "equipment_facts",
+            "batch_facts",
+            "bpr_constraints",
+            "historical_incidents",
+            "historical_pattern_summary",
+            "evidence_citations",
+            "evidence_gaps",
+            "context_summary",
+        ],
+    )
+
+
+def _compact_prompt_mapping(value: object) -> dict | None:
+    if not isinstance(value, dict):
+        return None
+    return _pick_present(
+        value,
+        [
+            "type",
+            "document_id",
+            "document_title",
+            "section_heading",
+            "section",
+            "text_excerpt",
+            "source_blob",
+            "index_name",
+            "url",
+        ],
+    )
+
+
+def _compact_historical_for_prompt(value: object, *, limit: int) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    compact: list[dict] = []
+    for item in value[:limit]:
+        if not isinstance(item, dict):
+            continue
+        compact.append(
+            _pick_present(
+                {
+                    "incident_id": item.get("incident_id"),
+                    "document_title": item.get("document_title"),
+                    "status": item.get("status"),
+                    "human_decision": item.get("human_decision"),
+                    "decision_evidence": item.get("decision_evidence"),
+                    "evidence_excerpt": item.get("evidence_excerpt"),
+                    "source_url": item.get("source_url"),
+                },
+                [
+                    "incident_id",
+                    "document_title",
+                    "status",
+                    "human_decision",
+                    "decision_evidence",
+                    "evidence_excerpt",
+                    "source_url",
+                ],
+            )
+        )
+    return compact
+
+
+def _compact_citations_for_prompt(value: object, *, limit: int) -> list[dict]:
+    if not isinstance(value, list):
+        return []
+    compact: list[dict] = []
+    for item in value[:limit]:
+        if not isinstance(item, dict):
+            continue
+        compact.append(
+            _pick_present(
+                {
+                    "type": item.get("type"),
+                    "document_id": item.get("document_id"),
+                    "document_title": item.get("document_title"),
+                    "section_heading": item.get("section_heading"),
+                    "text_excerpt": item.get("text_excerpt"),
+                    "source_blob": item.get("source_blob"),
+                    "index_name": item.get("index_name"),
+                    "url": item.get("url"),
+                },
+                [
+                    "type",
+                    "document_id",
+                    "document_title",
+                    "section_heading",
+                    "text_excerpt",
+                    "source_blob",
+                    "index_name",
+                    "url",
+                ],
+            )
+        )
+    return compact
+
+
+def _normalize_evidence_synthesis(raw_synthesis: dict, latest_operator_question: str) -> dict:
+    if not isinstance(raw_synthesis, dict):
+        return {}
+
+    def _as_int(value: object) -> int:
+        if value in (None, ""):
+            return 0
+        if not isinstance(value, int | float | str):
+            return 0
+        try:
+            return max(0, int(value))
+        except (TypeError, ValueError):
+            return 0
+
+    supporting_evidence = raw_synthesis.get("supporting_evidence")
+    if not isinstance(supporting_evidence, list):
+        supporting_evidence = []
+    evidence_gaps = raw_synthesis.get("evidence_gaps")
+    if not isinstance(evidence_gaps, list):
+        evidence_gaps = []
+
+    answerability = str(raw_synthesis.get("answerability") or "not_determinable").strip()
+    if answerability not in {"answered", "partially_answered", "not_determinable", "not_applicable"}:
+        answerability = "not_determinable"
+
+    return {
+        "latest_question": str(raw_synthesis.get("latest_question") or latest_operator_question or "").strip(),
+        "question_focus": str(raw_synthesis.get("question_focus") or "").strip(),
+        "answerability": answerability,
+        "direct_answer": str(raw_synthesis.get("direct_answer") or "").strip(),
+        "operator_dialogue": str(raw_synthesis.get("operator_dialogue") or "").strip(),
+        "checked_evidence_count": _as_int(raw_synthesis.get("checked_evidence_count")),
+        "explicit_support_count": _as_int(raw_synthesis.get("explicit_support_count")),
+        "contradiction_count": _as_int(raw_synthesis.get("contradiction_count")),
+        "unknown_count": _as_int(raw_synthesis.get("unknown_count")),
+        "supporting_evidence": [item for item in supporting_evidence if isinstance(item, dict)],
+        "evidence_gaps": [str(item) for item in evidence_gaps if str(item).strip()],
+        "decision_impact_hint": str(raw_synthesis.get("decision_impact_hint") or "").strip(),
+        "reasoning_summary": str(raw_synthesis.get("reasoning_summary") or "").strip(),
+    }
+
+
+def _apply_synthesized_operator_dialogue(
+    result: dict,
+    research_package: dict,
+    *,
+    incident_id: str,
+    more_info_round: int,
+) -> tuple[dict, bool]:
+    if more_info_round <= 0:
+        return result, False
+
+    synthesis = research_package.get("evidence_synthesis")
+    if not isinstance(synthesis, dict):
+        return result, False
+
+    dialogue = str(synthesis.get("operator_dialogue") or "").strip()
+    if not dialogue:
+        return result, False
+
+    updated = dict(result)
+    updated["operator_dialogue"] = dialogue[:800]
+    _log_trace_json(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="operator_dialogue_synthesis_result",
+        payload={
+            "previous_operator_dialogue": result.get("operator_dialogue"),
+            "synthesized_operator_dialogue": updated["operator_dialogue"],
+            "answerability": synthesis.get("answerability"),
+            "checked_evidence_count": synthesis.get("checked_evidence_count"),
+            "explicit_support_count": synthesis.get("explicit_support_count"),
+            "unknown_count": synthesis.get("unknown_count"),
+        },
+        metadata={"agent_name": "evidence_synthesizer"},
+    )
+    return updated, True
 
 
 def _revise_followup_operator_dialogue_with_model(
@@ -966,6 +1329,8 @@ def _build_prompt(
             "This package was retrieved directly from Sentinel DB/Search before this Orchestrator run.",
             (
                 "Use its `evidence_citations` as the source of truth for your reasoning. "
+                "When `evidence_synthesis` is present, treat it as the compact model-owned "
+                "brief for the latest question and preserve its explicit-support vs unknown distinctions. "
                 "The backend will attach the canonical citations and tool log after your decision, "
                 "so do not echo the large evidence/tool arrays in your final JSON."
             ),
@@ -983,6 +1348,7 @@ def _build_prompt(
             "Answer contract for `operator_dialogue`:",
             "- Start by answering the concrete question the operator asked, not by restating the recommendation.",
             "- Use the Research Evidence Package to say what evidence was checked and what it did or did not show.",
+            "- When `evidence_synthesis` is present, preserve its checked/support/unknown counts and evidence gaps.",
             "- For count/comparison wording such as 'how many', 'most', or 'similar cases', include explicit supported counts from the evidence.",
             "- Count an outcome or attribute only when cited evidence explicitly supports it; absence of a detail in an excerpt is unknown, not proof it did not happen.",
             "- Do not say 'all', 'most', or 'none' unless the cited evidence supports that exact comparison.",
@@ -1028,6 +1394,8 @@ def _build_prompt(
             "The summaries above are only routing context for your final decision. "
             "Use the Research Evidence Package above as the single source of evidence for SOPs, "
             "equipment manuals, BPR product specs, GMP regulations, and historical incidents. "
+            "When `evidence_synthesis` is present, use it to explain the final decision in terms of "
+            "explicit support, unknowns, evidence gaps, and decision impact. "
             "When the prompt contains a Research Evidence Package, that package is the Research "
             "output for this run; do not call connected agents or external tools. "
             "Do not simulate tool_calls_log or invent citations from model memory. "
@@ -1649,15 +2017,20 @@ def _log_orchestrator_prompt_trace(
     incident_id: str,
     more_info_round: int,
     orchestrator_agent_id: str,
+    evidence_synthesizer_agent_id: str,
     prompt: str,
     context_data: dict,
 ) -> None:
     # Tracing guard is enforced inside log_trace_text; no separate check needed here.
     prompt_bundle = {
         "orchestrator_agent_id": orchestrator_agent_id,
+        "evidence_synthesizer_agent_id": evidence_synthesizer_agent_id,
         "configured_models": _configured_agent_models(),
         "operator_questions": context_data.get("operator_questions", []),
-        "system_prompts": _system_prompt_snapshot(orchestrator_agent_id),
+        "system_prompts": _system_prompt_snapshot(
+            orchestrator_agent_id,
+            evidence_synthesizer_agent_id,
+        ),
     }
     _log_trace_json(
         incident_id=incident_id,
@@ -1678,6 +2051,10 @@ def _configured_agent_models() -> dict[str, str]:
     return {
         "research": _resolve_agent_model(
             "FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_RESEARCH_AGENT_MODEL
+        ),
+        "evidence_synthesizer": _resolve_agent_model(
+            "FOUNDRY_EVIDENCE_SYNTHESIZER_AGENT_MODEL",
+            DEFAULT_EVIDENCE_SYNTHESIZER_AGENT_MODEL,
         ),
         "document": _resolve_agent_model(
             "FOUNDRY_DOCUMENT_AGENT_MODEL",
@@ -1710,9 +2087,16 @@ def _build_agents_client() -> AgentsClient:
     return AgentsClient(endpoint=endpoint, credential=DefaultAzureCredential())
 
 
-def _system_prompt_snapshot(orchestrator_agent_id: str) -> dict[str, str]:
+def _system_prompt_snapshot(
+    orchestrator_agent_id: str,
+    evidence_synthesizer_agent_id: str = "",
+) -> dict[str, str]:
     return {
         "orchestrator": _read_agent_prompt(orchestrator_agent_id, "orchestrator_system.md"),
+        "evidence_synthesizer": _read_agent_prompt(
+            evidence_synthesizer_agent_id,
+            "evidence_synthesizer_system.md",
+        ),
         "research": _read_agent_prompt(
             os.getenv("RESEARCH_AGENT_ID", "").strip(),
             "research_system.md",
@@ -1752,6 +2136,38 @@ def _get_live_agent_instructions(agent_id: str) -> str:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Failed to fetch live agent instructions for %s: %s", agent_id, exc)
         return ""
+
+
+def _resolve_optional_foundry_agent_id(env_var: str, agent_name: str) -> str:
+    configured = os.getenv(env_var, "").strip()
+    if configured:
+        return configured
+
+    resolved = _find_foundry_agent_id_by_name(agent_name)
+    if resolved:
+        return resolved
+
+    logger.warning(
+        "Could not resolve Foundry agent id for %s (env %s); continuing without it",
+        agent_name,
+        env_var,
+    )
+    return ""
+
+
+@lru_cache(maxsize=16)
+def _find_foundry_agent_id_by_name(agent_name: str) -> str:
+    if not agent_name:
+        return ""
+    try:
+        client = _build_agents_client()
+        with client:
+            for agent in client.list_agents():
+                if getattr(agent, "name", "") == agent_name:
+                    return str(getattr(agent, "id", "") or "")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Failed to resolve Foundry agent by name %s: %s", agent_name, exc)
+    return ""
 
 
 def _resolve_prompt_path(file_name: str) -> Path | None:

@@ -35,8 +35,9 @@ flowchart TB
 
         subgraph agents["AI Agents · Azure AI Foundry (Connected Agents)"]
             FOUNDRY["AI Foundry Project\naoai-sentinel-intel-dev-erzrpo"]
-            OA["Orchestrator Agent\nConnected Agents pipeline:\nResearch → Document"]
+            OA["Orchestrator Agent\nConnected Agents pipeline:\nResearch → Evidence → Document"]
             RA["Research Agent\nRAG × 5 + MCP-sentinel-db"]
+            ESA["Evidence Synthesizer Agent\nexplicit support + unknowns brief"]
             DA["Document Agent\ntemplates + confidence gate 0.7"]
             EA["Execution Agent\nMCP-qms + MCP-cmms\npost-approval"]
             subgraph mcp["MCP Servers (HTTP/SSE · MI auth)"]
@@ -108,6 +109,8 @@ flowchart TB
     RA -->|"MCP tools"| MCP_DB
     MCP_DB --> CDB_INC & CDB_EQP & CDB_BAT
     RA -->|"vector search · 5 indexes"| SEARCH
+    RA -->|"retrieved evidence package"| ESA
+    ESA -->|"compact evidence brief"| OA
     DA -->|"write CAPA plan"| CDB_CAPA
     EA -->|"MCP tool call"| MCP_QMS & MCP_CMMS
     MCP_QMS --> CDB_APPR
@@ -162,7 +165,7 @@ flowchart TB
 | SignalR Service | `sigr-sentinel-intel-dev-erzrpo` | `modules/signalr.bicep` | `deviationHub`, role-based groups |
 | Key Vault | `kv-sentinel-intel-erzrpo` | `modules/keyvault.bicep` | Secrets + 90d rotation |
 | Static Web App | `swa-sentinel-intel-dev` | `modules/swa.bicep` | React + Vite SPA hosting |
-| AI Foundry Hub + Project | `aoai-sentinel-intel-dev-erzrpo` | `modules/agents.bicep` | Orchestrator + Research + Document + Execution agents |
+| AI Foundry Hub + Project | `aoai-sentinel-intel-dev-erzrpo` | `modules/agents.bicep` | Orchestrator + Research + Evidence Synthesizer + Document + Execution agents |
 | VNet + NSGs + Private DNS | `vnet-sentinel-intel-dev` | `modules/network.bicep` | `snet-functions`, `snet-private-endpoints` |
 | Private Endpoints | per-PaaS | `modules/network.bicep` | Cosmos · AI Search · SB · Storage · KV · SignalR · Foundry |
 | Defender for Cloud | — | `modules/security.bicep` | `Microsoft.Security/pricings` |

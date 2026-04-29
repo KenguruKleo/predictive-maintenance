@@ -129,7 +129,7 @@ The hackathon explicitly evaluates the **Azure Well-Architected Framework**:
 | **Grounding / RAG** | Validated SOP/BPR, CAPA history retrieval | ✅ Good |
 | **Document & Citation Verification** | Separate post-generation check validates document identity, section claim, and deep link against authoritative retrieved chunks before evidence is shown to user | ⚠️ Partial — backend citation normalization and unresolved-evidence downgrade exist, but the scenario still needs to be demonstrated consistently in UX/demo artifacts |
 | **Model Lifecycle** | Evaluation, governed deployment, versioning/rollback | ⚠️ Partial (mentioned, not yet detailed) |
-| **Responsible AI** | Confidence thresholds, evidence gating, separate document/citation verification | ⚠️ Partial — confidence gate and citation verification paths exist, but Content Safety and prompt-injection guard are still incomplete |
+| **Responsible AI** | Confidence thresholds, evidence gating, separate document/citation verification | ⚠️ Partial — confidence gate, citation verification, and explicit evidence synthesis paths exist, but Content Safety and prompt-injection guard are still incomplete |
 | **AI Observability** | Agent monitoring, output tracing | ⚠️ Partial — incident-scoped App Insights prompt/response traces are implemented in backend; Cosmos `incident_events` covers only business audit/transcript; dashboards, alerts, and admin retrieval UX are still pending |
 | **Prompt Injection Defense** | Content safety, input validation | ❌ Missing |
 

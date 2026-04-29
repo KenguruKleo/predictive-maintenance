@@ -1,7 +1,8 @@
 """
 create_agents.py — Provision Foundry agents for Sentinel Intelligence (T-025, T-026, T-024)
 
-Run once (or with --update) to create/update Research, Document, and Orchestrator agents
+Run once (or with --update) to create/update Research, Evidence Synthesizer,
+Document, and Orchestrator agents
 in Azure AI Foundry Agent Service.
 
 Uses OpenApiTool so Foundry calls our read-only REST endpoints server-side (no client-side
@@ -17,6 +18,7 @@ Usage:
 
 After running, copy the printed IDs into local.settings.json / Azure App Settings:
     ORCHESTRATOR_AGENT_ID=...
+    EVIDENCE_SYNTHESIZER_AGENT_ID=...
     RESEARCH_AGENT_ID=...
     DOCUMENT_AGENT_ID=...
 """
@@ -44,10 +46,12 @@ load_dotenv()
 # ── Prompt files (created during T-025 / T-026) ───────────────────────────
 PROMPTS_DIR = Path(__file__).parent / "prompts"
 RESEARCH_PROMPT = (PROMPTS_DIR / "research_system.md").read_text(encoding="utf-8")
+EVIDENCE_SYNTHESIZER_PROMPT = (PROMPTS_DIR / "evidence_synthesizer_system.md").read_text(encoding="utf-8")
 DOCUMENT_PROMPT = (PROMPTS_DIR / "document_system.md").read_text(encoding="utf-8")
 ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encoding="utf-8")
 
 DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o"
+DEFAULT_EVIDENCE_SYNTHESIZER_AGENT_MODEL = "gpt-4o"
 DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
 DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
 
@@ -66,6 +70,10 @@ def _resolve_agent_model(env_var: str, default_model: str) -> str:
 
 RESEARCH_MODEL = _resolve_agent_model(
     "FOUNDRY_RESEARCH_AGENT_MODEL", DEFAULT_RESEARCH_AGENT_MODEL
+)
+EVIDENCE_SYNTHESIZER_MODEL = _resolve_agent_model(
+    "FOUNDRY_EVIDENCE_SYNTHESIZER_AGENT_MODEL",
+    DEFAULT_EVIDENCE_SYNTHESIZER_AGENT_MODEL,
 )
 DOCUMENT_MODEL = _resolve_agent_model(
     "FOUNDRY_DOCUMENT_AGENT_MODEL",
@@ -181,6 +189,67 @@ RESEARCH_OUTPUT_SCHEMA = {
     ],
     "additionalProperties": False,
 }
+
+EVIDENCE_SYNTHESIS_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "latest_question": {"type": "string"},
+        "question_focus": {"type": "string"},
+        "answerability": {
+            "type": "string",
+            "enum": ["answered", "partially_answered", "not_determinable", "not_applicable"],
+        },
+        "direct_answer": {"type": "string"},
+        "operator_dialogue": {"type": "string"},
+        "checked_evidence_count": {"type": "integer", "minimum": 0},
+        "explicit_support_count": {"type": "integer", "minimum": 0},
+        "contradiction_count": {"type": "integer", "minimum": 0},
+        "unknown_count": {"type": "integer", "minimum": 0},
+        "supporting_evidence": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "source_id": {"type": "string"},
+                    "source_type": {"type": "string"},
+                    "fact": {"type": "string"},
+                },
+                "required": ["source_id", "source_type", "fact"],
+                "additionalProperties": False,
+            },
+        },
+        "evidence_gaps": {
+            "type": "array",
+            "items": {"type": "string"},
+        },
+        "decision_impact_hint": {"type": "string"},
+        "reasoning_summary": {"type": "string"},
+    },
+    "required": [
+        "latest_question",
+        "question_focus",
+        "answerability",
+        "direct_answer",
+        "operator_dialogue",
+        "checked_evidence_count",
+        "explicit_support_count",
+        "contradiction_count",
+        "unknown_count",
+        "supporting_evidence",
+        "evidence_gaps",
+        "decision_impact_hint",
+        "reasoning_summary",
+    ],
+    "additionalProperties": False,
+}
+
+EVIDENCE_SYNTHESIS_RESPONSE_FORMAT = ResponseFormatJsonSchemaType(
+    json_schema=ResponseFormatJsonSchema(
+        name="gmp_evidence_synthesis",
+        description="Compact explicit-evidence brief for Orchestrator and operator follow-up answers",
+        schema=EVIDENCE_SYNTHESIS_SCHEMA,
+    )
+)
 
 # ── Strict JSON schema for final Orchestrator response_format ──────────
 # Enforces exact field names, types, and structure at API level.
@@ -731,6 +800,7 @@ def main(update: bool = False) -> dict:
 
     print("Using Foundry agent model deployments:")
     print(f"  research: {RESEARCH_MODEL}")
+    print(f"  evidence_synthesizer: {EVIDENCE_SYNTHESIZER_MODEL}")
     print(f"  document: {DOCUMENT_MODEL}")
     print(f"  orchestrator: {ORCHESTRATOR_MODEL}")
 
@@ -791,8 +861,21 @@ def main(update: bool = False) -> dict:
         research_tools, None, update,
     )
 
-    # ── 2. Document Agent (T-026) ─────────────────────────────────────────
-    print("\n[2/3] Document Agent...")
+    # ── 2. Evidence Synthesizer Agent ─────────────────────────────────────
+    print("\n[2/4] Evidence Synthesizer Agent...")
+    evidence_synthesizer_agent = _create_or_update(
+        client,
+        "sentinel-evidence-synthesizer-agent",
+        EVIDENCE_SYNTHESIZER_MODEL,
+        EVIDENCE_SYNTHESIZER_PROMPT,
+        [],
+        None,
+        update,
+        response_format=EVIDENCE_SYNTHESIS_RESPONSE_FORMAT,
+    )
+
+    # ── 3. Document Agent (T-026) ─────────────────────────────────────────
+    print("\n[3/4] Document Agent...")
 
     document_tools: list[ToolDefinition] = []
 
@@ -808,8 +891,8 @@ def main(update: bool = False) -> dict:
         response_format=DOCUMENT_OUTPUT_RESPONSE_FORMAT,
     )
 
-    # ── 3. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
-    print("\n[3/3] Orchestrator Agent...")
+    # ── 4. Orchestrator Agent (T-024, ADR-002) ────────────────────────────
+    print("\n[4/4] Orchestrator Agent...")
     orchestrator_agent = _create_or_update(
         client, "sentinel-orchestrator-agent", ORCHESTRATOR_MODEL, ORCHESTRATOR_PROMPT,
         [],
@@ -821,12 +904,14 @@ def main(update: bool = False) -> dict:
     print("\n" + "=" * 60)
     print("Agents provisioned. Add to local.settings.json / Azure App Settings:\n")
     print(f"  RESEARCH_AGENT_ID={research_agent.id}")
+    print(f"  EVIDENCE_SYNTHESIZER_AGENT_ID={evidence_synthesizer_agent.id}")
     print(f"  DOCUMENT_AGENT_ID={document_agent.id}")
     print(f"  ORCHESTRATOR_AGENT_ID={orchestrator_agent.id}")
     print("=" * 60)
 
     return {
         "research_agent_id": research_agent.id,
+        "evidence_synthesizer_agent_id": evidence_synthesizer_agent.id,
         "document_agent_id": document_agent.id,
         "orchestrator_agent_id": orchestrator_agent.id,
     }

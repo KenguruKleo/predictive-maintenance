@@ -57,7 +57,8 @@ This task extends existing controls (backend-controlled retrieval + post-approva
 - [ ] Enforce source diversity and cap low-trust evidence in one recommendation round.
 
 ### D. Generation/runtime guardrails
-- [ ] Strengthen system prompt contract: retrieved document text is data, not executable instruction.
+- [x] Strengthen system prompt contract: retrieved document text is data, not executable instruction.
+- [x] Add Evidence Synthesizer Agent step that converts retrieved evidence into a compact explicit-support/unknowns brief before Orchestrator generation.
 - [ ] Add optional Azure AI Content Safety / Prompt Shields checks for follow-up input and composed context before model invocation.
 - [ ] Add output moderation checkpoint before writing recommendation back to Cosmos.
 
@@ -86,6 +87,7 @@ This task extends existing controls (backend-controlled retrieval + post-approva
 - Added retrieval-time safety filter (`allowed_for_rag eq true`) with backward-compatible fallback in `backend/shared/search_utils.py`.
 - Added incident-scoped follow-up guard in `http_decision`: sensitive/off-topic questions are now rejected before `more_info` can trigger another analysis round.
 - Improved approval-panel UX for blocked follow-up questions in frontend: keep question draft on failure, show inline actionable error near composer, and avoid optimistic `awaiting_agents` state transition for `more_info` until server confirmation.
+- Added `sentinel-evidence-synthesizer-agent` as a model-owned synthesis step before Orchestrator for initial and follow-up analysis, preserving explicit evidence, unknowns, and evidence gaps without backend-written answer templates.
 
 ---
 

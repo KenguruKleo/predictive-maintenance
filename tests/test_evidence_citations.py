@@ -6,7 +6,10 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _apply_synthesized_operator_dialogue,
+    _build_evidence_synthesis_prompt,
     _build_operator_dialogue_revision_prompt,
+    _build_orchestrator_research_package,
     _build_prompt,
     _collect_research_evidence_package,
     _citation_applies_to_bpr_reference,
@@ -160,6 +163,126 @@ def test_build_prompt_adds_latest_followup_answer_task() -> None:
     assert "absence of a detail in an excerpt is unknown" in prompt
     assert "Do not say 'all', 'most', or 'none'" in prompt
     assert "If the retrieved evidence is insufficient" in prompt
+
+
+def test_build_prompt_tells_orchestrator_to_use_evidence_synthesis_for_decision_explanation() -> None:
+    prompt = _build_prompt(
+        "INC-2026-0117",
+        {
+            "alert_payload": {"equipment_id": "GR-204", "parameter": "spray_rate"},
+            "equipment": {"id": "GR-204"},
+            "batch": {"product": "Metformin 500mg"},
+        },
+        more_info_round=0,
+        research_package={
+            "evidence_synthesis": {
+                "direct_answer": "The excursion is explicitly supported by SCADA facts.",
+                "evidence_gaps": ["No final maintenance record yet."],
+            }
+        },
+    )
+
+    assert "When `evidence_synthesis` is present" in prompt
+    assert "explicit support, unknowns, evidence gaps, and decision impact" in prompt
+
+
+def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
+    prompt = _build_evidence_synthesis_prompt(
+        incident_id="INC-2026-0117",
+        latest_operator_question="How many similar deviations were closed without replacement?",
+        research_package={
+            "follow_up_context": {"retrieved_historical_incident_count": 3},
+            "historical_incidents": [
+                {
+                    "incident_id": "INC-2026-0028",
+                    "evidence_excerpt": "Recommendation: inspect tubing and nozzle for blockages.",
+                }
+            ],
+            "evidence_citations": [
+                {
+                    "type": "historical",
+                    "document_id": "INC-2026-0028",
+                    "text_excerpt": "Inspect tubing and nozzle for blockages.",
+                    "index_name": "idx-incident-history",
+                }
+            ],
+        },
+    )
+
+    assert "Evidence Synthesis Request" in prompt
+    assert "Distinguish explicit support from unknown" in prompt
+    assert "Do not infer that an action did not happen" in prompt
+    assert "count is not determinable from retrieved evidence" in prompt
+    assert "tool_calls_log" not in prompt
+
+
+def test_orchestrator_research_package_prefers_compact_synthesis() -> None:
+    package = _build_orchestrator_research_package(
+        {
+            "tool_calls_log": [{"tool": "search", "args": {}, "status": "success"}],
+            "evidence_synthesis": {
+                "direct_answer": "The count is not determinable.",
+                "operator_dialogue": "The count is not determinable from retrieved evidence.",
+            },
+            "incident_facts": {"incident_id": "INC-2026-0117"},
+            "historical_incidents": [
+                {
+                    "incident_id": "INC-2026-0028",
+                    "evidence_excerpt": "Recommendation: inspect tubing and nozzle for blockages.",
+                    "extra": "drop me",
+                }
+            ],
+            "evidence_citations": [
+                {
+                    "type": "historical",
+                    "document_id": "INC-2026-0028",
+                    "document_title": "Prior deviation",
+                    "text_excerpt": "Inspect tubing and nozzle for blockages.",
+                    "source_blob": "INC-2026-0028.txt",
+                    "index_name": "idx-incident-history",
+                    "large_field": "drop me",
+                }
+            ],
+        }
+    )
+
+    assert "evidence_synthesis" in package
+    assert "tool_calls_log" not in package
+    assert package["historical_incidents"][0] == {
+        "incident_id": "INC-2026-0028",
+        "evidence_excerpt": "Recommendation: inspect tubing and nozzle for blockages.",
+    }
+    assert "large_field" not in package["evidence_citations"][0]
+
+
+def test_apply_synthesized_operator_dialogue_uses_model_owned_followup_answer(monkeypatch) -> None:
+    from activities import run_foundry_agents as module
+
+    traces: list[dict] = []
+    monkeypatch.setattr(module, "_log_trace_json", lambda **kwargs: traces.append(kwargs))
+
+    result, applied = _apply_synthesized_operator_dialogue(
+        {
+            "operator_dialogue": "Old orchestrator answer.",
+            "recommendation": "Inspect and recalibrate GR-204.",
+        },
+        {
+            "evidence_synthesis": {
+                "operator_dialogue": "Among 3 reviewed incidents, the count is not determinable from retrieved evidence.",
+                "answerability": "not_determinable",
+                "checked_evidence_count": 3,
+                "explicit_support_count": 0,
+                "unknown_count": 3,
+            }
+        },
+        incident_id="INC-2026-0117",
+        more_info_round=1,
+    )
+
+    assert applied is True
+    assert result["operator_dialogue"].startswith("Among 3 reviewed incidents")
+    assert result["recommendation"] == "Inspect and recalibrate GR-204."
+    assert traces[0]["trace_kind"] == "operator_dialogue_synthesis_result"
 
 
 def test_build_operator_dialogue_revision_prompt_keeps_model_answer_source_grounded() -> None:

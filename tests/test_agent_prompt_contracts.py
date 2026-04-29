@@ -53,16 +53,48 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "For count or comparison questions" in prompt
     assert "absence of a detail in an excerpt is unknown" in prompt
     assert "is not determinable from retrieved evidence" in prompt
+    assert "evidence_synthesis" in prompt
+    assert "explicit evidence supports the decision" in prompt
+
+
+def test_evidence_synthesizer_prompt_contract() -> None:
+    prompt = (PROMPTS / "evidence_synthesizer_system.md").read_text(encoding="utf-8")
+
+    assert "Evidence Synthesizer Agent" in prompt
+    assert "Do not make the final GMP approval/rejection decision" in prompt
+    assert "Do not infer a fact from silence" in prompt
+    assert "explicitly supports the requested attribute" in prompt
+    assert "count is not determinable from retrieved evidence" in prompt
+    assert "Return JSON only" in prompt
 
 
 def test_orchestrator_agent_has_no_connected_tools() -> None:
     source = (ROOT / "agents" / "create_agents.py").read_text(encoding="utf-8")
 
-    orchestrator_section = source.split("# ── 3. Orchestrator Agent", 1)[1]
+    orchestrator_section = source.split("# ── 4. Orchestrator Agent", 1)[1]
     orchestrator_section = orchestrator_section.split("print(\"\\n\" + \"=\" * 60)", 1)[0]
     assert "ConnectedAgentTool" not in orchestrator_section
     assert "research_connected" not in orchestrator_section
     assert "document_connected" not in orchestrator_section
+
+
+def test_evidence_synthesizer_agent_schema_is_registered() -> None:
+    source = (ROOT / "agents" / "create_agents.py").read_text(encoding="utf-8")
+
+    assert "EVIDENCE_SYNTHESIS_SCHEMA" in source
+    assert "EVIDENCE_SYNTHESIS_RESPONSE_FORMAT" in source
+    assert "sentinel-evidence-synthesizer-agent" in source
+    assert "FOUNDRY_EVIDENCE_SYNTHESIZER_AGENT_MODEL" in source
+    for field in [
+        "answerability",
+        "direct_answer",
+        "operator_dialogue",
+        "checked_evidence_count",
+        "explicit_support_count",
+        "unknown_count",
+        "decision_impact_hint",
+    ]:
+        assert f'"{field}"' in source
 
 
 def test_foundry_agent_schemas_require_canonical_research_evidence() -> None:

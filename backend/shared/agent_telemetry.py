@@ -23,13 +23,19 @@ logger = logging.getLogger(__name__)
 TRACE_MARKER = "FOUNDRY_PROMPT_TRACE"
 RESOURCE_ID_ENV = "APPLICATIONINSIGHTS_RESOURCE_ID"
 DEFAULT_QUERY_DAYS = 14
-ALLOWED_AGENT_NAMES = {"orchestrator", "research", "document", "execution", "tool"}
+ALLOWED_AGENT_NAMES = {"orchestrator", "evidence_synthesizer", "research", "document", "execution", "tool"}
 ALLOWED_STATUSES = {"started", "completed", "failed"}
 
 TRACE_TITLES = {
     "prompt_context": "Prompt Context",
     "orchestrator_user_prompt": "User Prompt",
     "thread_messages": "Thread Messages",
+    "evidence_synthesizer_prompt": "Evidence Synthesizer Prompt",
+    "evidence_synthesizer_thread_messages": "Evidence Synthesizer Thread Messages",
+    "evidence_synthesizer_raw_response": "Evidence Synthesizer Raw Response",
+    "evidence_synthesizer_parsed_response": "Evidence Synthesizer Parsed Response",
+    "evidence_synthesis_result": "Evidence Synthesis Result",
+    "operator_dialogue_synthesis_result": "Operator Dialogue Synthesis Result",
     "raw_response": "Raw Response",
     "parsed_response": "Parsed Response",
     "normalized_result": "Normalized Result",
@@ -39,6 +45,12 @@ TRACE_STATUS = {
     "prompt_context": "started",
     "orchestrator_user_prompt": "started",
     "thread_messages": "completed",
+    "evidence_synthesizer_prompt": "started",
+    "evidence_synthesizer_thread_messages": "completed",
+    "evidence_synthesizer_raw_response": "completed",
+    "evidence_synthesizer_parsed_response": "completed",
+    "evidence_synthesis_result": "completed",
+    "operator_dialogue_synthesis_result": "completed",
     "raw_response": "completed",
     "parsed_response": "completed",
     "normalized_result": "completed",

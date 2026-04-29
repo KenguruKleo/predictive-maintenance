@@ -109,7 +109,7 @@ Sensor Signal → Alert (automated anomaly detection)
 │  │ 1. create_incident          ──► Cosmos DB                  │    │
 │  │ 2. enrich_context           ──► Cosmos DB (equipment/batch)│    │
 │  │ 3. run_foundry_agents       ──► Azure AI Foundry            │    │
-│  │    └─ Orchestrator Agent (Connected Agents pipeline)       │    │
+│  │    └─ Orchestrator Agent + Evidence Synthesizer brief      │    │
 │  │         ├─ Research Agent  (RAG × 5 + MCP-sentinel-db)     │    │
 │  │         └─ Document Agent  (structured output + conf.gate) │    │
 │  │ 4. notify_operator          ──► SignalR + Cosmos           │    │
@@ -209,9 +209,10 @@ Sensor Signal → Alert (automated anomaly detection)
 - `create_incident` — records the basic incident in Cosmos `incidents`;
 - `enrich_context` — reads `equipment` + `batches` by ID from alert.
 
-**Step 4 — Agent reasoning.** Activity `run_foundry_agents` starts the Foundry **Orchestrator Agent**. Orchestrator manages the Connected Agents pipeline:
+**Step 4 — Agent reasoning.** Activity `run_foundry_agents` starts the Foundry **Orchestrator Agent** after backend retrieval and a compact **Evidence Synthesizer Agent** brief. Orchestrator manages the Connected Agents pipeline:
 
 - **Research Agent** (sub-agent via `AgentTool`) uses RAG (Azure AI Search × 5 indexes) + MCP tools (`mcp-sentinel-db`) in parallel and returns `ResearchAgentOutput`;
+- **Evidence Synthesizer Agent** receives the retrieved evidence package and produces explicit-support / unknown / evidence-gap counts for initial decisions and follow-up questions;
 - **Document Agent** (sub-agent via `AgentTool`) accepts `ResearchAgentOutput`, applies confidence gate 0.7, returns `DocumentAgentOutput` with recommendation, evidence citations, CAPA steps, work_order_draft, audit_entry_draft.
 
 Foundry natively manages the reasoning loop and `max_iterations`. The backend performs a separate **verification pass** on citations before persisting.
@@ -241,6 +242,7 @@ Foundry natively manages the reasoning loop and `max_iterations`. The backend pe
 | **AI Orchestrator** | Azure AI Foundry Agent Service | Connected Agents routing, reasoning loop, native MCP + RAG tool connections |
 | **Orchestrator Agent** | Foundry prompt agent | Coordinates Research → Document pipeline, manages reasoning loop and `max_iterations` |
 | **Research Agent** | Foundry agent + 5 RAG tools + MCP | Collects equipment state, batch context, relevant SOPs, historical cases |
+| **Evidence Synthesizer Agent** | Foundry prompt agent + structured JSON output | Converts retrieved evidence into a compact explicit-support/unknowns brief before final decision generation |
 | **Document Agent** | Foundry agent + templates + confidence gate | Draft: recommendation, risk level, evidence citations, CAPA steps, WO/audit drafts |
 | **Execution Agent** | Foundry agent + MCP-QMS/CMMS | After approval: `create_work_order` → CMMS + `create_audit_entry` → QMS |
 | **mcp-sentinel-db** | Python stdio MCP server | Tools: `get_incident`, `get_equipment`, `get_batch`, `search_incidents`, `list_incidents` |
@@ -294,6 +296,8 @@ In the target architecture, the Agent Orchestrator role is **split into two leve
 │      ├─ Research Agent (AgentTool)                                  │
 │      │    ├─ AzureAISearchTool × 5 indexes                          │
 │      │    └─ MCP: mcp-sentinel-db                                   │
+│      ├─ Evidence Synthesizer Agent                                  │
+│      │    └─ explicit support / unknowns / evidence-gap brief       │
 │      └─ Document Agent (AgentTool)                                  │
 │           └─ structured output + confidence gate 0.7                │
 │                                                                      │
