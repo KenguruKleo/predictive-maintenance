@@ -261,9 +261,11 @@ def test_evidence_synthesis_prompt_supports_cross_round_change_control_without_c
     assert "### Previous Recommendation Snapshot" in prompt
     assert "Inspect and recalibrate the spray rate control system" in prompt
     assert "state each requested field as changed, unchanged, or not determinable" in prompt
+    assert "set checked_evidence_count, explicit_support_count, contradiction_count, and unknown_count to 0" in prompt
     assert "do not treat unchanged fields as evidence items" in prompt
     assert "do not produce support-count totals unless the operator explicitly asks for counts" in prompt
     assert "answer every requested part explicitly" in prompt
+    assert "Priority 1" in prompt
 
 
 def test_normalize_evidence_synthesis_unwraps_schema_shaped_response() -> None:

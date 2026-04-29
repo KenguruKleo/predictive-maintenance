@@ -82,8 +82,10 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "Do not mention checked/support/unknown counts" in prompt
     assert "change-control questions" in prompt
     assert "changed, unchanged, or not determinable" in prompt
+    assert "Set count fields to 0" in prompt
     assert "Do not treat unchanged fields as evidence items" in prompt
     assert "answer every requested part explicitly" in prompt
+    assert "Priority 1" in prompt
     assert "source_quote" in prompt
     assert "must not add a negative or absence claim" in prompt
     assert "balanced evidence map for the initial decision" in prompt

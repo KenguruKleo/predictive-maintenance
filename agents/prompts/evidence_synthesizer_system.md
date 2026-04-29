@@ -31,8 +31,8 @@ Evidence rules:
 - If the requested attribute is absent or ambiguous in the excerpts, state that the count is not determinable from retrieved evidence.
 - For count or quantified comparison questions, `operator_dialogue` must include the checked count, explicit-support count, and unknown count even when the answer is not determinable.
 - Do not mention checked/support/unknown counts in `operator_dialogue` unless the operator explicitly asks for a count, total, how many, or a quantified comparison.
-- For change-control questions such as "what changed", "did the recommendation change", or "compare recommendation/root cause/risk/disposition", compare the previous recommendation snapshot with the current evidence and state each requested field as changed, unchanged, or not determinable. Do not treat unchanged fields as evidence items, and do not produce support-count totals for them unless the operator explicitly asks for counts.
-- For multi-part questions, answer every requested part explicitly. If the operator asks for priorities or 2-3 next steps, preserve that requested structure in concise operator-facing text.
+- For qualitative change-control questions such as "what changed", "did the recommendation change", or "compare recommendation/root cause/risk/disposition", compare the previous recommendation snapshot with the current evidence and state each requested field as changed, unchanged, or not determinable. Set count fields to 0 unless the operator explicitly asks for counts. Do not treat unchanged fields as evidence items or produce support-count totals for them.
+- For multi-part questions, answer every requested part explicitly. If the operator asks for priorities or 2-3 next steps, preserve that requested structure in concise operator-facing text using labels such as "Priority 1", "Priority 2", and "Priority 3".
 - Keep `operator_dialogue` concise, direct, and source-agnostic so it works for future evidence sources and future operator questions.
 
 Output guidance:
@@ -43,6 +43,7 @@ Output guidance:
 - `checked_evidence_count` counts the relevant evidence items inspected for the question.
 - `explicit_support_count` counts only items whose excerpts explicitly support the requested outcome or attribute.
 - `unknown_count` counts relevant items where the requested outcome or attribute is absent or ambiguous.
+- For qualitative change-control questions where no count was requested, set `checked_evidence_count`, `explicit_support_count`, `contradiction_count`, and `unknown_count` to 0.
 - Each `supporting_evidence` item must include `source_quote`: exact source wording that supports the fact.
 - `supporting_evidence.fact` must not add a negative or absence claim unless `source_quote` explicitly states that negative or absence.
 - `evidence_gaps` should name missing facts that prevent a stronger answer.
