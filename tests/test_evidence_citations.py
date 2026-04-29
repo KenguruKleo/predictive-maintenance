@@ -187,11 +187,15 @@ def test_build_operator_dialogue_revision_prompt_keeps_model_answer_source_groun
     )
 
     assert "revising only the `operator_dialogue` field" in prompt
-    assert "Keep every field semantically identical" in prompt
+    assert "Return JSON only in this exact shape" in prompt
+    assert "Original Decision Summary" in prompt
+    assert "Revision Evidence" in prompt
     assert "do not infer facts from silence" in prompt
     assert "Count an outcome or attribute only when a cited excerpt explicitly supports" in prompt
+    assert "do not treat absence of that action or attribute as proof" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
-    assert "Do not use `all`, `most`, or `none` unless the sentence includes the numbers" in prompt
+    assert "N of M" in prompt
+    assert "tool_calls_log" not in prompt
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:

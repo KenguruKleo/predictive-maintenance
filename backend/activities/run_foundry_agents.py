@@ -730,20 +730,52 @@ def _build_operator_dialogue_revision_prompt(
         },
         ["recommendation", "root_cause", "risk_level", "batch_disposition"],
     )
+    decision_summary = _pick_present(
+        {
+            "incident_id": result.get("incident_id"),
+            "title": result.get("title"),
+            "classification": result.get("classification"),
+            "risk_level": result.get("risk_level"),
+            "confidence": result.get("confidence"),
+            "confidence_flag": result.get("confidence_flag"),
+            "root_cause": result.get("root_cause"),
+            "analysis": result.get("analysis"),
+            "recommendation": result.get("recommendation"),
+            "agent_recommendation": result.get("agent_recommendation"),
+            "agent_recommendation_rationale": result.get("agent_recommendation_rationale"),
+            "batch_disposition": result.get("batch_disposition"),
+            "current_operator_dialogue": result.get("operator_dialogue"),
+        },
+        [
+            "incident_id",
+            "title",
+            "classification",
+            "risk_level",
+            "confidence",
+            "confidence_flag",
+            "root_cause",
+            "analysis",
+            "recommendation",
+            "agent_recommendation",
+            "agent_recommendation_rationale",
+            "batch_disposition",
+            "current_operator_dialogue",
+        ],
+    )
+    revision_evidence = _compact_operator_dialogue_revision_evidence(research_package)
     return "\n".join(
         [
             f"## Operator Dialogue Revision Task - Incident {incident_id}",
             "You are revising only the `operator_dialogue` field for a completed Orchestrator result.",
-            "Return one JSON object matching the same response schema as the Original Structured Result.",
-            "Keep every field semantically identical to the Original Structured Result except `operator_dialogue`.",
-            "Do not change the recommendation, risk, root cause, batch disposition, citations, audit draft, or work order draft.",
+            "Return JSON only in this exact shape: {\"operator_dialogue\": \"...\"}.",
+            "Do not change or restate any other JSON fields.",
             "",
             "### Latest Operator Question",
             latest_operator_question,
             "",
-            "### Original Structured Result",
+            "### Original Decision Summary",
             "```json",
-            json.dumps(result, indent=2, default=str),
+            json.dumps(decision_summary, indent=2, default=str),
             "```",
             "",
             "### Previous Recommendation Snapshot",
@@ -751,23 +783,68 @@ def _build_operator_dialogue_revision_prompt(
             json.dumps(previous_snapshot, indent=2, default=str),
             "```",
             "",
-            "### Research Evidence Package (authoritative)",
+            "### Revision Evidence (authoritative excerpt set)",
             "```json",
-            json.dumps(research_package, indent=2, default=str),
+            json.dumps(revision_evidence, indent=2, default=str),
             "```",
             "",
             "### Operator Dialogue Requirements",
             "- `operator_dialogue` is the only field you are improving.",
             "- Answer the latest operator question first, then state whether the decision changed and why.",
             "- Use only explicit facts in the Research Evidence Package; do not infer facts from silence.",
-            "- For count/comparison questions, name how many historical incidents were checked and give the supported count.",
+            "- For count/comparison questions, name how many historical incidents were checked and give the supported count as `N of M` when determinable.",
             "- Count an outcome or attribute only when a cited excerpt explicitly supports that outcome or attribute.",
+            "- If the question asks whether incidents closed without a specific action or attribute, do not treat absence of that action or attribute as proof that it did not happen.",
             "- If the excerpts do not explicitly show whether the requested outcome or attribute happened, say the count is not determinable from retrieved evidence.",
             "- Do not use `all`, `most`, or `none` unless the sentence includes the numbers that support that comparison.",
             "- Keep the dialogue under 120 words and do not mention these instructions.",
             "",
             "Return JSON only.",
         ]
+    )
+
+
+def _compact_operator_dialogue_revision_evidence(research_package: dict) -> dict:
+    historical_incidents = research_package.get("historical_incidents")
+    compact_historical: list[dict] = []
+    if isinstance(historical_incidents, list):
+        for item in historical_incidents[:8]:
+            if not isinstance(item, dict):
+                continue
+            compact_historical.append(
+                _pick_present(
+                    {
+                        "incident_id": item.get("incident_id"),
+                        "status": item.get("status"),
+                        "human_decision": item.get("human_decision"),
+                        "decision_evidence": item.get("decision_evidence"),
+                        "evidence_excerpt": item.get("evidence_excerpt"),
+                        "source_url": item.get("source_url"),
+                    },
+                    [
+                        "incident_id",
+                        "status",
+                        "human_decision",
+                        "decision_evidence",
+                        "evidence_excerpt",
+                        "source_url",
+                    ],
+                )
+            )
+
+    return _pick_present(
+        {
+            "follow_up_context": research_package.get("follow_up_context"),
+            "historical_incidents": compact_historical,
+            "historical_pattern_summary": research_package.get("historical_pattern_summary"),
+            "evidence_gaps": research_package.get("evidence_gaps"),
+        },
+        [
+            "follow_up_context",
+            "historical_incidents",
+            "historical_pattern_summary",
+            "evidence_gaps",
+        ],
     )
 
 
