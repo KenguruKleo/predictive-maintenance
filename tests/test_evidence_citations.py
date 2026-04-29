@@ -213,6 +213,7 @@ def test_evidence_synthesis_prompt_is_generic_and_gap_aware() -> None:
     assert "Evidence Synthesis Request" in prompt
     assert "Distinguish explicit support from unknown" in prompt
     assert "Do not infer that an action did not happen" in prompt
+    assert "include those counts in `operator_dialogue`" in prompt
     assert "omission means unknown" in prompt
     assert "not JSON Schema" in prompt
     assert "count is not determinable from retrieved evidence" in prompt

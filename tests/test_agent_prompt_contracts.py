@@ -65,6 +65,7 @@ def test_evidence_synthesizer_prompt_contract() -> None:
     assert "Do not infer a fact from silence" in prompt
     assert "explicitly supports the requested attribute" in prompt
     assert "Negative support also requires explicit evidence" in prompt
+    assert "operator_dialogue` must include the checked count" in prompt
     assert "Do not return JSON Schema wrapper keys" in prompt
     assert "count is not determinable from retrieved evidence" in prompt
     assert "Return JSON only" in prompt

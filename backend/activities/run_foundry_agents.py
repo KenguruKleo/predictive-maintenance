@@ -755,6 +755,7 @@ def _build_evidence_synthesis_prompt(
             "- Answer the latest question first when there is one.",
             "- Distinguish explicit support from unknown or missing facts.",
             "- For count/comparison questions, report checked evidence count, explicit support count, contradiction count, and unknown count.",
+            "- For count/comparison questions, include those counts in `operator_dialogue` in plain language.",
             "- Do not infer that an action did not happen merely because an excerpt does not mention it.",
             "- Negative support also requires explicit evidence; omission means unknown, not proof.",
             "- Use `all`, `most`, or `none` only with numbers that support the comparison.",
