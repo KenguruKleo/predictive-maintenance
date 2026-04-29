@@ -46,12 +46,14 @@ from reset_dev_data import (  # noqa: E402
     get_function_master_key,
     load_local_settings,
     resolve_defaults,
+    run_az,
 )
 
 TERMINAL_DURABLE_STATUSES = {"Completed", "Failed", "Terminated"}
 DEFAULT_WAIT_TIMEOUT = 480
 DEFAULT_POLL_INTERVAL = 10
 DEFAULT_RECOVERY_USER = "ivan.petrenko"
+DEFAULT_API_CLIENT_ID = "38843d08-f211-4445-bcef-a07d383f2ee6"
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -98,13 +100,36 @@ def durable_base_url(args: argparse.Namespace) -> str:
     return f"https://{args.function_app}.azurewebsites.net"
 
 
-def request_json(url: str, *, method: str = "GET", body: dict[str, Any] | None = None) -> dict[str, Any] | list[Any]:
+def request_json(
+    url: str,
+    *,
+    method: str = "GET",
+    body: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+) -> dict[str, Any] | list[Any]:
     payload = None if body is None else json.dumps(body).encode("utf-8")
-    headers = {} if body is None else {"Content-Type": "application/json"}
-    request = urllib.request.Request(url, data=payload, headers=headers, method=method)
+    request_headers = dict(headers or {})
+    if body is not None:
+        request_headers.setdefault("Content-Type", "application/json")
+    request = urllib.request.Request(url, data=payload, headers=request_headers, method=method)
     with urllib.request.urlopen(request, timeout=60) as response:
         raw = response.read().decode()
     return json.loads(raw) if raw else {}
+
+
+def get_api_access_token() -> str:
+    client_id = os.getenv("ENTRA_API_CLIENT_ID", DEFAULT_API_CLIENT_ID)
+    resource = os.getenv("ENTRA_API_AUDIENCE", f"api://{client_id}")
+    return run_az([
+        "account",
+        "get-access-token",
+        "--resource",
+        resource,
+        "--query",
+        "accessToken",
+        "-o",
+        "tsv",
+    ])
 
 
 def durable_instance_url(args: argparse.Namespace, master_key: str, incident_id: str) -> str:
@@ -311,6 +336,7 @@ def replay_more_info(args: argparse.Namespace, incident_id: str, question: str, 
             "role": "operator",
             "question": question,
         },
+        headers={"Authorization": f"Bearer {get_api_access_token()}"},
     )
 
 

@@ -44,13 +44,15 @@ _STUCK_STATUSES = frozenset({
 })
 _STUCK_STATUS_SQL = "','".join(sorted(_STUCK_STATUSES))
 
-# pending_approval incidents where the durable is NOT_FOUND are orphaned
-# (e.g. orchestrator ran on localhost but Cosmos record is shared).
-# We recover them without a time threshold — if durable is gone, operator
+# pending_approval / escalated incidents where the durable is NOT_FOUND are
+# orphaned (e.g. orchestrator ran on localhost but Cosmos record is shared).
+# We recover them without a time threshold — if durable is gone, the reviewer
 # can never submit a decision no matter how recent the incident is.
 _ORPHANED_APPROVAL_MIN_AGE_SECONDS: int = int(
     os.getenv("WATCHDOG_APPROVAL_ORPHAN_MIN_AGE_SECONDS", "120")
 )  # 2 min grace to avoid race with freshly-created instances
+_ORPHANED_REVIEW_STATUSES = frozenset({"pending_approval", "escalated"})
+_ORPHANED_REVIEW_STATUS_SQL = "','".join(sorted(_ORPHANED_REVIEW_STATUSES))
 
 # Durable statuses where the orchestrator is still alive — leave them alone.
 _LIVE_DURABLE_STATUSES = frozenset({"Running", "Pending", "ContinuedAsNew"})
@@ -136,8 +138,8 @@ def _query_stuck_incidents(threshold_seconds: int) -> list[dict[str, Any]]:
     return list(container.query_items(query, enable_cross_partition_query=True))
 
 
-def _query_orphaned_approvals() -> list[dict[str, Any]]:
-    """Return pending_approval incidents older than the grace period.
+def _query_orphaned_reviews() -> list[dict[str, Any]]:
+    """Return review-waiting incidents older than the grace period.
 
     These may have their durable orchestrator on a different host (e.g. localhost).
     The caller checks whether the durable instance actually exists before recovering.
@@ -146,7 +148,7 @@ def _query_orphaned_approvals() -> list[dict[str, Any]]:
     container = get_container("incidents")
     query = (
         f"SELECT {_COSMOS_INCIDENT_FIELDS} "
-        f"FROM c WHERE c.status = 'pending_approval' AND c._ts < {cutoff_ts}"
+        f"FROM c WHERE c.status IN ('{_ORPHANED_REVIEW_STATUS_SQL}') AND c._ts < {cutoff_ts}"
     )
     return list(container.query_items(query, enable_cross_partition_query=True))
 
@@ -169,9 +171,9 @@ async def _run_watchdog(timer: func.TimerRequest, client) -> None:
 
     threshold_seconds = _STUCK_THRESHOLD_MINUTES * 60
     stuck = _query_stuck_incidents(threshold_seconds)
-    orphaned_approvals = _query_orphaned_approvals()
+    orphaned_reviews = _query_orphaned_reviews()
 
-    candidates = stuck + orphaned_approvals
+    candidates = stuck + orphaned_reviews
     if not candidates:
         logger.info(
             "Watchdog: no stuck incidents found (stuck_threshold=%d min, approval_grace=%ds)",
@@ -181,14 +183,14 @@ async def _run_watchdog(timer: func.TimerRequest, client) -> None:
         return
 
     logger.info(
-        "Watchdog: candidates — stuck=%d orphaned_approvals=%d",
+        "Watchdog: candidates — stuck=%d orphaned_reviews=%d",
         len(stuck),
-        len(orphaned_approvals),
+        len(orphaned_reviews),
     )
     recovered = 0
 
     for incident in candidates[:_MAX_RECOVER_PER_RUN]:
-        is_approval = incident.get("status") == "pending_approval"
+        is_review_wait = incident.get("status") in _ORPHANED_REVIEW_STATUSES
         incident_id = str(incident.get("id") or incident.get("incident_id") or "")
         if not incident_id:
             continue
@@ -206,16 +208,16 @@ async def _run_watchdog(timer: func.TimerRequest, client) -> None:
                 )
                 continue
 
-            # For pending_approval, only recover when orchestrator is truly absent
+            # For human-review waits, only recover when orchestrator is truly absent
             # (NOT_FOUND). Completed/Failed are handled the same way as stuck.
-            if is_approval and runtime_status is not None and str(runtime_status) not in (
+            if is_review_wait and runtime_status is not None and str(runtime_status) not in (
                 "Failed",
                 "Terminated",
                 "Canceled",
                 "Completed",
             ):
                 logger.debug(
-                    "Watchdog: pending_approval incident %s durable=%s — skipping",
+                    "Watchdog: review-wait incident %s durable=%s — skipping",
                     incident_id,
                     runtime_status,
                 )

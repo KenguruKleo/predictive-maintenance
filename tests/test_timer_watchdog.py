@@ -83,7 +83,7 @@ def test_watchdog_recovers_orphaned_approval_when_durable_completed(monkeypatch)
     }
 
     monkeypatch.setattr(timer_watchdog, "_query_stuck_incidents", lambda threshold_seconds: [])
-    monkeypatch.setattr(timer_watchdog, "_query_orphaned_approvals", lambda: [incident])
+    monkeypatch.setattr(timer_watchdog, "_query_orphaned_reviews", lambda: [incident])
     monkeypatch.setattr(timer_watchdog, "publish_alert", lambda payload: published.append(payload))
     monkeypatch.setattr(timer_watchdog, "_MAX_RECOVER_PER_RUN", 10)
 
@@ -126,7 +126,7 @@ def test_watchdog_recovers_orphaned_approval_when_durable_is_missing(monkeypatch
     }
 
     monkeypatch.setattr(timer_watchdog, "_query_stuck_incidents", lambda threshold_seconds: [])
-    monkeypatch.setattr(timer_watchdog, "_query_orphaned_approvals", lambda: [incident])
+    monkeypatch.setattr(timer_watchdog, "_query_orphaned_reviews", lambda: [incident])
     monkeypatch.setattr(timer_watchdog, "publish_alert", lambda payload: published.append(payload))
     monkeypatch.setattr(timer_watchdog, "_MAX_RECOVER_PER_RUN", 10)
 
@@ -167,7 +167,7 @@ def test_watchdog_recovers_stuck_incident_when_durable_is_missing(monkeypatch) -
     }
 
     monkeypatch.setattr(timer_watchdog, "_query_stuck_incidents", lambda threshold_seconds: [incident])
-    monkeypatch.setattr(timer_watchdog, "_query_orphaned_approvals", lambda: [])
+    monkeypatch.setattr(timer_watchdog, "_query_orphaned_reviews", lambda: [])
     monkeypatch.setattr(timer_watchdog, "publish_alert", lambda payload: published.append(payload))
     monkeypatch.setattr(timer_watchdog, "_MAX_RECOVER_PER_RUN", 10)
 
@@ -208,7 +208,7 @@ def test_watchdog_skips_stuck_incident_with_live_durable_instance(monkeypatch) -
     }
 
     monkeypatch.setattr(timer_watchdog, "_query_stuck_incidents", lambda threshold_seconds: [incident])
-    monkeypatch.setattr(timer_watchdog, "_query_orphaned_approvals", lambda: [])
+    monkeypatch.setattr(timer_watchdog, "_query_orphaned_reviews", lambda: [])
     monkeypatch.setattr(timer_watchdog, "publish_alert", lambda payload: published.append(payload))
     monkeypatch.setattr(timer_watchdog, "_MAX_RECOVER_PER_RUN", 10)
 
@@ -220,3 +220,44 @@ def test_watchdog_skips_stuck_incident_with_live_durable_instance(monkeypatch) -
 
     assert client.calls == ["durable-INC-2026-0202"]
     assert published == []
+
+
+def test_watchdog_recovers_orphaned_escalated_incident_when_durable_is_missing(monkeypatch) -> None:
+    published: list[dict] = []
+    incident = {
+        "id": "INC-2026-0205",
+        "status": "escalated",
+        "equipment_id": "GR-204",
+        "title": "Granulator spray rate high",
+        "reported_at": "2026-04-28T12:00:00Z",
+    }
+
+    monkeypatch.setattr(timer_watchdog, "_query_stuck_incidents", lambda threshold_seconds: [])
+    monkeypatch.setattr(timer_watchdog, "_query_orphaned_reviews", lambda: [incident])
+    monkeypatch.setattr(timer_watchdog, "publish_alert", lambda payload: published.append(payload))
+    monkeypatch.setattr(timer_watchdog, "_MAX_RECOVER_PER_RUN", 10)
+
+    client = FakeDurableClient({})
+
+    run_watchdog(client)
+
+    assert client.calls == ["durable-INC-2026-0205"]
+    assert published == [
+        {
+            "id": "INC-2026-0205",
+            "incident_id": "INC-2026-0205",
+            "incidentId": "INC-2026-0205",
+            "equipment_id": "GR-204",
+            "equipmentId": "GR-204",
+            "severity": "critical",
+            "status": "open",
+            "reported_at": "2026-04-28T12:00:00Z",
+            "createdAt": "2026-04-28T12:00:00Z",
+            "updatedAt": "2026-04-28T12:00:00Z",
+            "equipment_name": "Granulator spray rate high",
+            "equipment_criticality": "unknown",
+            "equipment_type": "unknown",
+            "location": "unknown",
+            "title": "Granulator spray rate high",
+        }
+    ]
