@@ -760,6 +760,8 @@ def _build_prompt(
             "Answer contract for `operator_dialogue`:",
             "- Start by answering the concrete question the operator asked, not by restating the recommendation.",
             "- Use the Research Evidence Package to say what evidence was checked and what it did or did not show.",
+            "- For count/comparison wording such as 'how many', 'most', or 'similar cases', include explicit supported counts from the evidence.",
+            "- Do not say 'all', 'most', or 'none' unless the cited evidence supports that exact comparison.",
             "- If the retrieved evidence is insufficient to answer any part, say that explicitly and name the missing fact.",
             "- Then say whether recommendation, root cause, risk, or batch disposition changed or stayed the same, and why.",
             "- Keep the response source-agnostic: work with any future evidence source added to the package.",
@@ -1202,13 +1204,28 @@ def _collect_research_evidence_package(
         {
             "latest_question": latest_operator_question,
             "retrieval_terms": follow_up_search_terms,
+            "retrieved_historical_incident_count": len(historical_summaries),
+            "historical_human_decision_counts": {
+                "approved": approved_count,
+                "rejected": rejected_count,
+                "unknown": max(len(historical_summaries) - approved_count - rejected_count, 0),
+            } if historical_summaries else {},
             "answering_guidance": (
                 "The model must answer the latest question from retrieved evidence first, "
                 "then state decision impact. If evidence is insufficient, it must say which "
-                "fact could not be determined instead of substituting a generic recommendation summary."
+                "fact could not be determined instead of substituting a generic recommendation summary. "
+                "For count or comparison questions, include explicit supported counts from cited evidence; "
+                "if the requested attribute is missing from the excerpts, say the count is not determinable "
+                "from retrieved evidence."
             ) if latest_operator_question else "",
         },
-        ["latest_question", "retrieval_terms", "answering_guidance"],
+        [
+            "latest_question",
+            "retrieval_terms",
+            "retrieved_historical_incident_count",
+            "historical_human_decision_counts",
+            "answering_guidance",
+        ],
     )
 
     package = {

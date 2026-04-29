@@ -50,6 +50,8 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "Follow-up dialogue rules" in prompt
     assert "Answer that concrete question first" in prompt
     assert "Never hide an evidence gap behind a generic phrase" in prompt
+    assert "For count or comparison questions" in prompt
+    assert "is not determinable from retrieved evidence" in prompt
 
 
 def test_orchestrator_agent_has_no_connected_tools() -> None:

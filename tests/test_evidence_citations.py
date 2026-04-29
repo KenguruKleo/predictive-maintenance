@@ -116,6 +116,13 @@ def test_collect_research_evidence_package_carries_followup_context_and_historic
 
     assert package["follow_up_context"]["latest_question"] == "Were similar incidents closed without replacement work orders?"
     assert "answer the latest question" in package["follow_up_context"]["answering_guidance"]
+    assert "explicit supported counts" in package["follow_up_context"]["answering_guidance"]
+    assert package["follow_up_context"]["retrieved_historical_incident_count"] == 1
+    assert package["follow_up_context"]["historical_human_decision_counts"] == {
+        "approved": 0,
+        "rejected": 1,
+        "unknown": 0,
+    }
     assert package["historical_pattern_summary"] == "Retrieved historical split: 0 approved, 1 rejected among cited similar incidents."
     assert package["historical_incidents"][0]["incident_id"] == "INC-2026-0028"
     assert package["historical_incidents"][0]["status"] == "closed"
@@ -148,6 +155,8 @@ def test_build_prompt_adds_latest_followup_answer_task() -> None:
     assert "### Latest Operator Question - Answer Task" in prompt
     assert "Were similar incidents closed without replacement work orders?" in prompt
     assert "Start by answering the concrete question" in prompt
+    assert "include explicit supported counts" in prompt
+    assert "Do not say 'all', 'most', or 'none'" in prompt
     assert "If the retrieved evidence is insufficient" in prompt
 
 
