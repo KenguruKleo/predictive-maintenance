@@ -69,6 +69,10 @@ _DOMAIN_TOPIC_TOKENS = {
     "equipment", "batch", "deviation", "incident", "granulation", "granulator", "spray",
     "impeller", "chopper", "temperature", "parameter", "limit", "calibration", "maintenance",
     "manual", "sop", "bpr", "gmp", "capa", "quality", "product", "process", "operator",
+    "inspection", "inspect", "defect", "defects", "tubing", "tube", "line", "root", "cause",
+    "hypothesis", "recommendation", "risk", "disposition", "release", "testing", "test",
+    "investigation", "corrective", "preventive", "calibrate", "flowmeter", "sensor", "nozzle",
+    "priority", "priorities",
 }
 
 

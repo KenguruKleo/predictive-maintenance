@@ -219,6 +219,55 @@ def test_http_decision_allows_relevant_follow_up_question(monkeypatch) -> None:
     assert client.raised_events[0][2]["question"] == "Check the spray rate SOP and the BPR limit for GR-204 wet granulation."
 
 
+def test_http_decision_allows_manufacturing_investigation_follow_up_without_equipment_name(monkeypatch) -> None:
+    monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
+    monkeypatch.setattr(http_decision, "get_caller_id", lambda req: "ivan.petrenko")
+    monkeypatch.setattr(http_decision, "_get_target_workflow_role", lambda incident_id: "operator")
+    monkeypatch.setattr(
+        http_decision,
+        "_get_incident_follow_up_context",
+        lambda incident_id: {
+            "equipment_id": "GR-204",
+            "equipment_name": "Granulator GR-204",
+            "equipment_type": "High-Shear Granulator",
+            "parameter": "spray_rate_g_min",
+            "deviation_type": "process_parameter_excursion",
+            "product": "Metformin HCl 500mg Tablets",
+            "production_stage": "Wet Granulation",
+        },
+    )
+    monkeypatch.setattr(
+        http_decision,
+        "_record_decision",
+        lambda incident_id, decision, now_iso: {
+            "previous_status": "pending_approval",
+            "new_status": "awaiting_agents",
+            "equipment_id": "GR-204",
+        },
+    )
+
+    question = (
+        "Provide an alternative plan: what do we do if tubing inspection finds no defects? "
+        "Update the root cause hypothesis and provide 2-3 next steps with priorities."
+    )
+    req = FakeRequest(
+        {
+            "action": "more_info",
+            "question": question,
+            "user_id": "ivan.petrenko",
+        },
+        route_params={"incident_id": "INC-2026-0029"},
+    )
+    client = FakeDurableClient(FakeStatus(df.OrchestrationRuntimeStatus.Running))
+
+    response = asyncio.run(HTTP_DECISION(req, client))
+    body = json.loads(response.get_body())
+
+    assert response.status_code == 202
+    assert body["status"] == "decision_received"
+    assert client.raised_events[0][2]["question"] == question
+
+
 def test_http_decision_uses_authenticated_caller_identity(monkeypatch) -> None:
     recorded: dict = {}
     monkeypatch.setattr(http_decision, "get_caller_roles", lambda req: ["Operator"])
