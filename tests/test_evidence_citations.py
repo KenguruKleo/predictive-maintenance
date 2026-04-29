@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _build_operator_dialogue_revision_prompt,
     _build_prompt,
     _collect_research_evidence_package,
     _citation_applies_to_bpr_reference,
@@ -156,8 +157,41 @@ def test_build_prompt_adds_latest_followup_answer_task() -> None:
     assert "Were similar incidents closed without replacement work orders?" in prompt
     assert "Start by answering the concrete question" in prompt
     assert "include explicit supported counts" in prompt
+    assert "absence of a detail in an excerpt is unknown" in prompt
     assert "Do not say 'all', 'most', or 'none'" in prompt
     assert "If the retrieved evidence is insufficient" in prompt
+
+
+def test_build_operator_dialogue_revision_prompt_keeps_model_answer_source_grounded() -> None:
+    prompt = _build_operator_dialogue_revision_prompt(
+        incident_id="INC-2026-0117",
+        latest_operator_question="How many similar deviations were closed without tubing replacement?",
+        result={
+            "incident_id": "INC-2026-0117",
+            "operator_dialogue": "Historical evidence indicates all similar deviations closed without replacement.",
+            "recommendation": "Inspect and recalibrate GR-204.",
+            "risk_level": "critical",
+            "root_cause": "Potential calibration drift.",
+            "batch_disposition": "hold_pending_review",
+        },
+        previous_ai_result={"recommendation": "Inspect and recalibrate GR-204."},
+        research_package={
+            "follow_up_context": {"retrieved_historical_incident_count": 3},
+            "historical_incidents": [
+                {
+                    "incident_id": "INC-2026-0028",
+                    "evidence_excerpt": "Recommendation: inspect tubing and nozzle for blockages.",
+                }
+            ],
+        },
+    )
+
+    assert "revising only the `operator_dialogue` field" in prompt
+    assert "Keep every field semantically identical" in prompt
+    assert "do not infer facts from silence" in prompt
+    assert "Count an outcome or attribute only when a cited excerpt explicitly supports" in prompt
+    assert "count is not determinable from retrieved evidence" in prompt
+    assert "Do not use `all`, `most`, or `none` unless the sentence includes the numbers" in prompt
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:

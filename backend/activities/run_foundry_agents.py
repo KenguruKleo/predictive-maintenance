@@ -185,38 +185,48 @@ def run_foundry_agents(input_data: dict) -> dict:
         context_data=context_data,
     )
     try:
-        result = _call_orchestrator_agent(
-            prompt,
+        try:
+            result = _call_orchestrator_agent(
+                prompt,
+                orchestrator_agent_id,
+                incident_id=incident_id,
+                more_info_round=more_info_round,
+            )
+        except Exception as exc:  # noqa: BLE001
+            logger.error(
+                "Foundry analysis failed for incident %s round=%d: %s",
+                incident_id,
+                more_info_round,
+                exc,
+                exc_info=True,
+            )
+            result = _build_agent_failure_result(
+                incident_id=incident_id,
+                previous_ai_result=previous_ai_result,
+                more_info_round=more_info_round,
+                error=exc,
+            )
+
+        result = _normalize_agent_result(
+            result,
+            rag_context,
+            more_info_round,
+            previous_ai_result=previous_ai_result,
+            operator_questions=context_data.get("operator_questions", []),
+            authoritative_research_package=research_package,
+        )
+        result = _revise_followup_operator_dialogue_with_model(
+            result,
             orchestrator_agent_id,
             incident_id=incident_id,
             more_info_round=more_info_round,
-        )
-    except Exception as exc:  # noqa: BLE001
-        logger.error(
-            "Foundry analysis failed for incident %s round=%d: %s",
-            incident_id,
-            more_info_round,
-            exc,
-            exc_info=True,
-        )
-        result = _build_agent_failure_result(
-            incident_id=incident_id,
+            context_data=context_data,
+            research_package=research_package,
             previous_ai_result=previous_ai_result,
-            more_info_round=more_info_round,
-            error=exc,
         )
     finally:
         # Always release the Foundry slot so the next waiting incident can proceed.
         _set_foundry_active(_incidents_container, incident_id, _equipment_id, False)
-
-    result = _normalize_agent_result(
-        result,
-        rag_context,
-        more_info_round,
-        previous_ai_result=previous_ai_result,
-        operator_questions=context_data.get("operator_questions", []),
-        authoritative_research_package=research_package,
-    )
 
     # Confidence gate (RAI Gap #4): log warning but still return result
     confidence = result.get("confidence", 0.0)
@@ -470,6 +480,7 @@ def _call_orchestrator_agent(
     *,
     incident_id: str,
     more_info_round: int,
+    trace_label: str = "orchestrator",
 ) -> dict:
     """Create a Foundry thread, run the Orchestrator Agent, return parsed result.
 
@@ -557,7 +568,7 @@ def _call_orchestrator_agent(
                 _log_trace_json(
                     incident_id=incident_id,
                     more_info_round=more_info_round,
-                    trace_kind="thread_messages",
+                    trace_kind=_agent_trace_kind("thread_messages", trace_label),
                     payload={
                         "thread_id": run.thread_id,
                         "run_id": run.id,
@@ -593,7 +604,7 @@ def _call_orchestrator_agent(
                 _log_trace_text(
                     incident_id=incident_id,
                     more_info_round=more_info_round,
-                    trace_kind="raw_response",
+                    trace_kind=_agent_trace_kind("raw_response", trace_label),
                     text=raw_text,
                     metadata={
                         "thread_id": run.thread_id,
@@ -605,7 +616,7 @@ def _call_orchestrator_agent(
                 _log_trace_json(
                     incident_id=incident_id,
                     more_info_round=more_info_round,
-                    trace_kind="parsed_response",
+                    trace_kind=_agent_trace_kind("parsed_response", trace_label),
                     payload=parsed,
                     metadata={
                         "thread_id": run.thread_id,
@@ -623,6 +634,141 @@ def _call_orchestrator_agent(
 
     # All retries exhausted
     raise last_exc or RuntimeError("run_foundry_agents: all retries exhausted")
+
+
+def _agent_trace_kind(base_kind: str, trace_label: str) -> str:
+    if trace_label == "orchestrator":
+        return base_kind
+    return f"{trace_label}_{base_kind}"
+
+
+def _revise_followup_operator_dialogue_with_model(
+    result: dict,
+    agent_id: str,
+    *,
+    incident_id: str,
+    more_info_round: int,
+    context_data: dict,
+    research_package: dict,
+    previous_ai_result: dict | None,
+) -> dict:
+    if more_info_round <= 0:
+        return result
+    if str(result.get("confidence_flag") or "") in {"FOUNDRY_FAILURE", "FOUNDRY_TIMEOUT"}:
+        return result
+
+    operator_questions = context_data.get("operator_questions", [])
+    latest_operator_question = _get_latest_operator_question(operator_questions)
+    if not latest_operator_question:
+        return result
+
+    revision_prompt = _build_operator_dialogue_revision_prompt(
+        incident_id=incident_id,
+        latest_operator_question=latest_operator_question,
+        result=result,
+        research_package=research_package,
+        previous_ai_result=previous_ai_result or {},
+    )
+    _log_trace_text(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="operator_dialogue_revision_prompt",
+        text=revision_prompt,
+        metadata={"agent_id": agent_id},
+    )
+
+    try:
+        revised = _call_orchestrator_agent(
+            revision_prompt,
+            agent_id,
+            incident_id=incident_id,
+            more_info_round=more_info_round,
+            trace_label="operator_dialogue_revision",
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning(
+            "Operator dialogue revision failed for incident %s round=%d: %s",
+            incident_id,
+            more_info_round,
+            exc,
+            exc_info=True,
+        )
+        return result
+
+    revised_dialogue = str(revised.get("operator_dialogue") or "").strip()
+    if not revised_dialogue:
+        return result
+
+    updated = dict(result)
+    updated["operator_dialogue"] = revised_dialogue[:800]
+    _log_trace_json(
+        incident_id=incident_id,
+        more_info_round=more_info_round,
+        trace_kind="operator_dialogue_revision_result",
+        payload={
+            "previous_operator_dialogue": result.get("operator_dialogue"),
+            "revised_operator_dialogue": updated["operator_dialogue"],
+        },
+    )
+    return updated
+
+
+def _build_operator_dialogue_revision_prompt(
+    *,
+    incident_id: str,
+    latest_operator_question: str,
+    result: dict,
+    research_package: dict,
+    previous_ai_result: dict,
+) -> str:
+    previous_snapshot = _pick_present(
+        {
+            "recommendation": previous_ai_result.get("recommendation"),
+            "root_cause": previous_ai_result.get("root_cause"),
+            "risk_level": previous_ai_result.get("risk_level"),
+            "batch_disposition": previous_ai_result.get("batch_disposition"),
+        },
+        ["recommendation", "root_cause", "risk_level", "batch_disposition"],
+    )
+    return "\n".join(
+        [
+            f"## Operator Dialogue Revision Task - Incident {incident_id}",
+            "You are revising only the `operator_dialogue` field for a completed Orchestrator result.",
+            "Return one JSON object matching the same response schema as the Original Structured Result.",
+            "Keep every field semantically identical to the Original Structured Result except `operator_dialogue`.",
+            "Do not change the recommendation, risk, root cause, batch disposition, citations, audit draft, or work order draft.",
+            "",
+            "### Latest Operator Question",
+            latest_operator_question,
+            "",
+            "### Original Structured Result",
+            "```json",
+            json.dumps(result, indent=2, default=str),
+            "```",
+            "",
+            "### Previous Recommendation Snapshot",
+            "```json",
+            json.dumps(previous_snapshot, indent=2, default=str),
+            "```",
+            "",
+            "### Research Evidence Package (authoritative)",
+            "```json",
+            json.dumps(research_package, indent=2, default=str),
+            "```",
+            "",
+            "### Operator Dialogue Requirements",
+            "- `operator_dialogue` is the only field you are improving.",
+            "- Answer the latest operator question first, then state whether the decision changed and why.",
+            "- Use only explicit facts in the Research Evidence Package; do not infer facts from silence.",
+            "- For count/comparison questions, name how many historical incidents were checked and give the supported count.",
+            "- Count an outcome or attribute only when a cited excerpt explicitly supports that outcome or attribute.",
+            "- If the excerpts do not explicitly show whether the requested outcome or attribute happened, say the count is not determinable from retrieved evidence.",
+            "- Do not use `all`, `most`, or `none` unless the sentence includes the numbers that support that comparison.",
+            "- Keep the dialogue under 120 words and do not mention these instructions.",
+            "",
+            "Return JSON only.",
+        ]
+    )
 
 
 def _build_agent_failure_result(
@@ -761,6 +907,7 @@ def _build_prompt(
             "- Start by answering the concrete question the operator asked, not by restating the recommendation.",
             "- Use the Research Evidence Package to say what evidence was checked and what it did or did not show.",
             "- For count/comparison wording such as 'how many', 'most', or 'similar cases', include explicit supported counts from the evidence.",
+            "- Count an outcome or attribute only when cited evidence explicitly supports it; absence of a detail in an excerpt is unknown, not proof it did not happen.",
             "- Do not say 'all', 'most', or 'none' unless the cited evidence supports that exact comparison.",
             "- If the retrieved evidence is insufficient to answer any part, say that explicitly and name the missing fact.",
             "- Then say whether recommendation, root cause, risk, or batch disposition changed or stayed the same, and why.",
@@ -1215,6 +1362,7 @@ def _collect_research_evidence_package(
                 "then state decision impact. If evidence is insufficient, it must say which "
                 "fact could not be determined instead of substituting a generic recommendation summary. "
                 "For count or comparison questions, include explicit supported counts from cited evidence; "
+                "count an attribute only when it is explicitly present in an excerpt, because silence is unknown, "
                 "if the requested attribute is missing from the excerpts, say the count is not determinable "
                 "from retrieved evidence."
             ) if latest_operator_question else "",

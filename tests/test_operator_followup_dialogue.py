@@ -1,11 +1,14 @@
-from pathlib import Path
+import importlib
 import sys
+from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
-from activities.run_foundry_agents import _normalize_operator_dialogue
+module = importlib.import_module("activities.run_foundry_agents")
+_normalize_operator_dialogue = module._normalize_operator_dialogue
+_revise_followup_operator_dialogue_with_model = module._revise_followup_operator_dialogue_with_model
 
 
 def test_followup_dialogue_keeps_explicit_model_answer() -> None:
@@ -114,3 +117,51 @@ def test_followup_dialogue_uses_recommendation_fallback_when_missing() -> None:
     )
 
     assert dialogue == "Approve corrective actions and inspect the spray-rate control path on GR-204."
+
+
+def test_followup_dialogue_revision_uses_model_text_without_changing_decision(monkeypatch) -> None:
+    calls: list[dict] = []
+
+    def fake_call_orchestrator_agent(*args, **kwargs):
+        calls.append(kwargs)
+        return {
+            "operator_dialogue": (
+                "I found 3 historical incidents, but the excerpts do not explicitly show "
+                "whether tubing replacement happened, so that count is not determinable from retrieved evidence. "
+                "The recommendation remains unchanged."
+            )
+        }
+
+    monkeypatch.setattr(module, "_call_orchestrator_agent", fake_call_orchestrator_agent)
+    monkeypatch.setattr(module, "_log_trace_text", lambda **_kwargs: None)
+    monkeypatch.setattr(module, "_log_trace_json", lambda **_kwargs: None)
+
+    original = {
+        "incident_id": "INC-2026-0117",
+        "operator_dialogue": "Historical evidence indicates all similar deviations required corrective actions.",
+        "recommendation": "Inspect and recalibrate GR-204.",
+        "agent_recommendation": "APPROVE",
+    }
+
+    revised = _revise_followup_operator_dialogue_with_model(
+        original,
+        "asst-test",
+        incident_id="INC-2026-0117",
+        more_info_round=2,
+        context_data={
+            "operator_questions": [
+                {
+                    "round": 2,
+                    "question": "How many similar deviations were closed without tubing replacement?",
+                    "asked_by": "operator",
+                }
+            ]
+        },
+        research_package={"follow_up_context": {"retrieved_historical_incident_count": 3}},
+        previous_ai_result={"recommendation": "Inspect and recalibrate GR-204."},
+    )
+
+    assert revised["operator_dialogue"].startswith("I found 3 historical incidents")
+    assert revised["recommendation"] == "Inspect and recalibrate GR-204."
+    assert revised["agent_recommendation"] == "APPROVE"
+    assert calls[0]["trace_label"] == "operator_dialogue_revision"

@@ -51,6 +51,7 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "Answer that concrete question first" in prompt
     assert "Never hide an evidence gap behind a generic phrase" in prompt
     assert "For count or comparison questions" in prompt
+    assert "absence of a detail in an excerpt is unknown" in prompt
     assert "is not determinable from retrieved evidence" in prompt
 
 

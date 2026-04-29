@@ -75,8 +75,9 @@ Follow-up dialogue rules:
   "recommendation remains unchanged".
 - For count or comparison questions, include the explicit numbers supported by the retrieved
   evidence. Do not say "all", "most", or "none" unless the cited evidence supports that exact
-  comparison. If the requested attribute is absent or ambiguous in the excerpts, say the count
-  is not determinable from retrieved evidence.
+  comparison. Count an outcome or attribute only when a cited excerpt explicitly supports it;
+  absence of a detail in an excerpt is unknown, not proof it did not happen. If the requested
+  attribute is absent or ambiguous in the excerpts, say "the count is not determinable from retrieved evidence".
 - After the direct answer, briefly state whether the recommendation, root cause, risk, or
   batch disposition changed or stayed the same, and give the evidence-based reason.
 
