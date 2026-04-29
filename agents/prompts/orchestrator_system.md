@@ -70,6 +70,8 @@ Final output:
   `agent_recommendation` is `APPROVE`. Keep `audit_entry_id` and `work_order_id` null.
 - For `REJECT`, `work_order_draft` and `work_order_id` must be null; the audit entry explains
   why the event was dismissed.
-- For follow-up questions, `operator_dialogue` must answer the question directly, say whether
-  the recommendation changed, and stay under 120 words.
+- For follow-up questions, `operator_dialogue` must answer the question directly, briefly say
+  what was checked, state whether the recommendation, root cause, risk, or batch disposition
+  changed or stayed the same, and explain why in clear human language while staying under 120
+  words.
 - Return JSON only; do not add prose outside the object.

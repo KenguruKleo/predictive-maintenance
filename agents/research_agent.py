@@ -20,7 +20,7 @@ AGENT_NAME = "sentinel-research-agent"
 MODEL = (
     os.getenv("FOUNDRY_RESEARCH_AGENT_MODEL")
     or os.getenv("FOUNDRY_AGENT_MODEL")
-    or "gpt-4o-mini"
+    or "gpt-4o"
 ).strip()
 
 # AI Search index names (created by T-037)

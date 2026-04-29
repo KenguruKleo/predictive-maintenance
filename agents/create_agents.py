@@ -47,8 +47,8 @@ RESEARCH_PROMPT = (PROMPTS_DIR / "research_system.md").read_text(encoding="utf-8
 DOCUMENT_PROMPT = (PROMPTS_DIR / "document_system.md").read_text(encoding="utf-8")
 ORCHESTRATOR_PROMPT = (PROMPTS_DIR / "orchestrator_system.md").read_text(encoding="utf-8")
 
-DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o-mini"
-DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
 DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
 
 

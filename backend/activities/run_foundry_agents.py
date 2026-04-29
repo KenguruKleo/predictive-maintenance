@@ -34,7 +34,6 @@ import re
 import time
 from collections.abc import Sequence
 from datetime import datetime, timezone
-from difflib import SequenceMatcher
 from functools import lru_cache
 from pathlib import Path
 from urllib.parse import quote
@@ -110,8 +109,8 @@ _TYPE_TO_INDEX: dict[str, str] = {meta["type"]: idx for idx, meta in INDEX_EVIDE
 REPO_ROOT = Path(__file__).resolve().parents[2]
 AGENT_PROMPTS_DIR = REPO_ROOT / "agents" / "prompts"
 
-DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o-mini"
-DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o-mini"
+DEFAULT_RESEARCH_AGENT_MODEL = "gpt-4o"
+DEFAULT_DOCUMENT_AGENT_MODEL = "gpt-4o"
 DEFAULT_ORCHESTRATOR_AGENT_MODEL = "gpt-4o"
 
 bp = df.Blueprint()
@@ -1666,12 +1665,6 @@ def _normalize_agent_result(
     )
     if normalized_reference or result["evidence_citations"]:
         result["regulatory_reference"] = normalized_reference
-    result["operator_dialogue"] = _normalize_operator_dialogue(
-        result,
-        more_info_round,
-        previous_ai_result=previous_ai_result or {},
-        operator_questions=operator_questions or [],
-    )
     # Normalize agent_recommendation: keep APPROVE/REJECT as-is, derive from risk_level as fallback
     raw_rec = str(result.get("agent_recommendation") or "").strip().upper()
     if raw_rec in ("APPROVE", "REJECT"):
@@ -1689,6 +1682,12 @@ def _normalize_agent_result(
     _normalize_agent_recommendation_contract(result)
     _normalize_risk_level_contract(result, authoritative_research_package or {})
     _normalize_low_confidence_contract(result)
+    result["operator_dialogue"] = _normalize_operator_dialogue(
+        result,
+        more_info_round,
+        previous_ai_result=previous_ai_result or {},
+        operator_questions=operator_questions or [],
+    )
     return result
 
 
@@ -1749,7 +1748,6 @@ def _normalize_agent_recommendation_contract(result: dict) -> None:
 
     if had_corrective_actions or _looks_like_corrective_action_text(result.get("recommendation")):
         result["recommendation"] = rationale
-        result["operator_dialogue"] = _shorten_text(rationale, 800)
     if _looks_like_corrective_action_text(result.get("capa_suggestion")):
         result["capa_suggestion"] = "No CAPA/work order required; document the event and continue routine trend monitoring."
 
@@ -2184,148 +2182,19 @@ def _normalize_operator_dialogue(
     operator_questions: list[dict] | None = None,
 ) -> str:
     explicit = str(result.get("operator_dialogue") or "").strip()
-    previous_ai_result = previous_ai_result or {}
-    operator_questions = operator_questions or []
-
-    if more_info_round <= 0 and _should_rewrite_initial_operator_dialogue(explicit):
-        explicit = ""
-
-    if explicit and not _should_rewrite_followup_dialogue(
-        explicit,
-        result,
-        previous_ai_result,
-        operator_questions,
-        more_info_round,
-    ):
+    if explicit:
         return explicit[:800]
 
     recommendation = str(result.get("recommendation") or "").strip()
     analysis = str(result.get("analysis") or "").strip()
+    fallback = recommendation or analysis
+    if fallback:
+        return _shorten_text(fallback, 800)
 
     if more_info_round <= 0:
-        return (recommendation or analysis or "AI agent provided an initial recommendation.")[:800]
+        return "AI agent did not return an operator summary. Review the analysis details."
 
-    if recommendation:
-        return _build_followup_operator_dialogue(
-            result,
-            previous_ai_result,
-            operator_questions,
-        )[:800]
-
-    return (
-        "I reviewed your follow-up question and updated the analysis using available data."
-    )[:800]
-
-
-def _should_rewrite_initial_operator_dialogue(explicit: str) -> bool:
-    normalized_explicit = _normalize_text(explicit)
-    if not normalized_explicit:
-        return False
-
-    invalid_initial_markers = (
-        "recommendation remains",
-        "remains the same",
-        "remains unchanged",
-        "stayed the same",
-        "recommendation stayed",
-        "updated recommendation",
-        "updated root cause",
-        "follow-up question",
-    )
-    return any(marker in normalized_explicit for marker in invalid_initial_markers)
-
-
-def _should_rewrite_followup_dialogue(
-    explicit: str,
-    result: dict,
-    previous_ai_result: dict,
-    operator_questions: list[dict],
-    more_info_round: int,
-) -> bool:
-    if more_info_round <= 0:
-        return not explicit
-
-    normalized_explicit = _normalize_text(explicit)
-    if not normalized_explicit:
-        return True
-
-    recommendation = _normalize_text(str(result.get("recommendation") or ""))
-    previous_dialogue = _normalize_text(str(previous_ai_result.get("operator_dialogue") or ""))
-
-    if len(normalized_explicit.split()) < 12:
-        return True
-
-    if recommendation and SequenceMatcher(None, normalized_explicit, recommendation).ratio() >= 0.88:
-        return True
-
-    if previous_dialogue and SequenceMatcher(None, normalized_explicit, previous_dialogue).ratio() >= 0.88:
-        return True
-
-    latest_question = _get_latest_operator_question(operator_questions)
-    if latest_question and _is_direct_requirement_question(latest_question):
-        if not _answers_direct_requirement_question(normalized_explicit):
-            return True
-
-    if latest_question and not _mentions_change_or_reason(normalized_explicit):
-        return True
-
-    return False
-
-
-def _build_followup_operator_dialogue(
-    result: dict,
-    previous_ai_result: dict,
-    operator_questions: list[dict],
-) -> str:
-    latest_question = _get_latest_operator_question(operator_questions)
-    root_cause = str(result.get("root_cause") or "").strip()
-    changed_fields = _get_changed_followup_fields(result, previous_ai_result)
-    direct_requirement_answer = _build_direct_requirement_answer(latest_question, result)
-
-    if latest_question:
-        intro = f'I reviewed your follow-up question: "{_shorten_text(latest_question, 90)}".'
-    else:
-        intro = "I reviewed your follow-up question and re-checked the available evidence."
-
-    if changed_fields:
-        field_summary = _human_join(changed_fields)
-        details: list[str] = [intro]
-        if direct_requirement_answer:
-            details.append(direct_requirement_answer)
-        details.append(f"I updated {field_summary} based on the available evidence.")
-        details.append(_build_updated_decision_summary(result))
-        if root_cause and "the root cause hypothesis" in changed_fields:
-            details.append(f"Updated root cause hypothesis: {_shorten_text(root_cause, 120)}")
-        return _compose_dialogue_parts(details)
-
-    no_change_parts = [intro]
-    if direct_requirement_answer:
-        no_change_parts.append(direct_requirement_answer)
-        no_change_parts.append(_build_no_change_decision_reason(result))
-    else:
-        no_change_parts.append(
-            "I did not find enough new evidence to change the current recommendation or root-cause hypothesis."
-        )
-    decision_summary = _build_current_decision_summary(result)
-    if decision_summary:
-        no_change_parts.append(decision_summary)
-    return _compose_dialogue_parts(no_change_parts)
-
-
-def _get_changed_followup_fields(result: dict, previous_ai_result: dict) -> list[str]:
-    labels = {
-        "recommendation": "the recommendation",
-        "root_cause": "the root cause hypothesis",
-        "risk_level": "the risk level",
-        "batch_disposition": "the batch disposition",
-    }
-    changed: list[str] = []
-    for field, label in labels.items():
-        current_value = _normalize_text(str(result.get(field) or ""))
-        previous_value = _normalize_text(str(previous_ai_result.get(field) or ""))
-        if current_value and current_value != previous_value:
-            changed.append(label)
-    return changed
+    return "AI agent did not return a follow-up summary. Review the analysis details."
 
 
 def _get_latest_operator_question(operator_questions: list[dict]) -> str:
@@ -2333,216 +2202,6 @@ def _get_latest_operator_question(operator_questions: list[dict]) -> str:
         return ""
     latest = operator_questions[-1]
     return str(latest.get("question") or "").strip()
-
-
-def _is_direct_requirement_question(question: str) -> bool:
-    normalized_question = _normalize_text(question)
-    if not normalized_question:
-        return False
-
-    requirement_markers = (
-        "direct requirement",
-        "directly require",
-        "mandate",
-        "requirement to",
-        "required to",
-        "must stop",
-        "stop the line",
-        "line stop",
-    )
-    document_markers = ("bpr", "sop", "document", "procedure")
-    return any(marker in normalized_question for marker in requirement_markers) and any(
-        marker in normalized_question for marker in document_markers
-    )
-
-
-def _answers_direct_requirement_question(normalized_dialogue: str) -> bool:
-    answer_markers = (
-        "i did not find a direct",
-        "i found a direct",
-        "there is no direct requirement",
-        "there is a direct requirement",
-        "the bpr does not",
-        "the bpr requires",
-        "the sop does not",
-        "the sop requires",
-        "does not directly require",
-        "directly requires",
-        "does not state",
-        "states that",
-    )
-    return any(marker in normalized_dialogue for marker in answer_markers)
-
-
-def _build_direct_requirement_answer(latest_question: str, result: dict) -> str:
-    if not _is_direct_requirement_question(latest_question):
-        return ""
-
-    source, section, excerpt = _extract_requirement_evidence(result)
-    if excerpt and _has_direct_stop_requirement(excerpt):
-        source_label = _format_evidence_label(source, section)
-        if source_label:
-            return (
-                f'I found a retrieved document instruction in {source_label} that directly requires a stop or hold action: '
-                f'"{_shorten_text(excerpt, 140)}".'
-            )
-        return (
-            f'I found a retrieved document instruction that directly requires a stop or hold action: '
-            f'"{_shorten_text(excerpt, 140)}".'
-        )
-
-    if excerpt:
-        source_label = _format_evidence_label(source, section)
-        if source_label:
-            return (
-                "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition. "
-                f'The closest cited document limit in {source_label} is "{_shorten_text(excerpt, 140)}".'
-            )
-        return (
-            "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition. "
-            f'The closest cited document limit is "{_shorten_text(excerpt, 140)}".'
-        )
-
-    return "I did not find a retrieved BPR or SOP instruction that directly requires stopping the line at this condition."
-
-
-def _build_no_change_decision_reason(result: dict) -> str:
-    source, section, excerpt = _extract_requirement_evidence(result)
-    source_label = _format_evidence_label(source, section)
-    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
-
-    if excerpt:
-        if source_label and batch_disposition:
-            return (
-                f'I kept the recommendation and batch disposition unchanged because {source_label} still points to '
-                f'"{_shorten_text(excerpt, 140)}", so the batch should remain {batch_disposition} while the deviation is investigated.'
-            )
-        if source_label:
-            return (
-                f'I kept the recommendation unchanged because {source_label} still points to '
-                f'"{_shorten_text(excerpt, 140)}", and that does not support changing the current decision.'
-            )
-
-    if batch_disposition:
-        return (
-            f'I kept the recommendation and batch disposition unchanged because the available evidence still supports '
-            f'keeping the batch {batch_disposition} while the deviation is investigated.'
-        )
-
-    return "I kept the recommendation unchanged because the available evidence still supports the current decision."
-
-
-def _build_current_decision_summary(result: dict) -> str:
-    summary_parts: list[str] = []
-
-    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
-    if batch_disposition:
-        summary_parts.append(f"The batch remains {batch_disposition}.")
-
-    recommendation = str(result.get("recommendation") or "").strip()
-    if recommendation:
-        summary_parts.append(f"Recommended next action: {recommendation}")
-
-    return " ".join(summary_parts).strip()
-
-
-def _build_updated_decision_summary(result: dict) -> str:
-    summary_parts: list[str] = []
-
-    batch_disposition = _humanize_batch_disposition(str(result.get("batch_disposition") or ""))
-    if batch_disposition:
-        summary_parts.append(f"The batch is now {batch_disposition}.")
-
-    recommendation = str(result.get("recommendation") or "").strip()
-    if recommendation:
-        summary_parts.append(f"Recommended next action: {_shorten_text(recommendation, 160)}")
-
-    return " ".join(summary_parts).strip()
-
-
-def _humanize_batch_disposition(batch_disposition: str) -> str:
-    labels = {
-        "hold_pending_review": "on hold pending review",
-        "conditional_release_pending_testing": "under conditional release pending testing",
-        "rejected": "rejected",
-        "release": "released",
-    }
-    normalized = _normalize_text(batch_disposition)
-    return labels.get(normalized, batch_disposition.replace("_", " ").strip())
-
-
-def _extract_requirement_evidence(result: dict) -> tuple[str, str, str]:
-    prioritized: list[tuple[str, str, str]] = []
-    fallback: list[tuple[str, str, str]] = []
-
-    for collection_name in ("evidence_citations", "sop_refs", "regulatory_refs"):
-        for item in result.get(collection_name, []) or []:
-            if not isinstance(item, dict):
-                continue
-
-            source = str(
-                item.get("source")
-                or item.get("document_title")
-                or item.get("id")
-                or item.get("regulation")
-                or ""
-            ).strip()
-            section = str(item.get("section") or item.get("relevant_section") or "").strip()
-            excerpt = str(item.get("text_excerpt") or "").strip()
-            if not excerpt:
-                continue
-
-            normalized_haystack = _normalize_text(f"{source} {section} {excerpt}")
-            candidate = (source, section, excerpt)
-            if "bpr" in normalized_haystack or "product nor" in normalized_haystack:
-                prioritized.append(candidate)
-            elif "sop" in normalized_haystack or "procedure" in normalized_haystack:
-                prioritized.append(candidate)
-            else:
-                fallback.append(candidate)
-
-    if prioritized:
-        return prioritized[0]
-    if fallback:
-        return fallback[0]
-    return "", "", ""
-
-
-def _has_direct_stop_requirement(excerpt: str) -> bool:
-    normalized_excerpt = _normalize_text(excerpt)
-    stop_markers = (
-        "stop the line",
-        "must stop",
-        "halt production",
-        "production must be stopped",
-        "hold the batch",
-        "batch must be held",
-        "reject the batch",
-    )
-    return any(marker in normalized_excerpt for marker in stop_markers)
-
-
-def _format_evidence_label(source: str, section: str) -> str:
-    if source and section:
-        return f"{source} {section}"
-    return source or section
-
-
-def _mentions_change_or_reason(normalized_text: str) -> bool:
-    markers = (
-        "reviewed",
-        "checked",
-        "question",
-        "changed",
-        "change",
-        "same",
-        "remains",
-        "because",
-        "evidence",
-        "updated",
-        "no change",
-    )
-    return any(marker in normalized_text for marker in markers)
 
 
 def _normalize_text(text: str) -> str:
@@ -2555,39 +2214,6 @@ def _shorten_text(text: str, limit: int) -> str:
         return compact
     shortened = compact[: limit - 3].rsplit(" ", 1)[0].strip()
     return f"{shortened}..." if shortened else compact[: limit - 3] + "..."
-
-
-def _compose_dialogue_parts(parts: list[str], limit: int = 800) -> str:
-    message = ""
-    for part in parts:
-        compact_part = re.sub(r"\s+", " ", str(part or "")).strip()
-        if not compact_part:
-            continue
-
-        candidate = f"{message} {compact_part}".strip() if message else compact_part
-        if len(candidate) <= limit:
-            message = candidate
-            continue
-
-        remaining = limit - len(message) - (1 if message else 0)
-        if remaining <= 0:
-            break
-
-        shortened_part = _shorten_text(compact_part, remaining)
-        message = f"{message} {shortened_part}".strip() if message else shortened_part
-        break
-
-    return message
-
-
-def _human_join(items: list[str]) -> str:
-    if not items:
-        return "the analysis"
-    if len(items) == 1:
-        return items[0]
-    if len(items) == 2:
-        return f"{items[0]} and {items[1]}"
-    return ", ".join(items[:-1]) + f", and {items[-1]}"
 
 
 def _normalize_incident_title(result: dict) -> str:
