@@ -6,6 +6,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend"))
 
 from activities.run_foundry_agents import (
+    _build_prompt,
     _collect_research_evidence_package,
     _citation_applies_to_bpr_reference,
     _citation_applies_to_equipment,
@@ -52,6 +53,102 @@ def test_collect_research_evidence_package_uses_latest_operator_question_in_quer
     assert all("earlier question" not in query.lower() for _, query, _ in calls)
     assert "included in backend retrieval" in package["context_summary"].lower()
     assert rag_context["idx-sop-documents"] == []
+
+
+def test_collect_research_evidence_package_carries_followup_context_and_historical_digest(monkeypatch) -> None:
+    from activities import run_foundry_agents as module
+
+    def fake_search_index(index_name: str, query: str, top_k: int = 0, filter_expr: str | None = None):
+        if index_name != "idx-incident-history":
+            return []
+        return [
+            {
+                "document_id": "INC-2026-0028",
+                "document_title": "Prior spray-rate deviation",
+                "source": "INC-2026-0028.txt",
+                "chunk_index": 0,
+                "section_heading": "Incident summary",
+                "text": "\n".join(
+                    [
+                        "Incident ID: INC-2026-0028",
+                        "Equipment: GR-204 - Granulator",
+                        "Status: closed | Severity: medium | Date: 2026-04-20",
+                        "Deviation type: process_parameter_excursion",
+                        "Root cause: transient sensor drift",
+                        "Agent recommendation: REJECT",
+                        "Operator agreed with agent: yes",
+                        "HUMAN DECISION: REJECTED - operator dismissed this as a false positive.",
+                        "Human decision reason: transient spike without product impact",
+                        "Recommendation: No work order required; trend monitoring only.",
+                    ]
+                ),
+                "equipment_ids": ["GR-204"],
+                "score": 0.91,
+            }
+        ]
+
+    monkeypatch.setattr(module, "SEARCH_ENABLED", True)
+    monkeypatch.setattr(module, "search_index", fake_search_index)
+
+    package, _rag_context = _collect_research_evidence_package(
+        {
+            "alert_payload": {
+                "equipment_id": "GR-204",
+                "parameter": "spray_rate",
+                "deviation_type": "process_parameter_excursion",
+                "measured_value": 138,
+                "lower_limit": 90,
+                "upper_limit": 130,
+                "severity": "critical",
+            },
+            "equipment": {"id": "GR-204", "name": "Granulator GR-204"},
+            "batch": {"product": "Metformin 500mg", "bpr_reference": "BPR-MET-500-v3.2"},
+            "operator_questions": [
+                {
+                    "round": 2,
+                    "question": "Were similar incidents closed without replacement work orders?",
+                    "asked_by": "operator",
+                }
+            ],
+        },
+        current_incident_id="INC-2026-0117",
+    )
+
+    assert package["follow_up_context"]["latest_question"] == "Were similar incidents closed without replacement work orders?"
+    assert "answer the latest question" in package["follow_up_context"]["answering_guidance"]
+    assert package["historical_pattern_summary"] == "Retrieved historical split: 0 approved, 1 rejected among cited similar incidents."
+    assert package["historical_incidents"][0]["incident_id"] == "INC-2026-0028"
+    assert package["historical_incidents"][0]["status"] == "closed"
+    assert package["historical_incidents"][0]["human_decision"] == "rejected"
+    assert "human decision" in package["historical_incidents"][0]["decision_evidence"].lower()
+    assert "No work order required" in package["historical_incidents"][0]["evidence_excerpt"]
+
+
+def test_build_prompt_adds_latest_followup_answer_task() -> None:
+    prompt = _build_prompt(
+        "INC-2026-0117",
+        {
+            "alert_payload": {"equipment_id": "GR-204", "parameter": "spray_rate"},
+            "equipment": {"id": "GR-204"},
+            "batch": {"product": "Metformin 500mg"},
+            "operator_questions": [
+                {"round": 1, "question": "Earlier question", "asked_by": "operator"},
+                {
+                    "round": 2,
+                    "question": "Were similar incidents closed without replacement work orders?",
+                    "asked_by": "operator",
+                },
+            ],
+        },
+        more_info_round=2,
+        previous_ai_result={"recommendation": "Hold batch pending review."},
+        research_package={"follow_up_context": {"latest_question": "Were similar incidents closed without replacement work orders?"}},
+    )
+
+    assert "### Latest Operator Question - Answer Task" in prompt
+    assert "Were similar incidents closed without replacement work orders?" in prompt
+    assert "Start by answering the concrete question" in prompt
+    assert "If the retrieved evidence is insufficient" in prompt
 
 
 def test_normalize_evidence_citations_dedupes_canonical_document_identity() -> None:

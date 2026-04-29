@@ -709,6 +709,7 @@ def _build_prompt(
     recent_incidents = _compact_recent_incidents(context_data.get("recent_incidents") or [])
     alert_payload = context_data.get("alert_payload", {})
     operator_questions = context_data.get("operator_questions", [])
+    latest_operator_question = _get_latest_operator_question(operator_questions)
 
     lines = [
         f"## GMP Deviation Analysis Request — Incident {incident_id}",
@@ -748,6 +749,20 @@ def _build_prompt(
             "```json",
             json.dumps(research_package, indent=2, default=str),
             "```",
+        ]
+
+    if more_info_round > 0 and latest_operator_question:
+        lines += [
+            "",
+            "### Latest Operator Question - Answer Task",
+            "Treat this as the primary user intent for `operator_dialogue`.",
+            f"Question: {latest_operator_question}",
+            "Answer contract for `operator_dialogue`:",
+            "- Start by answering the concrete question the operator asked, not by restating the recommendation.",
+            "- Use the Research Evidence Package to say what evidence was checked and what it did or did not show.",
+            "- If the retrieved evidence is insufficient to answer any part, say that explicitly and name the missing fact.",
+            "- Then say whether recommendation, root cause, risk, or batch disposition changed or stayed the same, and why.",
+            "- Keep the response source-agnostic: work with any future evidence source added to the package.",
         ]
 
     if operator_questions:
@@ -814,7 +829,7 @@ def _build_prompt(
         "When the Research Evidence Package is present, return compact empty arrays for evidence_citations, sop_refs, regulatory_refs, and tool_calls_log; backend normalization restores them. Do not call connected agents or external tools.",
         "If Research Agent did not return real canonical SOP/GMP/BPR/manual/history evidence, lower confidence and explain the evidence gap.",
         "For REJECT decisions, work_order_draft and work_order_id must be null.",
-        "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer follow-up questions directly.",
+        "Never fabricate data. Cite sources. Keep operator_dialogue under 120 words and answer the latest follow-up question directly before summarizing decision impact.",
     ]
 
     return "\n".join(lines)
@@ -1124,21 +1139,38 @@ def _collect_research_evidence_package(
     approved_count = 0
     rejected_count = 0
     for citation in historical_citations:
-        normalized = _normalize_text(str(citation.get("text_excerpt") or ""))
-        decision = "unknown"
-        if "human decision: approved" in normalized:
+        excerpt = str(citation.get("text_excerpt") or "").strip()
+        decision, decision_evidence = _extract_human_decision_from_evidence(excerpt)
+        if decision == "approved":
             decision = "approved"
             approved_count += 1
-        elif "human decision: rejected" in normalized:
+        elif decision == "rejected":
             decision = "rejected"
             rejected_count += 1
+        status = _extract_history_status(excerpt)
         historical_summaries.append(
-            {
-                "incident_id": citation.get("document_id", ""),
-                "human_decision": decision,
-                "document_title": citation.get("document_title", ""),
-                "similarity_reason": "Retrieved from incident-history search for same equipment/deviation context.",
-            }
+            _pick_present(
+                {
+                    "incident_id": citation.get("document_id", ""),
+                    "document_title": citation.get("document_title", ""),
+                    "status": status,
+                    "human_decision": decision,
+                    "decision_evidence": decision_evidence,
+                    "evidence_excerpt": excerpt,
+                    "source_url": citation.get("url", ""),
+                    "similarity_reason": "Retrieved from incident-history search for the current alert and follow-up context.",
+                },
+                [
+                    "incident_id",
+                    "document_title",
+                    "status",
+                    "human_decision",
+                    "decision_evidence",
+                    "evidence_excerpt",
+                    "source_url",
+                    "similarity_reason",
+                ],
+            )
         )
 
     if historical_summaries:
@@ -1166,8 +1198,22 @@ def _collect_research_evidence_package(
             f"{context_summary} Latest operator follow-up question was included in backend retrieval."
         )
 
+    follow_up_context = _pick_present(
+        {
+            "latest_question": latest_operator_question,
+            "retrieval_terms": follow_up_search_terms,
+            "answering_guidance": (
+                "The model must answer the latest question from retrieved evidence first, "
+                "then state decision impact. If evidence is insufficient, it must say which "
+                "fact could not be determined instead of substituting a generic recommendation summary."
+            ) if latest_operator_question else "",
+        },
+        ["latest_question", "retrieval_terms", "answering_guidance"],
+    )
+
     package = {
         "tool_calls_log": tool_calls_log,
+        "follow_up_context": follow_up_context,
         "incident_facts": _pick_present(
             {
                 "incident_id": current_incident_id,
@@ -1259,7 +1305,11 @@ def _canonical_citation_from_search_hit(index_name: str, hit: dict) -> dict | No
     if not section_heading:
         section_heading = f"Chunk {chunk_index}"
 
-    text_excerpt = _trim_excerpt(str(hit.get("text") or ""), max_chars=500, min_break=220)
+    raw_text = str(hit.get("text") or "")
+    if index_name == "idx-incident-history":
+        text_excerpt = _history_evidence_excerpt(raw_text)
+    else:
+        text_excerpt = _trim_excerpt(raw_text, max_chars=500, min_break=220)
     document_id = str(hit.get("document_id") or "").strip()
     document_title = str(hit.get("document_title") or document_id).strip()
     container = str(meta.get("container") or "")
@@ -1283,6 +1333,73 @@ def _canonical_citation_from_search_hit(index_name: str, hit: dict) -> dict | No
             source_blob=source_blob,
         ),
     }
+
+
+def _history_evidence_excerpt(text: str) -> str:
+    lines = [line.strip() for line in str(text or "").splitlines() if line.strip()]
+    if not lines:
+        return _trim_excerpt(str(text or ""), max_chars=1200, min_break=700)
+
+    preferred_prefixes = (
+        "incident id:",
+        "equipment:",
+        "status:",
+        "deviation type:",
+        "description:",
+        "root cause:",
+        "classification:",
+        "risk level:",
+        "agent recommendation:",
+        "operator agreed with agent:",
+        "human decision:",
+        "human decision reason:",
+        "recommendation:",
+        "capa:",
+        "batch disposition:",
+    )
+    selected = [line for line in lines if line.lower().startswith(preferred_prefixes)]
+    if not selected:
+        selected = lines
+    excerpt = "\n".join(selected)
+    if len(excerpt) <= 1400:
+        return excerpt
+    shortened_lines: list[str] = []
+    total_length = 0
+    for line in selected:
+        next_length = total_length + len(line) + (1 if shortened_lines else 0)
+        if next_length > 1397:
+            break
+        shortened_lines.append(line)
+        total_length = next_length
+    shortened = "\n".join(shortened_lines).strip()
+    return f"{shortened}\n..." if shortened else excerpt[:1397] + "..."
+
+
+def _extract_human_decision_from_evidence(text: str) -> tuple[str, str]:
+    decision_line = _extract_labeled_line(text, "human decision")
+    normalized = _normalize_text(decision_line or text)
+    if "approved" in normalized:
+        return "approved", decision_line
+    if "rejected" in normalized:
+        return "rejected", decision_line
+    return "unknown", decision_line
+
+
+def _extract_history_status(text: str) -> str:
+    status_line = _extract_labeled_line(text, "status")
+    if not status_line:
+        return ""
+    status_value = status_line.split(":", 1)[-1].strip()
+    return status_value.split("|", 1)[0].strip()
+
+
+def _extract_labeled_line(text: str, label: str) -> str:
+    normalized_label = label.strip().lower()
+    for line in str(text or "").splitlines():
+        stripped = line.strip()
+        if stripped.lower().startswith(f"{normalized_label}:"):
+            return stripped
+    return ""
 
 
 def _log_orchestrator_prompt_trace(
@@ -2187,14 +2304,7 @@ def _normalize_operator_dialogue(
 
     recommendation = str(result.get("recommendation") or "").strip()
     analysis = str(result.get("analysis") or "").strip()
-    fallback = recommendation or analysis
-    if fallback:
-        return _shorten_text(fallback, 800)
-
-    if more_info_round <= 0:
-        return "AI agent did not return an operator summary. Review the analysis details."
-
-    return "AI agent did not return a follow-up summary. Review the analysis details."
+    return (recommendation or analysis or "AI agent did not return an operator dialogue summary.")[:800]
 
 
 def _get_latest_operator_question(operator_questions: list[dict]) -> str:

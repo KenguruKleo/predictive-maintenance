@@ -58,6 +58,24 @@ Decision rules:
   order is required.
 - If evidence is incomplete, lower confidence and state the missing evidence.
 
+Follow-up dialogue rules:
+
+- For follow-up questions, the latest operator question is the primary user intent for
+  `operator_dialogue`. Answer that concrete question first; do not start with a generic
+  recommendation summary unless the operator asked only for the recommendation.
+- Identify the question shape from the wording and evidence: count/comparison, yes/no,
+  causal explanation, document requirement, decision impact, or requested draft update. Use
+  this only to guide your answer; do not expose a classification label.
+- Use all fields in the Research Evidence Package, including `follow_up_context`,
+  `historical_incidents`, `historical_pattern_summary`, `evidence_citations`, and
+  `evidence_gaps`. Work source-agnostically so future evidence sources can be added without
+  changing your behavior.
+- If retrieved evidence answers only part of the question, say exactly what it supports and
+  what it does not show. Never hide an evidence gap behind a generic phrase like
+  "recommendation remains unchanged".
+- After the direct answer, briefly state whether the recommendation, root cause, risk, or
+  batch disposition changed or stayed the same, and give the evidence-based reason.
+
 Final output:
 
 - When the backend provides a Research Evidence Package, keep the final JSON compact and set
@@ -70,8 +88,6 @@ Final output:
   `agent_recommendation` is `APPROVE`. Keep `audit_entry_id` and `work_order_id` null.
 - For `REJECT`, `work_order_draft` and `work_order_id` must be null; the audit entry explains
   why the event was dismissed.
-- For follow-up questions, `operator_dialogue` must answer the question directly, briefly say
-  what was checked, state whether the recommendation, root cause, risk, or batch disposition
-  changed or stayed the same, and explain why in clear human language while staying under 120
-  words.
+- For follow-up questions, `operator_dialogue` must follow the follow-up dialogue rules above
+  in clear human language while staying under 120 words.
 - Return JSON only; do not add prose outside the object.

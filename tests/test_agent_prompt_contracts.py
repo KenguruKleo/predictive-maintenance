@@ -47,6 +47,9 @@ def test_orchestrator_prompt_forbids_simulated_research_logs() -> None:
     assert "backend provides a Research Evidence Package" in prompt
     assert "Backend normalization restores the canonical package" in prompt
     assert "severity: critical" in prompt
+    assert "Follow-up dialogue rules" in prompt
+    assert "Answer that concrete question first" in prompt
+    assert "Never hide an evidence gap behind a generic phrase" in prompt
 
 
 def test_orchestrator_agent_has_no_connected_tools() -> None:
