@@ -284,13 +284,6 @@ export function useSubmitDecision(incidentId: string) {
     mutationFn: (payload: DecisionPayload) =>
       submitDecision(incidentId, payload),
     onMutate: async (payload) => {
-      await Promise.all([
-        queryClient.cancelQueries({ queryKey: ["incident", incidentId] }),
-        queryClient.cancelQueries({ queryKey: ["incident-events", incidentId] }),
-        queryClient.cancelQueries({ queryKey: ["incidents"] }),
-        queryClient.cancelQueries({ queryKey: ["incidents-active-infinite"] }),
-      ]);
-
       const previousOptimisticDecision = queryClient.getQueryData<Record<string, OptimisticIncidentDecision>>(
         OPTIMISTIC_INCIDENT_DECISIONS_QUERY_KEY,
       )?.[incidentId];
@@ -300,6 +293,13 @@ export function useSubmitDecision(incidentId: string) {
         incidentId,
         buildOptimisticIncidentDecision(incidentId, payload),
       );
+
+      await Promise.all([
+        queryClient.cancelQueries({ queryKey: ["incident", incidentId] }),
+        queryClient.cancelQueries({ queryKey: ["incident-events", incidentId] }),
+        queryClient.cancelQueries({ queryKey: ["incidents"] }),
+        queryClient.cancelQueries({ queryKey: ["incidents-active-infinite"] }),
+      ]);
 
       return { previousOptimisticDecision };
     },

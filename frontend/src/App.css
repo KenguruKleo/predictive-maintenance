@@ -1603,6 +1603,33 @@
   border-color: rgba(0, 82, 204, 0.18);
 }
 
+.decision-section--stale {
+  border-color: rgba(202, 125, 1, 0.22);
+  box-shadow: none;
+}
+
+.decision-followup-notice {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: var(--status-pending-bg);
+  border: 1px solid rgba(202, 125, 1, 0.22);
+  border-radius: var(--radius-md);
+  color: var(--text);
+}
+
+.decision-followup-notice strong {
+  color: var(--text-heading);
+  font-size: 14px;
+}
+
+.decision-followup-notice span {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .decision-section--supporting {
   background: var(--gray-50);
 }

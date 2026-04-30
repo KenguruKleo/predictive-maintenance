@@ -34,9 +34,9 @@ def test_qamanager_decision_promotes_followup_to_qamanager() -> None:
 
 
 def test_more_info_capacity_stops_at_configured_limit() -> None:
-    assert _can_run_more_info("more_info", 2, max_rounds=3) is True
-    assert _can_run_more_info("more_info", 3, max_rounds=3) is False
-    assert _can_run_more_info("approved", 0, max_rounds=3) is False
+    assert _can_run_more_info("more_info", 9, max_rounds=10) is True
+    assert _can_run_more_info("more_info", 10, max_rounds=10) is False
+    assert _can_run_more_info("approved", 0, max_rounds=10) is False
 
 
 def test_more_info_limit_notice_preserves_current_ai_result() -> None:
@@ -46,10 +46,10 @@ def test_more_info_limit_notice_preserves_current_ai_result() -> None:
             "risk_level": "critical",
             "operator_dialogue": "Previous answer.",
         },
-        max_rounds=3,
+        max_rounds=10,
     )
 
     assert notice["recommendation"] == "Inspect and recalibrate GR-204."
     assert notice["risk_level"] == "critical"
-    assert "More Info limit has been reached (3 rounds)" in notice["operator_dialogue"]
+    assert "More Info limit has been reached (10 rounds)" in notice["operator_dialogue"]
     assert "No additional AI analysis was run" in notice["analysis"]

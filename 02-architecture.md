@@ -795,7 +795,7 @@ PaaS: publicNetworkAccess = Disabled after PE activation
 - **Service Bus** `alert-queue`: DLQ after 3 auto-retries, at-least-once delivery, idempotency via `sourceAlertId`.
 - **Durable Functions** `RetryPolicy(max_number_of_attempts=3, first_retry_interval=5s)` with exponential backoff on all activities.
 - **Cosmos DB Serverless** — autoscale without manual provisioning; change-feed for materialized view on `status + createdAt`.
-- **`MAX_MORE_INFO_ROUNDS = 3`** — protection against an endless `more_info` loop.
+- **`MAX_MORE_INFO_ROUNDS = 10`** — protection against an endless `more_info` loop.
 - **24h HITL timeout** → Durable `create_timer` + race-pattern escalate to QA Manager.
 
 ### 17.5 Orchestrator Watchdog - Autodetection and Recovery

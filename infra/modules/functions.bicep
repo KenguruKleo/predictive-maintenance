@@ -134,7 +134,7 @@ resource functionApp 'Microsoft.Web/sites@2023-12-01' = {
         { name: 'AZURE_AI_SEARCH_CONNECTION_ID', value: foundrySearchConnectionId }
         // Azure SignalR (T-030)
         { name: 'AzureSignalRConnectionString', value: signalrConnectionString }
-        { name: 'MAX_MORE_INFO_ROUNDS', value: '3' }
+        { name: 'MAX_MORE_INFO_ROUNDS', value: '10' }
         { name: 'CONFIDENCE_THRESHOLD', value: '0.75' }
         // Agent IDs — populated after agents/create_agents.py runs
         { name: 'ORCHESTRATOR_AGENT_ID', value: orchestratorAgentId }

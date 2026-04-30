@@ -24,9 +24,15 @@ interface Props {
   /** Present only when the incident is pending and the user can edit */
   editableDrafts?: DraftState;
   onDraftChange?: (drafts: DraftState) => void;
+  isAwaitingFollowUp?: boolean;
 }
 
-export default function DecisionPackage({ incident, editableDrafts, onDraftChange }: Props) {
+export default function DecisionPackage({
+  incident,
+  editableDrafts,
+  onDraftChange,
+  isAwaitingFollowUp = false,
+}: Props) {
   const analysis = incident.ai_analysis;
   const parameter = getParameterSummary(incident);
   const citations = getAllCitations(analysis);
@@ -95,9 +101,18 @@ export default function DecisionPackage({ incident, editableDrafts, onDraftChang
         </div>
       </div>
 
+      {isAwaitingFollowUp && (
+        <div className="decision-followup-notice" role="status">
+          <strong>Follow-up in progress</strong>
+          <span>The recommendation below is the previous agent answer until the updated response arrives.</span>
+        </div>
+      )}
+
       {analysis && (
-        <div className="decision-section decision-section--primary">
-          <h3 className="section-title">AI Recommendation for this Incident</h3>
+        <div className={`decision-section decision-section--primary${isAwaitingFollowUp ? " decision-section--stale" : ""}`}>
+          <h3 className="section-title">
+            {isAwaitingFollowUp ? "Previous AI Recommendation" : "AI Recommendation for this Incident"}
+          </h3>
           {analysis.agent_recommendation && (
             <AgentRecommendationBadge
               recommendation={analysis.agent_recommendation}

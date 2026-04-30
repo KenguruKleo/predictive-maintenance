@@ -26,7 +26,7 @@ import azure.durable_functions as df
 
 logger = logging.getLogger(__name__)
 
-MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
+MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "10"))
 
 # Retry policy for run_foundry_agents: up to 5 attempts, 30s first interval.
 # Python SDK RetryOptions only supports first_retry_interval + max_number_of_attempts.

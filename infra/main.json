@@ -807,7 +807,7 @@
                     },
                     {
                       "name": "MAX_MORE_INFO_ROUNDS",
-                      "value": "3"
+                      "value": "10"
                     },
                     {
                       "name": "CONFIDENCE_THRESHOLD",

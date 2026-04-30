@@ -38,7 +38,7 @@ logger = logging.getLogger(__name__)
 
 VALID_ACTIONS = {"approved", "rejected", "more_info"}
 DB_NAME = os.getenv("COSMOS_DATABASE", "sentinel-intelligence")
-MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
+MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "10"))
 ALLOWED_ROLES = ["Operator", "QAManager"]
 
 WORKFLOW_ROLE_BY_APP_ROLE = {

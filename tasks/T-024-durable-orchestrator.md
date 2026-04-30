@@ -48,7 +48,7 @@ run_execution_agent.py # Foundry: Execution Agent (after approval)
 
 ```python
 # incident_orchestrator.py (pseudo-code)
-MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "3"))
+MAX_MORE_INFO_ROUNDS = int(os.getenv("MAX_MORE_INFO_ROUNDS", "10"))
 
 async def incident_orchestrator(context: df.DurableOrchestrationContext):
     input_data = context.get_input()  # { alert_payload, incident_id }

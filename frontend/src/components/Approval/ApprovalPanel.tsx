@@ -8,6 +8,12 @@ import AgentRecommendationBadge from "./AgentRecommendationBadge";
 import RejectModal from "./RejectModal";
 import AgentChat from "./AgentChat";
 import StatusBadge from "../IncidentList/StatusBadge";
+import {
+  type FollowUpRequest,
+  getLatestFollowUpRequest,
+  getPendingFollowUpState,
+  isIncidentFollowUpProcessing,
+} from "../../utils/followUp";
 
 interface Props {
   incident: Incident;
@@ -21,11 +27,16 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   const [questionComposerIncidentId, setQuestionComposerIncidentId] = useState<string | null>(null);
   const [questionDraft, setQuestionDraft] = useState("");
   const [followUpError, setFollowUpError] = useState<string | null>(null);
+  const [localFollowUpRequest, setLocalFollowUpRequest] = useState<FollowUpRequest | null>(null);
   const decision = useSubmitDecision(incident.id);
   const chatInputId = useId();
   const chatInputRef = useRef<HTMLTextAreaElement>(null);
   const decisionLockRef = useRef(false);
   const decisionSummary = getDecisionSummary(incident);
+  const pendingFollowUp = getPendingFollowUpState(incident, events);
+  const isFollowUpInFlight = pendingFollowUp.isPending;
+  const serverFollowUpRequest = getLatestFollowUpRequest(incident, events);
+  const followUpRequest = localFollowUpRequest ?? serverFollowUpRequest ?? undefined;
   const hasChatTranscript = events.some(
     (event) =>
       event.action === "operator_question" ||
@@ -35,9 +46,15 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   const isPending =
     incident.status === "pending_approval" ||
     incident.status === "escalated";
-  const isAwaitingAgents = incident.status === "awaiting_agents";
+  const hasLocalFollowUpRequest = localFollowUpRequest != null;
+  const canActOnDecision = isPending && !isFollowUpInFlight && !hasLocalFollowUpRequest;
+  const shouldShowFollowUpRequest =
+    !canActOnDecision &&
+    Boolean(followUpRequest) &&
+    (hasLocalFollowUpRequest || isFollowUpInFlight || isIncidentFollowUpProcessing(incident));
+  const isAwaitingAgents = incident.status === "awaiting_agents" || shouldShowFollowUpRequest;
   const shouldShowChat = isPending || isAwaitingAgents || hasChatTranscript;
-  const showQuestionComposer = questionComposerIncidentId === incident.id && isPending;
+  const showQuestionComposer = questionComposerIncidentId === incident.id && canActOnDecision;
 
   // Derive whether the operator overrode the agent's recommendation
   const agentRec = incident.ai_analysis?.agent_recommendation;
@@ -59,7 +76,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
     !isBlocked ||
     !!(draftState?.workOrder.description && draftState?.auditEntry.description);
   const isDecisionPending = decision.isPending;
-  const approveDisabled = isDecisionPending || (isPending && isBlocked && !draftsFilledEnough);
+  const approveDisabled = isDecisionPending || (canActOnDecision && isBlocked && !draftsFilledEnough);
 
   useEffect(() => {
     if (showQuestionComposer) {
@@ -87,9 +104,10 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
 
   const submitDecisionOnce = (
     payload: DecisionPayload,
-    options?: { onSuccess?: () => void; onError?: (error: unknown) => void },
+    options?: { onBeforeSubmit?: () => void; onSuccess?: () => void; onError?: (error: unknown) => void },
   ) => {
     if (!lockDecision()) return;
+    options?.onBeforeSubmit?.();
     decision.mutate(payload, {
       onSuccess: () => {
         options?.onSuccess?.();
@@ -121,16 +139,22 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
   };
 
   const handleAskAgent = (question: string) => {
+    const localRequest = { question, requestedAt: new Date().toISOString() };
     setFollowUpError(null);
     submitDecisionOnce(
       { action: "more_info", question },
       {
+        onBeforeSubmit: () => {
+          setLocalFollowUpRequest(localRequest);
+        },
         onSuccess: () => {
+          setLocalFollowUpRequest(null);
           setQuestionDraft("");
           setFollowUpError(null);
           setQuestionComposerIncidentId(null);
         },
         onError: (error) => {
+          setLocalFollowUpRequest(null);
           setFollowUpError(getApiErrorMessage(error));
         },
       },
@@ -142,12 +166,12 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
     setQuestionComposerIncidentId(incident.id);
   };
 
-  const panelTitle = isPending
+  const panelTitle = canActOnDecision
     ? "Decision required"
     : isAwaitingAgents
       ? "Awaiting agent response"
       : decisionSummary?.title ?? "Operator review complete";
-  const panelEyebrow = isPending
+  const panelEyebrow = canActOnDecision
     ? "Decision required"
     : isAwaitingAgents
       ? "Question submitted"
@@ -165,13 +189,13 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
       </div>
 
       {incident.ai_analysis && <ConfidenceBanner analysis={incident.ai_analysis} />}
-      {incident.ai_analysis?.agent_recommendation && isPending && (
+      {incident.ai_analysis?.agent_recommendation && canActOnDecision && (
         <AgentRecommendationBadge
           recommendation={incident.ai_analysis.agent_recommendation}
           rationale={incident.ai_analysis.agent_recommendation_rationale ?? incident.ai_analysis.recommendation}
         />
       )}
-      {incident.ai_analysis?.agent_recommendation && !isPending && !isAwaitingAgents && agentWasOverridden && (
+      {incident.ai_analysis?.agent_recommendation && !canActOnDecision && !isAwaitingAgents && agentWasOverridden && (
         <AgentRecommendationBadge
           recommendation={incident.ai_analysis.agent_recommendation}
           rationale={incident.ai_analysis.agent_recommendation_rationale ?? incident.ai_analysis.recommendation}
@@ -179,7 +203,26 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
         />
       )}
 
-      {decisionSummary && !isPending && !isAwaitingAgents && (
+      {shouldShowFollowUpRequest && (
+        <div className="approval-summary approval-summary--primary approval-summary--info">
+          <div className="approval-summary-block">
+            <span className="approval-summary-label">Follow-up requested</span>
+            <p className="approval-summary-value approval-summary-value--primary">
+              The AI agent is preparing an updated answer before this decision continues.
+            </p>
+          </div>
+          {followUpRequest?.question && (
+            <div className="approval-summary-columns">
+              <div className="approval-summary-block approval-summary-block--compact">
+                <span className="approval-summary-label">Question asked</span>
+                <p className="approval-summary-value">{followUpRequest.question}</p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {decisionSummary && !canActOnDecision && !isAwaitingAgents && (
         <div className={`approval-summary approval-summary--primary approval-summary--${decisionSummary.tone}`}>
           <div className="approval-summary-block">
             <span className="approval-summary-label">Decision outcome</span>
@@ -222,7 +265,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
         </div>
       )}
 
-      {isPending && canMakeDecision && (
+      {canActOnDecision && canMakeDecision && (
         <>
           {isBlocked && !draftsFilledEnough && (
             <p className="approval-blocked-hint">
@@ -261,7 +304,7 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
       {shouldShowChat && (
         <AgentChat
           events={events}
-          onSend={canMakeDecision && isPending && !isDecisionPending ? handleAskAgent : undefined}
+          onSend={canMakeDecision && canActOnDecision && !isDecisionPending ? handleAskAgent : undefined}
           draftMessage={questionDraft}
           onDraftChange={(value) => {
             setQuestionDraft(value);
@@ -270,14 +313,14 @@ export default function ApprovalPanel({ incident, events, canMakeDecision, draft
             }
           }}
           errorMessage={followUpError}
-          readOnly={!canMakeDecision || !isPending || isDecisionPending}
-          showComposer={canMakeDecision && isPending && showQuestionComposer && !isDecisionPending}
+          readOnly={!canMakeDecision || !canActOnDecision || isDecisionPending}
+          showComposer={canMakeDecision && canActOnDecision && showQuestionComposer && !isDecisionPending}
           title="Conversation transcript"
           emptyState={
-            isPending
-              ? "Ask the AI agent for more details before deciding."
-              : isAwaitingAgents
-                ? "Waiting for the AI agent response to the latest operator question."
+            isAwaitingAgents
+              ? "Waiting for the AI agent response to the latest operator question."
+              : isPending
+                ? "Ask the AI agent for more details before deciding."
                 : "No conversation has been recorded for this incident."
           }
           inputId={chatInputId}

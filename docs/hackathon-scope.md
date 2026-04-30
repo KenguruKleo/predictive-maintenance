@@ -104,7 +104,7 @@ All of the components described in [`02-architecture.md`](../02-architecture.md)
 - Service Bus DLQ + 3 auto-retries on `alert-queue`;
 - Durable Functions `RetryPolicy(max_number_of_attempts=3, first_retry_interval=5s)` with exponential backoff on all activities;
 - Cosmos DB Serverless autoscale;
-- `MAX_MORE_INFO_ROUNDS=3` — protection against an endless `more_info` cycle;
+- `MAX_MORE_INFO_ROUNDS=10` — protection against an endless `more_info` cycle;
 - 24h HITL timeout → auto-escalate path through Durable `create_timer`;
 - App Insights structured logging + exception tracking.
 

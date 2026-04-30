@@ -12,6 +12,7 @@ import ApprovalPanel from "../components/Approval/ApprovalPanel";
 import StatusBadge from "../components/IncidentList/StatusBadge";
 import ErrorBoundary from "../components/ErrorBoundary";
 import Breadcrumb from "../components/Layout/Breadcrumb";
+import { getPendingFollowUpState } from "../utils/followUp";
 import type { ParameterExcursion as ParamExcursion } from "../types/incident";
 import type { AuditEntryDraft, WorkOrderDraft } from "../types/approval";
 
@@ -72,6 +73,7 @@ export default function IncidentDetailPage() {
   );
 
   const showApproval = canSubmitDecision;
+  const pendingFollowUp = getPendingFollowUpState(incident, events);
 
   // Initialise draft state from AI analysis when user can approve (once only)
   const aiAnalysis = incident.ai_analysis;
@@ -93,10 +95,12 @@ export default function IncidentDetailPage() {
 
   const showReadonlyChat =
     !showApproval &&
-    events.some(
+    (pendingFollowUp.isPending || events.some(
       (e) =>
-        e.action === "operator_question" || e.action === "agent_response",
-    );
+        e.action === "operator_question" ||
+        e.action === "agent_response" ||
+        e.action === "more_info",
+    ));
   const showDecisionSummary =
     !showApproval &&
     Boolean(
@@ -179,6 +183,7 @@ export default function IncidentDetailPage() {
               incident={incident}
               editableDrafts={editableDrafts}
               onDraftChange={canSubmitDecision ? setDraftState : undefined}
+              isAwaitingFollowUp={pendingFollowUp.isPending}
             />
           </ErrorBoundary>
 
