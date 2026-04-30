@@ -9,6 +9,7 @@ import {
 } from "../authPopupBridge";
 import { clearTeamsAuthToken, setTeamsAuthToken } from "../teamsAuth";
 import {
+  authenticateWithTeamsPopup,
   getTeamsAuthErrorMessage,
   getTeamsSsoToken,
   initializeTeamsRuntime,
@@ -123,8 +124,33 @@ export default function LoginPage({ loginRequest }: LoginPageProps) {
 
     try {
       if (isTeamsHost) {
-        await openAppInBrowser();
-        setAuthError("Teams cannot complete the sandbox Microsoft popup inside this tenant. I opened Sentinel in the browser so you can sign in with the sandbox account there.");
+        const nonce = createNonce();
+        localStorage.removeItem(AUTH_POPUP_RESULT_KEY);
+
+        const popupUrl = `${popupRedirectUri}?start=1&prompt=select_account&teamsAuth=1&nonce=${encodeURIComponent(nonce)}`;
+        const rawResult = await authenticateWithTeamsPopup(popupUrl);
+        const result = parseAuthPopupResult(rawResult, nonce)
+          ?? parseAuthPopupResult(localStorage.getItem(AUTH_POPUP_RESULT_KEY), nonce);
+
+        if (!result) {
+          throw new Error("Microsoft sign-in completed, but Teams did not return a valid auth result.");
+        }
+
+        if (result.type === "error") {
+          throw new Error(result.error || "Microsoft sign-in failed.");
+        }
+
+        const accounts = instance.getAllAccounts();
+        const account = accounts.find(
+          (candidate) => candidate.homeAccountId === result.homeAccountId,
+        ) ?? accounts[0];
+
+        if (!account) {
+          throw new Error("Microsoft sign-in completed, but no account was found in the local session.");
+        }
+
+        instance.setActiveAccount(account);
+        window.location.reload();
         return;
       }
 
@@ -261,7 +287,7 @@ export default function LoginPage({ loginRequest }: LoginPageProps) {
                   onClick={handleMicrosoftFallbackLogin}
                   disabled={isSigningIn}
                 >
-                  {isTeamsHost ? "Open browser sign-in" : "Sign in with Microsoft account"}
+                  {isTeamsHost ? "Open popup sign-in" : "Sign in with Microsoft account"}
                 </button>
                 <button className="login-secondary-button" type="button" onClick={handleOpenInBrowser}>
                   Open in browser

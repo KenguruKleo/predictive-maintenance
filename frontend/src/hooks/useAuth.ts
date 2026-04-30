@@ -4,6 +4,7 @@ import { apiRequest } from "../authConfig";
 import type { AppRole } from "../authRuntime";
 import { clearE2EAuthState, getE2EAuthState, IS_E2E_AUTH } from "../authRuntime";
 import { clearTeamsAuthToken, useTeamsAuth } from "../teamsAuth";
+import { initializeTeamsRuntime, isLikelyTeamsHost } from "../teamsRuntime";
 
 export type { AppRole } from "../authRuntime";
 
@@ -106,11 +107,29 @@ export function useAuth() {
       window.location.reload();
       return;
     }
+
     if (teamsAuth.isAuthenticated) {
       clearTeamsAuthToken();
-      window.location.reload();
+      void instance.clearCache().finally(() => {
+        window.location.reload();
+      });
       return;
     }
+
+    if (isLikelyTeamsHost()) {
+      void initializeTeamsRuntime().then((runtime) => {
+        if (runtime.isTeams) {
+          clearTeamsAuthToken();
+          return instance.clearCache().finally(() => {
+            window.location.reload();
+          });
+        }
+
+        return instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
+      });
+      return;
+    }
+
     instance.logoutRedirect({ postLogoutRedirectUri: window.location.origin });
   };
 
