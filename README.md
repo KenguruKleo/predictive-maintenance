@@ -116,6 +116,63 @@ The Electron build serves the packaged React app from `http://localhost:5173` so
 
 GitHub Actions workflow [electron-macos.yml](./.github/workflows/electron-macos.yml) builds the macOS app only when a Git tag matching `release-*` is pushed, for example `release-0.3.3`. The release workflows now validate that the tag version matches both `frontend/package.json` and `teamsapp/manifest.json` before uploading the desktop and Teams artifacts to the matching GitHub Release.
 
+## Test Coverage Reports
+
+Use these commands when you need separate frontend and backend coverage screenshots for the demo or documentation.
+
+### Frontend coverage
+
+```bash
+cd frontend
+npm install
+npm run test:unit:coverage
+open coverage/index.html
+```
+
+What this generates:
+
+- terminal summary for frontend unit-test coverage
+- HTML report at `frontend/coverage/index.html`
+
+If you want a full per-file table in the terminal instead of the compact summary:
+
+```bash
+cd frontend
+npm run test:unit -- --coverage --coverage.reporter=text --coverage.reporter=html
+```
+
+### Backend coverage
+
+```bash
+python -m pip install -r requirements-dev.txt
+python -m pytest tests/ --cov=backend --cov-report=term --cov-report=html
+open htmlcov/index.html
+```
+
+What this generates:
+
+- terminal table with backend coverage by file and `TOTAL`
+- HTML report at `htmlcov/index.html`
+
+If you want the backend coverage to include the Python agent package as well:
+
+```bash
+python -m pytest tests/ --cov=backend --cov=agents --cov-report=term --cov-report=html
+```
+
+### Fast pass/fail only
+
+If you only need proof that tests pass, without coverage percentages:
+
+```bash
+cd frontend
+npm run test:unit
+```
+
+```bash
+python -m pytest tests/ -q
+```
+
 ## Project Documents
 
 | | File | Contents |

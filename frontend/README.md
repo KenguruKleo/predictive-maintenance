@@ -58,6 +58,24 @@ Optional proxy override:
 SENTINEL_LOCAL_API_URL=http://127.0.0.1:7071 npm run dev:e2e
 ```
 
+## Unit Test Coverage
+
+Run the frontend unit-test coverage report with:
+
+```bash
+npm install
+npm run test:unit:coverage
+open coverage/index.html
+```
+
+This prints a compact terminal summary and also writes an HTML report to `frontend/coverage/index.html`.
+
+If you want the full per-file table in the terminal for screenshots, run:
+
+```bash
+npm run test:unit -- --coverage --coverage.reporter=text --coverage.reporter=html
+```
+
 ---
 
 ## React + TypeScript + Vite
