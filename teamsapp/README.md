@@ -4,21 +4,21 @@ This folder contains the Microsoft Teams app package for bringing Sentinel Intel
 
 ## Package
 
-- App package: `dist/sentinel-intelligence-teams.zip`
+- App package: `dist/sentinel-intelligence-teams-<version>.zip`
 - Manifest: `manifest.json`
 - Hosted Teams landing page: `frontend/public/teams.html`
 - Tab URL: `https://calm-flower-0a6d7f90f.7.azurestaticapps.net/teams.html`
 
 The zip contains only `manifest.json`, `color.png`, and `outline.png`. Teams does not host the app UI; it loads the HTTPS URL from the manifest.
 
-For tagged releases, GitHub Actions now builds this package in a separate workflow on every `release-*` tag and uploads `sentinel-intelligence-teams.zip` to the matching GitHub Release assets.
+For tagged releases, GitHub Actions now builds this package in a separate workflow on every `release-*` tag, validates that the tag version matches both `teamsapp/manifest.json` and `frontend/package.json`, and uploads `sentinel-intelligence-teams-<version>.zip` to the matching GitHub Release assets.
 
 ## Install In Teams
 
 1. Open Microsoft Teams.
 2. Go to **Apps** > **Manage your apps**.
 3. Select **Upload an app** > **Upload a custom app**.
-4. Select `teamsapp/dist/sentinel-intelligence-teams.zip`.
+4. Select `teamsapp/dist/sentinel-intelligence-teams-<version>.zip`.
 5. Select **Add**, then **Open**.
 
 Custom app upload must be enabled by the tenant Teams policy.
@@ -70,7 +70,8 @@ If Teams shows a blank frame or a refused-to-connect message, confirm that the d
 node teamsapp/scripts/generate-icons.mjs
 cd teamsapp
 mkdir -p dist
-zip -j dist/sentinel-intelligence-teams.zip manifest.json color.png outline.png
+VERSION=0.3.3
+zip -j "dist/sentinel-intelligence-teams-${VERSION}.zip" manifest.json color.png outline.png
 ```
 
 If you change `manifest.json`, increment `version` before re-uploading the package.

@@ -114,7 +114,7 @@ npm run electron:dist:mac
 
 The Electron build serves the packaged React app from `http://localhost:5173` so the same Entra redirect URI works in dev and packaged macOS builds. Quit any existing Vite/Electron process using port `5173` before running a packaged desktop smoke test. The macOS package is currently unsigned; Gatekeeper may require right-click → Open until a Developer ID certificate/notarization step is added.
 
-GitHub Actions workflow [electron-macos.yml](./.github/workflows/electron-macos.yml) builds the macOS app only when a Git tag matching `release-*` is pushed, for example `release-0.1.0`. Every successful run uploads DMG/ZIP files as workflow artifacts and attaches the same files to the GitHub Release for that tag.
+GitHub Actions workflow [electron-macos.yml](./.github/workflows/electron-macos.yml) builds the macOS app only when a Git tag matching `release-*` is pushed, for example `release-0.3.3`. The release workflows now validate that the tag version matches both `frontend/package.json` and `teamsapp/manifest.json` before uploading the desktop and Teams artifacts to the matching GitHub Release.
 
 ## Project Documents
 

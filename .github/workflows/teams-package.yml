@@ -28,6 +28,23 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Validate release version
+        id: release_version
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#release-}"
+          frontend_version=$(node -p "require('./frontend/package.json').version")
+          teams_version=$(node -p "require('./teamsapp/manifest.json').version")
+          if [ "$frontend_version" != "$version" ]; then
+            echo "frontend/package.json version ($frontend_version) does not match tag version ($version)"
+            exit 1
+          fi
+          if [ "$teams_version" != "$version" ]; then
+            echo "teamsapp/manifest.json version ($teams_version) does not match tag version ($version)"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
       - name: Generate Teams app icons
         run: node teamsapp/scripts/generate-icons.mjs
 
@@ -47,7 +64,7 @@ jobs:
           set -euo pipefail
           mkdir -p teamsapp/dist
           cd teamsapp
-          zip -j dist/sentinel-intelligence-teams.zip manifest.json color.png outline.png
+          zip -j "dist/sentinel-intelligence-teams-${{ steps.release_version.outputs.version }}.zip" manifest.json color.png outline.png
 
       - name: List Teams app artifact
         run: ls -lh teamsapp/dist
@@ -56,7 +73,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: sentinel-intelligence-teams-${{ github.sha }}
-          path: teamsapp/dist/sentinel-intelligence-teams.zip
+          path: teamsapp/dist/sentinel-intelligence-teams-${{ steps.release_version.outputs.version }}.zip
           if-no-files-found: error
           retention-days: 14
 
@@ -71,4 +88,4 @@ jobs:
             gh release create "$tag" --title "$tag" --notes "Sentinel Intelligence release artifacts." \
               || gh release view "$tag" >/dev/null 2>&1
           fi
-          gh release upload "$tag" teamsapp/dist/sentinel-intelligence-teams.zip --clobber
+          gh release upload "$tag" teamsapp/dist/sentinel-intelligence-teams-${{ steps.release_version.outputs.version }}.zip --clobber
