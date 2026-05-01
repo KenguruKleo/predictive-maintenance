@@ -56,11 +56,21 @@ KPI + three-state confidence gate differentiator + GxP audit trail
                + controlled tool invocation: write-side QMS/CMMS actions execute only after human approval
                + closing
 
-[07:15–07:45]  OPTIONAL ADD-ON — DESKTOP OPERATIONS SURFACE
-               Show the Electron app running on the desktop
+[07:15–07:30]  QUALITY + PROTECTION
+               Show GitHub Actions CI with frontend and backend test jobs before deploy
+               Show operator follow-up and document safety guardrails blocking a sensitive request
+               Why this matters: we protect both release quality and the AI interaction surface
+
+[07:30–07:45]  NATIVE DESKTOP APP
+               Show the Electron app running as a native app
+               Same codebase for macOS, Windows, and Linux
                Native unread badge + OS notification from a new incident
-               Why this matters: production operators need more than a web tab
-               Future extension: Teams / collaboration notification channel
+               Why this matters: enterprise operators do not always want to work through a browser tab
+
+[07:45–08:00]  MICROSOFT TEAMS INTEGRATION
+               Show Sentinel Intelligence opened inside Microsoft Teams
+               Full application surface available as a Teams app tab
+               Why this matters: users can stay inside the Microsoft collaboration workspace they already use
 ```
 
 ---
@@ -76,9 +86,10 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 - **Closed-loop actionability** — decision package shows batch disposition, CAPA actions, work order draft and audit entry draft even before the execution step
 - **Post-approval execution visibility** — after Approve the CAPA plan goes into execution: the system creates a work order task and an audit record, and this transition is visible both in the incident itself and in the **Workflow Pipeline** on the main screen
 - **Controlled tool invocation** — before approval the AI only prepares drafts; write-side QMS/CMMS actions are executed only after explicit human approval in the backend path. This gives us a clean bridge to the future prompt/tool protection story
+- **Quality + protection guardrails** — GitHub Actions runs frontend and backend tests before deployment, while operator follow-up and document safety guardrails block sensitive or prompt-injection-like requests before they enter the AI loop
 - **RBAC** — different roles are seen by different surfaces: Operator, QA Manager, Auditor, IT Admin
 - **Three-state confidence gate** — NORMAL / LOW_CONFIDENCE (banner + mandatory comment) / BLOCKED (empty forms + manual fill)
-- **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views, plus Electron native badge/OS notifications for desktop operators
+- **Real-time UX** — notification bell, unread state, escalation queue, consistent status colors across views, plus the same codebase packaged through Electron into a native desktop app with OS notifications
 - **Long-running autonomy** — workflow can wait 24h or more without losing state, with escalation to QA
 - **Traceability & observability** — status history, telemetry page, audit export, incident timeline, AI recommendations in CSV
 - **Operational oversight** — manager surfaces show AI recommendation, AI confidence, response time, human override, agreement rate KPI
@@ -144,11 +155,13 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 - **Workflow Pipeline** widget on the dashboard — shows both AI stages and the post-approval `Execution` stage
 - Consistent status color language across dashboard, sidebar, badges, queue, and timeline
 - Command palette (`Cmd+K`) with role-aware navigation
-- **Electron desktop app** — same operator console as a multi-platform desktop app with native unread badge and OS notifications for production-floor monitoring
+- **Electron desktop app** — the same codebase is packaged through Electron into a native desktop app for macOS, Windows, and Linux, with native unread badge and OS notifications for production-floor monitoring
+- **Microsoft Teams app surface** — the full Sentinel Intelligence application is also available inside Microsoft Teams as a dedicated app/tab, so operators and QA can stay in the same collaboration workspace
 
 ### Optional backup only
 
-- Electron desktop add-on: native unread badge + OS notification
+- Electron desktop app: same codebase, native unread badge + OS notification
+- Microsoft Teams app/tab demo
 - Command palette demo
 - Template editor deep dive
 - E2E preview role switch
@@ -250,16 +263,23 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 - If there is a prepared transcript, in the happy path show `Need More Info` loop as already recorded conversation, not live typing
 - For manager beat, show `AiVsHumanBadge` — where ✅ (operator agreed) and ⚠️ (operator override AI). Better to have a mix of both in Recent Decisions
 - For admin beat, target the incident with telemetry summary where there are `Prompt Tokens`, `Completion Tokens`, `Total Tokens`
-- Optional only: Electron desktop notification beat after 07:15. Do not make it critical for the final cut
+- Desktop notification beat starts at 07:30. Prepare it as a real recorded segment, not just a backup.
+- Teams beat starts at 07:45. Prepare one clean shot with the full app opened inside Teams, not only a landing page.
 
 ---
 
-## Optional desktop / notification beat
+## Desktop / notification beat
 
-- If the final cut has room after 07:15, show the Electron desktop app rather than a browser-only popup.
+- At 07:30, show the Electron desktop app rather than a browser-only popup.
 - Trigger a fresh incident and show the native unread badge / OS notification beside the in-app bell.
-- Position it as a production-readiness point: real operators often need a desktop surface that survives normal work habits, minimized windows, and shift-floor monitoring.
-- Mention this can be extended later to Teams or another collaboration notification channel.
+- Position it as an enterprise usability point: real operators often need a desktop surface that survives normal work habits, minimized windows, and shift-floor monitoring.
+- Say explicitly that the same codebase is reused through Electron for macOS, Windows, and Linux.
+
+## Teams beat
+
+- At 07:45, show Sentinel Intelligence opened directly inside Microsoft Teams.
+- Position it as a Microsoft ecosystem advantage: the full app is available inside Teams, so users do not need to leave their collaboration workspace.
+- Say explicitly that this is not only a notification bridge or a link, but the full application surface embedded into Teams.
 
 ---
 
@@ -305,7 +325,9 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 | **06:30–06:50** | KPI slide: before/after numbers + three-state confidence gate summary. | "The result is a faster, more consistent, and fully traceable way to handle deviations in regulated manufacturing. And the three-state confidence gate — normal, low confidence, and blocked — keeps the system from sounding certain when it is not grounded." |
 | **06:50–07:05** | Closing product screenshot or KPI slide. | "Instead of chasing documents, context, and approvals by hand, operators get a decision package in minutes, with evidence, actions, and next steps already laid out." |
 | **07:05–07:15** | Final branded closing frame. | "This is Sentinel Intelligence, built to support governed pharma operations at scale." |
-| **07:45–08:15** | Optional add-on block: show the Electron desktop app on macOS/Windows-style desktop, native unread badge, OS notification, and one final technical epilogue card. | "And this is not only a web dashboard. For real production floors, operators should not depend on keeping a browser tab visible. Sentinel Intelligence also runs as a multi-platform desktop app, using the same governed workflow but adding native unread badges and operating-system notifications. We now also keep a frontend unit-test baseline in CI, so every pull request must pass the web test layer before merge, and the next testing slice is deeper backend coverage. As a final engineering note, we also optimized the platform behind the scenes: when the AI concurrency limit is reached, incidents wait safely in a queue instead of failing, and during testing we reduced prompt footprint from about 14.7 kilobytes to 6.1 kilobytes, while the runtime orchestrator prompt dropped from roughly 6.0 thousand characters to 1.8 thousand. The same channel can later be extended to collaboration surfaces like Microsoft Teams." |
+| **07:15–07:30** | Quality + protection block: show GitHub Actions with frontend tests, backend tests, and deploy gating, then show a screen recording where the operator follow-up request is rejected as sensitive/off-scope. | "We protect application quality with automated frontend and backend tests. We also protect the AI workflow with operator follow-up and document safety guardrails. The request is blocked before it enters the AI loop." |
+| **07:30–07:45** | Native desktop app block: show the Electron app on macOS or Windows desktop, trigger a fresh incident, and show the native unread badge and OS notification. | "We understand that in enterprise operations it is not always convenient to work through a browser. So we use the same codebase with Electron to build a native app for macOS, Windows, and Linux. It keeps the same governed workflow, but now it can also use system notifications to reach the operator immediately." |
+| **07:45–08:00** | Microsoft Teams block: show Sentinel Intelligence opened inside Teams as a full app tab. | "And this is still not all. Because we work in the Microsoft ecosystem, we also integrated Sentinel Intelligence directly into Microsoft Teams. The full application is available there as well, so operators and QA can stay inside the collaboration workspace they already use every day." |
 
 ### Delivery notes
 
@@ -315,11 +337,13 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 - **Execution beat (03:15–03:35)** — after Approve, linger on the incident timeline / status history so that the creation of the work order task and audit record can be seen, then briefly return to the dashboard and show the incident in the Workflow Pipeline `Execution`
 - **BLOCKED beat (03:50–04:15)** — `INC-2026-0010` should be in a state where Approve is disabled. Showing the moment when the operator fills in one field and Approve becomes enabled is a drama moment
 - **Infinite scroll beat (05:00–05:15)** — make sure there are 20+ entries in Recent Decisions. Scroll slowly so judges can see seamless dynamic loading without pagination
+- **Quality + protection beat (07:15–07:30)** — show the GitHub Actions run with frontend and backend tests, then show one blocked operator follow-up question so judges can clearly see that sensitive/off-scope prompts do not enter the AI loop
 - `operator_agrees_with_agent` flag is recorded at Approve and Reject. `AiVsHumanBadge` shows this result. If there is time, show the reject path where the badge becomes ⚠️
 - **Reject beat** — use `INC-2026-0042`; linger on `AI Recommendation (Operator Override)` and `Closure Reason` so that the judges have time to read exactly what the AI ​​proposed and why the operator rejected the decision
 - On the architecture slide, make a step-by-step reveal in 3 steps: orchestration → services → feedback loop
 - If the approval click breaks the pacing, you can show the available actions and the audit timeline with a separate cut instead of the live click
-- **Desktop add-on beat (after 07:15)** — optional if final timing allows. Show it after the main close as "one more production-ready surface", not in the critical path. The point is not Electron as technology; the point is native operator attention: taskbar/Dock badge, OS notification, CI-guarded frontend test coverage, and future Teams/collaboration extension.
+- **Native desktop beat (07:30–07:45)** — show it right after the quality/protection block. The point is not Electron as technology; the point is enterprise usability: same codebase, native app on macOS/Windows/Linux, taskbar/Dock badge, and OS notification.
+- **Teams beat (07:45–08:00)** — show the full app inside Microsoft Teams. The point is not just messaging; it is full app integration into the Microsoft collaboration environment.
 
 ---
 
@@ -339,7 +363,8 @@ KPI + three-state confidence gate differentiator + GxP audit trail
 - [ ] Reject path shown clearly: preserved AI recommendation + explicit closure reason / override rationale
 - [ ] **Infinite scroll** in Recent Decisions is shown (scroll → spinner → new lines) (T-043)
 - [ ] Live demo recorded clean segments for editing
-- [ ] Optional Electron desktop add-on recorded if the final cut has spare time: native badge/notification visible after a new incident
+- [ ] Native desktop app segment recorded: same codebase on Electron + system notification visible after a new incident
+- [ ] Microsoft Teams segment recorded: full Sentinel Intelligence app visible inside Teams
 - [ ] The video is assembled into a single file
 - [ ] Subtitles added and checked
 - [ ] Duration ≤ 10:10
